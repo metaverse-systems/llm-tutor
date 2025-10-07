@@ -17,11 +17,11 @@
 - [x] T009 [P] Add shared schema unit tests `packages/shared/src/diagnostics/__tests__/snapshots.spec.ts` validating Zod schemas against known payload fixtures.
 
 ## Phase 3.3: Core Domain & Services (Implement after tests exist)
-- [ ] T010 Implement shared diagnostics domain models & Zod schemas in `packages/shared/src/diagnostics/index.ts`, exporting types for snapshots, accessibility preferences, and process events.
-- [ ] T011 [P] Provide builder/serializer utilities in `packages/shared/src/diagnostics/factories.ts` for tests and serialization.
-- [ ] T012 Implement diagnostics snapshot builder service in `apps/backend/src/services/diagnostics/snapshot.service.ts`, collecting process stats, disk usage, and llama.cpp probe status.
-- [ ] T013 Create retention + disk warning scheduler in `apps/backend/src/infra/logging/retention.ts`, pruning JSONL files beyond 30 days and triggering 500 MB warnings via IPC.
-- [ ] T014 Wire Fastify routes in `apps/backend/src/api/diagnostics/routes.ts` for summary (GET) and refresh (POST) using shared models and services.
+- [x] T010 Implement shared diagnostics domain models & Zod schemas in `packages/shared/src/diagnostics/index.ts`, exporting types for snapshots, accessibility preferences, and process events.
+- [x] T011 [P] Provide builder/serializer utilities in `packages/shared/src/diagnostics/factories.ts` for tests and serialization.
+- [x] T012 Implement diagnostics snapshot builder service in `apps/backend/src/services/diagnostics/snapshot.service.ts`, collecting process stats, disk usage, and llama.cpp probe status.
+- [x] T013 Create retention + disk warning scheduler in `apps/backend/src/infra/logging/retention.ts`, pruning JSONL files beyond 30 days and triggering 500 MB warnings via IPC.
+- [x] T014 Wire Fastify routes in `apps/backend/src/api/diagnostics/routes.ts` for summary (GET) and refresh (POST) using shared models and services.
 
 ## Phase 3.4: Desktop Shell & IPC
 - [ ] T015 Build Electron main diagnostics manager in `apps/desktop/src/main/diagnostics/index.ts` orchestrating backend-child lifecycle, crash dialogs, and retention warnings.

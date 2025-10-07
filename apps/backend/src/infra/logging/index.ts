@@ -1,2 +1,10 @@
-// Logging infrastructure placeholder for diagnostics retention/export utilities
-export const diagnosticsLoggingPlaceholder = true;
+export {
+	enforceDiagnosticsRetention
+} from "./retention";
+
+export type {
+	DiagnosticsRetentionConfig,
+	DiagnosticsRetentionOptions,
+	DiagnosticsRetentionResult,
+	DiagnosticsSnapshotFile
+} from "./retention";
