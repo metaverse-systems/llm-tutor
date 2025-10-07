@@ -24,9 +24,9 @@
 - [x] T014 Wire Fastify routes in `apps/backend/src/api/diagnostics/routes.ts` for summary (GET) and refresh (POST) using shared models and services.
 
 ## Phase 3.4: Desktop Shell & IPC
-- [ ] T015 Build Electron main diagnostics manager in `apps/desktop/src/main/diagnostics/index.ts` orchestrating backend-child lifecycle, crash dialogs, and retention warnings.
-- [ ] T016 [P] Implement preload bridge `apps/desktop/src/preload/diagnostics.ts` exposing typed IPC channels for renderer requests/responses.
-- [ ] T017 [P] Add renderer-to-main IPC wiring in `apps/desktop/src/ipc/diagnostics.ts`, routing requests to backend and emitting log export events.
+- [x] T015 Build Electron main diagnostics manager in `apps/desktop/src/main/diagnostics/index.ts` orchestrating backend-child lifecycle, crash dialogs, and retention warnings.
+- [x] T016 [P] Implement preload bridge `apps/desktop/src/preload/diagnostics.ts` exposing typed IPC channels for renderer requests/responses.
+- [x] T017 [P] Add renderer-to-main IPC wiring in `apps/desktop/src/ipc/diagnostics.ts`, routing requests to backend and emitting log export events.
 
 ## Phase 3.5: Renderer Experience
 - [ ] T018 Compose landing page scaffold in `apps/frontend/src/pages/landing/index.tsx` rendering diagnostics overview, export CTA, and accessibility toggles.
