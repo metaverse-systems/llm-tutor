@@ -15,6 +15,24 @@ let mainWindow: BrowserWindow | null = null;
 let diagnosticsManager: DiagnosticsManager | null = null;
 let diagnosticsIpc: DiagnosticsIpcRegistration | null = null;
 
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  process.exit(0);
+}
+
+app.on("second-instance", () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+    diagnosticsIpc?.emitInitialState();
+    return;
+  }
+
+  createWindow();
+});
+
 interface WindowOpenDetails {
   url: string;
 }
