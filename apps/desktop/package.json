@@ -1,0 +1,60 @@
+{
+  "name": "@metaverse-systems/llm-tutor-desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Electron shell for the LLM Tutor application",
+  "type": "commonjs",
+  "main": "dist/main.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "dev": "concurrently -k -n FRONTEND,BACKEND,BUNDLER,ELECTRON \"npm:dev:frontend\" \"npm:dev:backend\" \"npm run build:watch\" \"npm run start:electron\"",
+    "dev:frontend": "npm run dev --workspace @metaverse-systems/llm-tutor-frontend",
+    "dev:backend": "npm run dev --workspace @metaverse-systems/llm-tutor-backend",
+    "start:electron": "wait-on tcp:5173 && nodemon --watch dist --exec \"cross-env ELECTRON_RENDERER_URL=http://localhost:5173 ELECTRON_DISABLE_SECURITY_WARNINGS=true electron .\"",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "vitest run",
+    "package": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^32.1.0",
+    "electron-builder": "^25.0.5",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "nodemon": "^3.1.7",
+    "tsup": "^8.2.4",
+    "typescript": "^5.4.5",
+    "vitest": "^3.2.4",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.metaverse.llmtutor",
+    "productName": "LLM Tutor",
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist",
+        "to": "backend"
+      },
+      {
+        "from": "../frontend/dist",
+        "to": "renderer"
+      }
+    ]
+  }
+}

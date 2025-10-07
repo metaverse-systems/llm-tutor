@@ -10,6 +10,7 @@
     "packages/*"
   ],
   "scripts": {
+    "dev:desktop": "npm run dev --workspace @metaverse-systems/llm-tutor-desktop",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces",

@@ -24,7 +24,8 @@ An MIT-licensed, self-hostable tutoring platform that uses large language models
 llm-tutor/
 ├── apps/
 │   ├── backend/           # Node.js/TypeScript API, orchestration, data access
-│   └── frontend/          # Accessible web UI for learners
+│   ├── frontend/          # Accessible web UI for learners
+│   └── desktop/           # Electron shell bundling backend + frontend for installers
 ├── packages/
 │   └── shared/            # Reusable domain models, schema definitions, utilities
 ├── tests/
@@ -43,6 +44,7 @@ llm-tutor/
 - npm
 - llama.cpp
 - Optional: Access to an Azure AI Foundry deployment if you plan to use remote inference
+- Optional (for packaging): platform-specific build tooling for Electron (`xcode-select --install` on macOS, `build-essential` on Linux, Visual Studio Build Tools on Windows)
 
 ### Installation
 
@@ -53,6 +55,29 @@ cd llm-tutor
 
 # Install dependencies (placeholder until packages are defined)
 npm install
+```
+
+### Desktop shell (Electron)
+
+Run the desktop experience alongside the backend and frontend dev servers:
+
+```bash
+npm run dev --workspace @metaverse-systems/llm-tutor-desktop
+```
+
+This script:
+
+- launches Vite for the renderer UI,
+- starts the backend in development mode,
+- watches the Electron main/preload TypeScript sources, and
+- opens an Electron window pointed at the Vite dev server.
+
+Build the desktop application for distribution (after running frontend/backend builds):
+
+```bash
+npm run build --workspace @metaverse-systems/llm-tutor-frontend
+npm run build --workspace @metaverse-systems/llm-tutor-backend
+npm run package --workspace @metaverse-systems/llm-tutor-desktop
 ```
 
 ### Local LLM Runtime Expectations
