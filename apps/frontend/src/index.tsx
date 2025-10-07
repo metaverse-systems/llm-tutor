@@ -1,7 +1,6 @@
-// @ts-nocheck - Placeholder bootstrap until dependencies are installed
+import { describeProject } from "@metaverse-systems/llm-tutor-shared";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { describeProject } from "@metaverse-systems/llm-tutor-shared";
 
 const rootElement = document.getElementById("root");
 

@@ -1,8 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { fork } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
+import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import url from "node:url";
-import { ChildProcess, fork } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const rendererDevServerUrl = process.env.ELECTRON_RENDERER_URL;
@@ -133,7 +134,7 @@ function stopBackend(): void {
 }
 
 function registerDiagnosticsChannel(): void {
-  ipcMain.handle("diagnostics:snapshot", async () => {
+  ipcMain.handle("diagnostics:snapshot", () => {
     return {
       isDev,
       backendRunning: Boolean(backendProcess && !backendProcess.killed),
@@ -144,18 +145,25 @@ function registerDiagnosticsChannel(): void {
   });
 }
 
-app.whenReady().then(() => {
-  ensureAppDataFolder();
-  registerDiagnosticsChannel();
-  startBackend();
-  createWindow();
+void app
+  .whenReady()
+  .then(() => {
+    ensureAppDataFolder();
+    registerDiagnosticsChannel();
+    startBackend();
+    createWindow();
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  })
+  .catch((error) => {
+    console.error("Failed to initialize Electron app", error);
+    dialog.showErrorBox("LLM Tutor", "Unable to start the desktop shell. Check the logs for details.");
+    app.quit();
   });
-});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
