@@ -54,8 +54,13 @@ modular, and remain deployable on consumer-grade hardware without GPU requiremen
 ## Technical Standards & Constraints
 
 - **Architecture**: Web application with a TypeScript/Node.js backend and an accessible web
-  frontend. Services MUST expose clear module boundaries for curriculum planning,
-  tutoring, assessment, analytics, and model orchestration.
+  frontend, packaged for non-technical learners via an Electron desktop shell. Services MUST
+  expose clear module boundaries for curriculum planning, tutoring, assessment, analytics,
+  and model orchestration.
+- **Desktop Distribution**: The Electron shell MUST bundle the backend, frontend, and runtime
+  dependencies into an installable application that defaults to offline operation. The shell
+  MUST preserve the same accessibility guarantees as the browser experience, provide auto-
+  update hooks that can be disabled, and expose diagnostics for local LLM connectivity.
 - **LLM Backends**: Support llama.cpp as the baseline local runtime; Azure AI Foundry or
   other hosted endpoints are OPTIONAL add-ons behind explicit consent toggles and feature
   flags.
