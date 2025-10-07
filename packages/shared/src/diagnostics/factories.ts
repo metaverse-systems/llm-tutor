@@ -8,7 +8,7 @@ import {
   AccessibilityPreferencePayload,
   serializeDiagnosticsSnapshot,
   serializeAccessibilityPreference
-} from "./index";
+} from "./index.js";
 
 export type AccessibilityPreferenceOverrides = Partial<AccessibilityPreference>;
 

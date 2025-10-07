@@ -1,5 +1,5 @@
-export * from "./diagnostics";
-export * from "./diagnostics/factories";
+export * from "./diagnostics/index.js";
+export * from "./diagnostics/factories.js";
 
 export interface ProjectSummary {
   name: string;
