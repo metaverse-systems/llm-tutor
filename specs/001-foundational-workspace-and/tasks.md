@@ -10,11 +10,11 @@
 - [x] T004 [P] Add project-wide `.env.example` entries for diagnostics storage paths and log retention thresholds; sync defaults in `apps/backend/src/config/`.
 
 ## Phase 3.2: Tests First (All must fail initially)
-- [ ] T005 Flesh out contract coverage in `apps/backend/tests/contract/diagnostics.contract.test.ts` for `GET /internal/diagnostics/summary` (happy/empty/error cases) and `POST /internal/diagnostics/refresh` (success + offline guard).
-- [ ] T006 [P] Author renderer accessibility regression in `apps/frontend/tests/accessibility/diagnostics.spec.ts` validating keyboard order, high-contrast toggle, and reduced-motion preference.
-- [ ] T007 [P] Add Electron smoke + export test `tests/e2e/diagnostics/export.spec.ts` ensuring snapshot export dialog appears and JSONL file saves locally.
-- [ ] T008 [P] Create backend integration test `apps/backend/tests/integration/diagnostics-retention.test.ts` covering log pruning at 30 days and 500 MB warning emission.
-- [ ] T009 [P] Add shared schema unit tests `packages/shared/src/diagnostics/__tests__/snapshots.spec.ts` validating Zod schemas against known payload fixtures.
+- [x] T005 Flesh out contract coverage in `apps/backend/tests/contract/diagnostics.contract.test.ts` for `GET /internal/diagnostics/summary` (happy/empty/error cases) and `POST /internal/diagnostics/refresh` (success + offline guard).
+- [x] T006 [P] Author renderer accessibility regression in `apps/frontend/tests/accessibility/diagnostics.spec.ts` validating keyboard order, high-contrast toggle, and reduced-motion preference.
+- [x] T007 [P] Add Electron smoke + export test `tests/e2e/diagnostics/export.spec.ts` ensuring snapshot export dialog appears and JSONL file saves locally.
+- [x] T008 [P] Create backend integration test `apps/backend/tests/integration/diagnostics-retention.test.ts` covering log pruning at 30 days and 500 MB warning emission.
+- [x] T009 [P] Add shared schema unit tests `packages/shared/src/diagnostics/__tests__/snapshots.spec.ts` validating Zod schemas against known payload fixtures.
 
 ## Phase 3.3: Core Domain & Services (Implement after tests exist)
 - [ ] T010 Implement shared diagnostics domain models & Zod schemas in `packages/shared/src/diagnostics/index.ts`, exporting types for snapshots, accessibility preferences, and process events.
@@ -67,7 +67,7 @@
 - Validation phase: T026 [P], T027, and T028 may run concurrently after integration completes.
 
 ## Validation Checklist
-- [ ] All contract, integration, accessibility, and smoke tests exist and initially failed.
+- [x] All contract, integration, accessibility, and smoke tests exist and initially failed.
 - [ ] Implementation tasks trace directly to shared models, backend routes, IPC bridges, and renderer UI.
 - [ ] Parallel `[P]` tasks edit disjoint files to avoid conflicts.
 - [ ] Documentation updated alongside code (runbook, release notes, testing log).
