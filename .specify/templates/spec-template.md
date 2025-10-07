@@ -37,6 +37,19 @@
 - **Optional sections**: Include only when relevant to the feature
 - When a section doesn't apply, remove it entirely (don't leave as "N/A")
 
+### Constitutional Anchors
+- **Learner-First Accessibility**: Capture accessibility outcomes (WCAG 2.1 AA coverage,
+   keyboard support, high contrast, reduced motion) for each user story.
+- **Curriculum Integrity & Assessment**: Describe how curricula, quizzes, and feedback
+   loops satisfy objectives and mastery checks.
+- **Local-First Privacy & Data Stewardship**: Specify what data remains local, when remote
+   LLM calls are allowed, and required opt-in disclosures.
+- **Transparent & Controllable AI Operations**: Note auditing, prompt inspection, and
+   fallback expectations for AI-generated content.
+- **Quality-Driven TypeScript Web Delivery**: Ensure requirements stay implementation-
+   agnostic but acknowledge the web experience, testing touchpoints, and offline support
+   needs.
+
 ### For AI Generation
 When creating this spec from a user prompt:
 1. **Mark all ambiguities**: Use [NEEDS CLARIFICATION: specific question] for any assumption you'd need to make
@@ -68,15 +81,20 @@ When creating this spec from a user prompt:
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
+- **FR-001**: Platform MUST let self-learners request a curriculum for a chosen subject and
+   preferred mastery depth.
+- **FR-002**: Generated curricula MUST define module sequencing, learning objectives, and
+   embedded quizzes/tests with answer keys.
+- **FR-003**: Tutor experience MUST deliver lessons, capture learner responses, and
+   surface remediation steps when mastery is incomplete.
+- **FR-004**: System MUST persist all learner data, prompts, and assessment artifacts on
+   local storage with export/delete options.
+- **FR-005**: AI interactions MUST log prompts, responses, and model provenance for audit
+   and allow the learner to rerun or override outputs.
 
 *Example of marking unclear requirements:*
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+- **FR-006**: System MUST enforce accessibility for [NEEDS CLARIFICATION: specific controls or flows lacking criteria]
+- **FR-007**: Remote LLM usage MUST be limited to [NEEDS CLARIFICATION: opt-in UI, data minimization requirements]
 
 ### Key Entities *(include if feature involves data)*
 - **[Entity 1]**: [What it represents, key attributes without implementation]

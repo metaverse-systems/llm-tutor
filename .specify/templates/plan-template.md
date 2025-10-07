@@ -34,11 +34,11 @@
 [Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Language/Version**: [e.g., TypeScript 5.3 (frontend), Node.js 20 (backend) or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., Next.js, Express, React, Playwright or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., SQLite, PostgreSQL, local vector store or N/A]  
+**Testing**: [e.g., Vitest, Jest, Playwright, axe or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., accessible web (desktop/mobile), Linux server, WASM or NEEDS CLARIFICATION]
 **Project Type**: [single/web/mobile - determines source structure]  
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
@@ -47,7 +47,12 @@
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] **Learner-First Accessibility**: Document WCAG 2.1 AA criteria, keyboard
+   enumerate any remote LLM calls, and specify opt-in and audit flows.
+*Based on Constitution v2.0.0 - See `/memory/constitution.md`*
+- [ ] **Quality-Driven TypeScript Web Delivery**: Outline the automated test plan
+   (unit/integration/e2e/accessibility), TypeScript module design, and resource profile that
+   maintains consumer-hardware support.
 
 ## Project Structure
 
@@ -216,4 +221,4 @@ directories captured above]
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v2.1.1 - See `/memory/constitution.md`*
+*Based on Constitution v1.0.0 - See `/memory/constitution.md`*

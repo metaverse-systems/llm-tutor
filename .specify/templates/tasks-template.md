@@ -43,52 +43,59 @@
 - Paths shown below assume single project - adjust based on plan.md structure
 
 ## Phase 3.1: Setup
-- [ ] T001 Create project structure per implementation plan
-- [ ] T002 Initialize [language] project with [framework] dependencies
-- [ ] T003 [P] Configure linting and formatting tools
+- [ ] T001 Scaffold TypeScript workspace structure per implementation plan (e.g., `apps/backend`, `apps/frontend`, `packages/shared`)
+- [ ] T002 Initialize Node.js projects with package manager (pnpm/npm), TypeScript config, and shared env settings
+- [ ] T003 [P] Configure ESLint, Prettier, testing frameworks (Vitest/Jest), Playwright, and accessibility tooling (axe, Lighthouse CI)
+- [ ] T004 [P] Provision local storage primitives (SQLite/PostgreSQL migrations folder, vector store scaffolding) without implementation logic
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
-- [ ] T004 [P] Contract test POST /api/users in tests/contract/test_users_post.py
-- [ ] T005 [P] Contract test GET /api/users/{id} in tests/contract/test_users_get.py
-- [ ] T006 [P] Integration test user registration in tests/integration/test_registration.py
-- [ ] T007 [P] Integration test auth flow in tests/integration/test_auth.py
+- [ ] T005 [P] Contract test POST /api/curricula in apps/backend/tests/contract/curricula.contract.test.ts
+- [ ] T006 [P] Contract test POST /api/assessments in apps/backend/tests/contract/assessments.contract.test.ts
+- [ ] T007 [P] Integration test tutoring progression in apps/backend/tests/integration/tutoring-progress.test.ts
+- [ ] T008 [P] Accessibility regression test for learner dashboard in apps/frontend/tests/accessibility/dashboard.spec.ts
+- [ ] T009 [P] End-to-end offline smoke test using llama.cpp mock in tests/e2e/offline-smoke.spec.ts
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
-- [ ] T008 [P] User model in src/models/user.py
-- [ ] T009 [P] UserService CRUD in src/services/user_service.py
-- [ ] T010 [P] CLI --create-user in src/cli/user_commands.py
-- [ ] T011 POST /api/users endpoint
-- [ ] T012 GET /api/users/{id} endpoint
-- [ ] T013 Input validation
-- [ ] T014 Error handling and logging
+- [ ] T010 [P] Curriculum domain model in apps/backend/src/domain/curriculum.ts
+- [ ] T011 [P] Assessment domain model and grading helpers in apps/backend/src/domain/assessment.ts
+- [ ] T012 [P] Tutoring session service orchestrating LLM prompts in apps/backend/src/services/tutoring-session.ts
+- [ ] T013 POST /api/curricula endpoint with local-first persistence in apps/backend/src/api/curricula.ts
+- [ ] T014 POST /api/assessments endpoint with grading feedback in apps/backend/src/api/assessments.ts
+- [ ] T015 Learner dashboard pages and progress visualizations in apps/frontend/src/pages/learner/
+- [ ] T016 Accessibility enhancements (focus management, ARIA, motion toggles) in apps/frontend/src/components/
+- [ ] T017 Logging and observability hooks capturing prompt metadata in apps/backend/src/infra/observability.ts
 
 ## Phase 3.4: Integration
-- [ ] T015 Connect UserService to DB
-- [ ] T016 Auth middleware
-- [ ] T017 Request/response logging
-- [ ] T018 CORS and security headers
+- [ ] T018 Wire curriculum data layer to local relational DB with migrations and seed scripts
+- [ ] T019 Connect vector store for RAG-based tutoring references
+- [ ] T020 Implement model gateway supporting llama.cpp runtime with optional Azure AI Foundry adapter
+- [ ] T021 Configure authentication/authorization (if applicable) and session management
+- [ ] T022 Enforce security headers, CSP, and CORS policies consistent with local deployments
 
 ## Phase 3.5: Polish
-- [ ] T019 [P] Unit tests for validation in tests/unit/test_validation.py
-- [ ] T020 Performance tests (<200ms)
-- [ ] T021 [P] Update docs/api.md
-- [ ] T022 Remove duplication
-- [ ] T023 Run manual-testing.md
+- [ ] T023 [P] Unit tests for input validation in apps/backend/tests/unit/validation.spec.ts
+- [ ] T024 Performance and load tests for curriculum generation pipeline (<200ms p95 local)
+- [ ] T025 [P] Accessibility snapshot + Lighthouse report stored in docs/reports/
+- [ ] T026 Update learner and developer documentation (docs/curriculum.md, docs/ai-backends.md)
+- [ ] T027 Final manual QA script from quickstart.md, record outcomes in docs/testing-log.md
 
 ## Dependencies
-- Tests (T004-T007) before implementation (T008-T014)
-- T008 blocks T009, T015
-- T016 blocks T018
-- Implementation before polish (T019-T023)
+- Tests (T005-T009) before implementation (T010-T017)
+- T010 blocks T012-T014, T018
+- T011 blocks T014, T018
+- T012 blocks T019-T020
+- T020 blocks T022
+- Implementation before polish (T023-T027)
 
 ## Parallel Example
 ```
-# Launch T004-T007 together:
-Task: "Contract test POST /api/users in tests/contract/test_users_post.py"
-Task: "Contract test GET /api/users/{id} in tests/contract/test_users_get.py"
-Task: "Integration test registration in tests/integration/test_registration.py"
-Task: "Integration test auth in tests/integration/test_auth.py"
+# Launch T005-T009 together:
+Task: "Contract test POST /api/curricula in apps/backend/tests/contract/curricula.contract.test.ts"
+Task: "Contract test POST /api/assessments in apps/backend/tests/contract/assessments.contract.test.ts"
+Task: "Integration test tutoring progression in apps/backend/tests/integration/tutoring-progress.test.ts"
+Task: "Accessibility regression test for learner dashboard in apps/frontend/tests/accessibility/dashboard.spec.ts"
+Task: "End-to-end offline smoke test in tests/e2e/offline-smoke.spec.ts"
 ```
 
 ## Notes
