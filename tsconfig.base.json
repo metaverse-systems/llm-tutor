@@ -9,9 +9,6 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmitOnError": true,
-    "baseUrl": ".",
-    "paths": {
-      "@llm-tutor/shared/*": ["packages/shared/src/*"]
-    }
+    "baseUrl": "."
   }
 }

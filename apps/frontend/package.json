@@ -25,7 +25,7 @@
     "eslint-plugin-react": "^7.34.2",
     "playwright": "^1.45.1",
     "typescript": "^5.4.5",
-    "vite": "^5.2.11",
-    "vitest": "^1.6.1"
+    "vite": "^7.1.9",
+    "vitest": "^3.2.4"
   }
 }
