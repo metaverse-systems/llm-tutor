@@ -15,7 +15,19 @@ runtime architecture and highlights the responsibilities of each tier.
 | Preload Layer | Bridges IPC calls between renderer and main, whitelisting capabilities, injecting context, and enforcing privacy boundaries. | Electron preload, TypeScript |
 | Local LLM Runtime | Hosts inference (default: `llama.cpp`) and vector retrieval stores. Keeps all learner data on-disk locally unless remote providers are toggled on. | llama.cpp, SQLite/PostgreSQL, vector index |
 
-## 2. High-Level Data Flow
+## 2. Dependencies & Tooling Audit
+
+| Area | Tooling | Status | Notes |
+|------|---------|--------|-------|
+| Workspace Tooling | Node.js 20.x, npm 10.8, TypeScript 5.5, ESLint, Prettier, Vitest, Playwright | ✅ Installed | Verified via `npm install` on 2025-10-07. |
+| Backend HTTP Layer | Fastify 4, `@fastify/type-provider-zod` | ⚠️ Pending | Required for diagnostics API slice; add to `apps/backend` dependencies before implementation tasks T012–T014. |
+| Backend Storage Helpers | `electron-store` (shared usage) | ⚠️ Pending | Needed to persist accessibility preferences; install under `apps/desktop` and share preload typings. |
+| Accessibility Tooling | `@axe-core/playwright`, `axe-html-reporter` | ⚠️ Pending | Supports Phase 3.2 accessibility regression; add to `apps/frontend` devDependencies alongside Playwright config update. |
+| Electron Diagnostics | `systeminformation`, `tree-kill` | ⚠️ Review | Evaluate during diagnostics snapshot implementation for cross-platform process stats and safe shutdown. |
+
+> Update this matrix as tooling is installed during Phase 3 execution.
+
+## 3. High-Level Data Flow
 
 1. **App Launch** – Electron main process starts, registers protocols, verifies local LLM
 	 availability, and spawns the backend service process.
@@ -30,7 +42,7 @@ runtime architecture and highlights the responsibilities of each tier.
 5. **Feedback Loop** – Results return to the renderer, which updates UI state and pushes
 	 telemetry to the local audit log for transparency.
 
-## 3. Packaging & Distribution
+## 4. Packaging & Distribution
 
 - **Bundling** – The Electron build step packages the backend (Node.js services), renderer
 	assets, preload scripts, and configuration defaults into platform-specific installers.
@@ -41,7 +53,7 @@ runtime architecture and highlights the responsibilities of each tier.
 - **Diagnostics** – The Electron menu exposes a diagnostics console that summarizes local
 	LLM connectivity, database health, and recent AI operations for troubleshooting.
 
-## 4. Privacy & Accessibility Enforcement
+## 5. Privacy & Accessibility Enforcement
 
 - **IPC Security** – Preload layer whitelists renderer capabilities; sensitive operations
 	(filesystem, process control) stay confined to the main process.
@@ -52,7 +64,7 @@ runtime architecture and highlights the responsibilities of each tier.
 	pipelines as the browser build (axe/Lighthouse). Electron main process exposes system
 	shortcuts for high-contrast mode, reduced motion, and screen reader announcements.
 
-## 5. Future Design Considerations
+## 6. Future Design Considerations
 
 - **Service Modularization** – As curriculum, tutoring, assessment, and analytics mature,
 	split backend services into modules with explicit APIs to keep the codebase maintainable.

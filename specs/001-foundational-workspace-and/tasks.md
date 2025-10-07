@@ -4,10 +4,10 @@
 **Prerequisites**: `plan.md` (required), `research.md`, `data-model.md`, `contracts/`
 
 ## Phase 3.1: Setup & Tooling
-- [ ] T001 Audit monorepo prerequisites and install dependencies across `package.json` workspaces; record any missing tooling in `docs/architecture.md` dependencies section.
-- [ ] T002 Scaffold diagnostics directories (`apps/backend/src/api/diagnostics/`, `apps/backend/src/services/diagnostics/`, `apps/backend/src/infra/{logging,preferences}/`, `apps/frontend/src/pages/landing/`, `apps/frontend/src/components/{DiagnosticsPanel,AccessibilityToggles}/`, `apps/desktop/src/{main,preload,ipc}/diagnostics/`, `packages/shared/src/diagnostics/`, `tests/e2e/diagnostics/`) with placeholder `index.ts` exports.
-- [ ] T003 [P] Configure shared Vitest + Playwright test runner settings for diagnostics feature, updating `vitest.config.ts` files and `package.json` scripts where needed.
-- [ ] T004 [P] Add project-wide `.env.example` entries for diagnostics storage paths and log retention thresholds; sync defaults in `apps/backend/src/config/`.
+- [x] T001 Audit monorepo prerequisites and install dependencies across `package.json` workspaces; record any missing tooling in `docs/architecture.md` dependencies section.
+- [x] T002 Scaffold diagnostics directories (`apps/backend/src/api/diagnostics/`, `apps/backend/src/services/diagnostics/`, `apps/backend/src/infra/{logging,preferences}/`, `apps/frontend/src/pages/landing/`, `apps/frontend/src/components/{DiagnosticsPanel,AccessibilityToggles}/`, `apps/desktop/src/{main,preload,ipc}/diagnostics/`, `packages/shared/src/diagnostics/`, `tests/e2e/diagnostics/`) with placeholder `index.ts` exports.
+- [x] T003 [P] Configure shared Vitest + Playwright test runner settings for diagnostics feature, updating `vitest.config.ts` files and `package.json` scripts where needed.
+- [x] T004 [P] Add project-wide `.env.example` entries for diagnostics storage paths and log retention thresholds; sync defaults in `apps/backend/src/config/`.
 
 ## Phase 3.2: Tests First (All must fail initially)
 - [ ] T005 Flesh out contract coverage in `apps/backend/tests/contract/diagnostics.contract.test.ts` for `GET /internal/diagnostics/summary` (happy/empty/error cases) and `POST /internal/diagnostics/refresh` (success + offline guard).
