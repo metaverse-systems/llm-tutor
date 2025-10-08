@@ -92,6 +92,7 @@ export class DiagnosticsSnapshotService {
       llmStatus: llm.status,
       llmEndpoint: llm.endpoint,
       logDirectory: this.options.storageDir,
+      // NOTE: snapshotCountLast30d should only be computed here.
       snapshotCountLast30d: countLastWindow,
       diskUsageBytes,
       warnings: Array.from(combinedWarnings),
