@@ -126,3 +126,9 @@ export function serializeDiagnosticsSnapshot(snapshot: DiagnosticsSnapshot): Dia
 		activePreferences: serializeAccessibilityPreference(snapshot.activePreferences)
 	};
 }
+
+// Placeholder exports for upcoming preference persistence schemas (T008-T010).
+// These will be replaced with concrete modules during Phase 3.3 implementation.
+export type DiagnosticsPreferenceRecord = never;
+export type ConsentEventLog = never;
+export type StorageHealthAlert = never;
