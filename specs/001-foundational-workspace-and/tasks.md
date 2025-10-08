@@ -29,10 +29,10 @@
 - [x] T017 [P] Add renderer-to-main IPC wiring in `apps/desktop/src/ipc/diagnostics.ts`, routing requests to backend and emitting log export events.
 
 ## Phase 3.5: Renderer Experience
-- [ ] T018 Compose landing page scaffold in `apps/frontend/src/pages/landing/index.tsx` rendering diagnostics overview, export CTA, and accessibility toggles.
-- [ ] T019 [P] Build `DiagnosticsPanel` component displaying system status, llama.cpp probe indicator, and retention warnings in `apps/frontend/src/components/DiagnosticsPanel/DiagnosticsPanel.tsx`.
-- [ ] T020 [P] Implement `AccessibilityToggles` component in `apps/frontend/src/components/AccessibilityToggles/AccessibilityToggles.tsx` persisting preferences via preload bridge.
-- [ ] T021 Integrate renderer hooks (`apps/frontend/src/hooks/useDiagnostics.ts`) to poll diagnostics summary, react to refresh, and debounce requests while offline.
+- [x] T018 Compose landing page scaffold in `apps/frontend/src/pages/landing/index.tsx` rendering diagnostics overview, export CTA, and accessibility toggles.
+- [x] T019 [P] Build `DiagnosticsPanel` component displaying system status, llama.cpp probe indicator, and retention warnings in `apps/frontend/src/components/DiagnosticsPanel/DiagnosticsPanel.tsx`.
+- [x] T020 [P] Implement `AccessibilityToggles` component in `apps/frontend/src/components/AccessibilityToggles/AccessibilityToggles.tsx` persisting preferences via preload bridge.
+- [x] T021 Integrate renderer hooks (`apps/frontend/src/hooks/useDiagnostics.ts`) to poll diagnostics summary, react to refresh, and debounce requests while offline.
 
 ## Phase 3.6: Integration & Export Workflows
 - [ ] T022 Connect renderer IPC calls to Fastify endpoints through preload bridge and Electron main routing, ensuring offline fallbacks and optimistic UI updates.
