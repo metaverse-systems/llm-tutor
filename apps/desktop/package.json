@@ -18,6 +18,7 @@
     "start:electron": "wait-on tcp:5173 && nodemon --watch dist --exec \"cross-env ELECTRON_RENDERER_URL=http://localhost:5173 ELECTRON_DISABLE_SECURITY_WARNINGS=true electron .\"",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest run",
+    "test:a11y": "echo 'No desktop accessibility tests; run frontend suite instead.'",
     "package": "npm run build && electron-builder"
   },
   "dependencies": {

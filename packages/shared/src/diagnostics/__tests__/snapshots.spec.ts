@@ -5,7 +5,7 @@ interface DiagnosticsSchemasModule {
     parse: (input: unknown) => unknown;
     safeParse: (input: unknown) => { success: boolean; error?: { issues: Array<{ path: (string | number)[] }> } };
   };
-  accessibilityPreferenceSchema?: {
+  diagnosticsPreferenceRecordSchema?: {
     safeParse: (input: unknown) => { success: boolean };
   };
   processHealthEventSchema?: {
@@ -27,9 +27,14 @@ interface DiagnosticsSnapshotDomain {
   diskUsageBytes: number;
   warnings?: string[];
   activePreferences: {
-    highContrast: boolean;
-    reduceMotion: boolean;
-    updatedAt: Date;
+    highContrastEnabled: boolean;
+    reducedMotionEnabled: boolean;
+    remoteProvidersEnabled: boolean;
+    lastUpdatedAt: Date;
+    updatedBy: "renderer" | "backend" | "main";
+    consentSummary: string;
+    consentEvents: unknown[];
+    storageHealth: unknown;
   };
 }
 
@@ -46,9 +51,31 @@ const validSnapshotFixture = {
   diskUsageBytes: 128_000,
   warnings: ["Storage at 25%"],
   activePreferences: {
-    highContrast: true,
-    reduceMotion: false,
-    updatedAt: "2025-10-07T09:58:00.000Z"
+    highContrastEnabled: true,
+    reducedMotionEnabled: false,
+    remoteProvidersEnabled: false,
+    lastUpdatedAt: "2025-10-07T09:58:00.000Z",
+    updatedBy: "main",
+    consentSummary: "Remote providers are disabled",
+    consentEvents: [
+      {
+        eventId: "a5fcb02b-80ad-4b2c-a9a3-6750f7f9b4c4",
+        occurredAt: "2025-10-07T09:00:00.000Z",
+  actor: "learner",
+  previousState: "enabled",
+  nextState: "disabled",
+        noticeVersion: "v1.0",
+        channel: "ui-toggle"
+      }
+    ],
+    storageHealth: {
+      status: "unavailable",
+      reason: "permission-denied",
+      message: "Preferences vault is temporarily unavailable",
+      detectedAt: "2025-10-07T09:57:00.000Z",
+      recommendedAction: "Check file permissions for the preferences directory and retry.",
+      retryAvailableAt: null
+    }
   }
 };
 
@@ -78,17 +105,17 @@ describe("Shared diagnostics schemas", () => {
 
     const parsed = parseDiagnosticsSnapshot!(validSnapshotFixture);
     expect(parsed.generatedAt).toBeInstanceOf(Date);
-    expect(parsed.activePreferences.updatedAt).toBeInstanceOf(Date);
+  expect(parsed.activePreferences.lastUpdatedAt).toBeInstanceOf(Date);
     expect(parsed.backendStatus).toBe("running");
   });
 
-  it("surfaces schema helpers for accessibility preferences and process events", async () => {
+  it("surfaces schema helpers for preference records and process events", async () => {
     const module = (await import("../index")) as DiagnosticsSchemasModule;
 
-    expect(module.accessibilityPreferenceSchema, "Expected accessibilityPreferenceSchema export").toBeDefined();
+  expect(module.diagnosticsPreferenceRecordSchema, "Expected diagnosticsPreferenceRecordSchema export").toBeDefined();
     expect(module.processHealthEventSchema, "Expected processHealthEventSchema export").toBeDefined();
 
-    const preferenceSchema = module.accessibilityPreferenceSchema;
+    const preferenceSchema = module.diagnosticsPreferenceRecordSchema;
     const processSchema = module.processHealthEventSchema;
 
     if (!preferenceSchema || !processSchema) {
@@ -96,9 +123,25 @@ describe("Shared diagnostics schemas", () => {
     }
 
     const preferenceResult = preferenceSchema.safeParse({
-      highContrast: false,
-      reduceMotion: true,
-      updatedAt: "2025-10-07T09:30:00.000Z"
+      id: "55d4ea73-69d9-4556-9129-efb1f5217f2e",
+      highContrastEnabled: false,
+      reducedMotionEnabled: true,
+      remoteProvidersEnabled: true,
+      lastUpdatedAt: "2025-10-07T09:30:00.000Z",
+      updatedBy: "renderer",
+      consentSummary: "Remote providers enabled",
+      consentEvents: [
+        {
+          eventId: "d5bfaf58-1c88-42f2-9a36-4c2ce5f26b11",
+          occurredAt: "2025-10-07T09:28:00.000Z",
+          actor: "learner",
+          previousState: "disabled",
+          nextState: "enabled",
+          noticeVersion: "v1.0",
+          channel: "ui-toggle"
+        }
+      ],
+      storageHealth: null
     });
     expect(preferenceResult.success).toBe(true);
 

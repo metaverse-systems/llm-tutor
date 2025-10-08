@@ -6,6 +6,22 @@ import type {
   StorageHealthAlertPayload
 } from "@metaverse-systems/llm-tutor-shared";
 
+declare global {
+  interface Window {
+    __diagnosticsDebug?: {
+      simulatePreferenceVaultFailure?: () => void;
+      lastPreferenceOutcome?: DiagnosticsPreferenceRecordPayload | null;
+      previewPreferences?: {
+        highContrast: boolean;
+        reduceMotion: boolean;
+        remoteProviders: boolean;
+      } | null;
+    };
+  }
+}
+
+const LOCAL_PREFERENCES_STORAGE_KEY = "llm-tutor::diagnostics::preferences";
+
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const DEFAULT_OFFLINE_RETRY_MS = 15_000;
 const MAX_PROCESS_EVENTS = 25;
@@ -184,6 +200,104 @@ function cloneStorageHealth(alert: StorageHealthAlertPayload | null | undefined)
   return { ...alert };
 }
 
+function readPersistedPreferences(): DiagnosticsPreferenceRecordPayload | null {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(LOCAL_PREFERENCES_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<DiagnosticsPreferenceRecordPayload> | null;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    const ensureString = (value: unknown, fallback: string): string =>
+      typeof value === "string" && value.length > 0 ? value : fallback;
+
+    const updatedBy = parsed.updatedBy;
+    const resolvedUpdatedBy: DiagnosticsPreferenceRecordPayload["updatedBy"] =
+      updatedBy === "backend" || updatedBy === "main" ? updatedBy : "renderer";
+
+    const storageHealth = parsed.storageHealth && typeof parsed.storageHealth === "object"
+      ? {
+          status: (parsed.storageHealth as StorageHealthAlertPayload).status ?? "unavailable",
+          detectedAt: ensureString((parsed.storageHealth as StorageHealthAlertPayload).detectedAt, new Date().toISOString()),
+          reason: (parsed.storageHealth as StorageHealthAlertPayload).reason ?? "unknown",
+          message: ensureString((parsed.storageHealth as StorageHealthAlertPayload).message, "Preference storage unavailable"),
+          recommendedAction: ensureString(
+            (parsed.storageHealth as StorageHealthAlertPayload).recommendedAction,
+            "Check browser storage permissions and retry in the desktop app."
+          ),
+          retryAvailableAt:
+            typeof (parsed.storageHealth as StorageHealthAlertPayload).retryAvailableAt === "string"
+              ? (parsed.storageHealth as StorageHealthAlertPayload).retryAvailableAt
+              : null
+        }
+      : null;
+
+    return {
+      id: ensureString(parsed.id, `preview-preferences-${Date.now()}`),
+      highContrastEnabled: Boolean(parsed.highContrastEnabled),
+      reducedMotionEnabled: Boolean(parsed.reducedMotionEnabled),
+      remoteProvidersEnabled: Boolean(parsed.remoteProvidersEnabled),
+      consentSummary: ensureString(parsed.consentSummary, "Remote providers are disabled"),
+      lastUpdatedAt: ensureString(parsed.lastUpdatedAt, new Date().toISOString()),
+      updatedBy: resolvedUpdatedBy,
+      consentEvents: Array.isArray(parsed.consentEvents) ? [...parsed.consentEvents] : [],
+      storageHealth
+    };
+  } catch (error) {
+    console.warn("Failed to restore diagnostics preferences from local storage", error);
+    return null;
+  }
+}
+
+function writePersistedPreferences(record: DiagnosticsPreferenceRecordPayload | null): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    if (!record) {
+      window.localStorage.removeItem(LOCAL_PREFERENCES_STORAGE_KEY);
+      return;
+    }
+
+    const payload: DiagnosticsPreferenceRecordPayload = {
+      id: record.id,
+      highContrastEnabled: record.highContrastEnabled,
+      reducedMotionEnabled: record.reducedMotionEnabled,
+      remoteProvidersEnabled: record.remoteProvidersEnabled,
+      consentSummary: record.consentSummary,
+      lastUpdatedAt: record.lastUpdatedAt,
+      updatedBy: record.updatedBy,
+      consentEvents: Array.isArray(record.consentEvents) ? [...record.consentEvents] : [],
+      storageHealth: record.storageHealth ? { ...record.storageHealth } : null
+    };
+
+    window.localStorage.setItem(LOCAL_PREFERENCES_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Failed to persist diagnostics preferences to local storage", error);
+  }
+}
+
+function createPreviewStorageFailureAlert(): StorageHealthAlertPayload {
+  const detectedAt = new Date().toISOString();
+  return {
+    status: "unavailable",
+    detectedAt,
+    reason: "unknown",
+    message: "Preference storage unavailable. These settings will apply for this session only.",
+    recommendedAction: "Check browser storage permissions or reopen the desktop app to resume persistence.",
+    retryAvailableAt: null
+  };
+}
+
 export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnosticsResult {
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const offlineRetryMs = options.offlineRetryMs ?? DEFAULT_OFFLINE_RETRY_MS;
@@ -233,6 +347,50 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
   useEffect(() => {
     bridgeRef.current = bridge;
   }, [bridge]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const debug = window.__diagnosticsDebug ?? {};
+    debug.simulatePreferenceVaultFailure = () => {
+      const alert = createPreviewStorageFailureAlert();
+      let persistedRecord: DiagnosticsPreferenceRecordPayload | null = null;
+
+      setState((prev) => {
+        const nextPreferences = prev.preferences
+          ? {
+              ...prev.preferences,
+              storageHealth: alert
+            }
+          : prev.preferences ?? null;
+
+        persistedRecord = nextPreferences ?? null;
+
+        return {
+          ...prev,
+          storageHealth: alert,
+          preferences: nextPreferences ? clonePreferenceRecord(nextPreferences) : prev.preferences
+        };
+      });
+
+      if (!bridgeRef.current) {
+        writePersistedPreferences(persistedRecord);
+      }
+    };
+
+    window.__diagnosticsDebug = debug;
+
+    return () => {
+      if (window.__diagnosticsDebug === debug) {
+        delete debug.simulatePreferenceVaultFailure;
+        if (Object.keys(debug).length === 0) {
+          delete window.__diagnosticsDebug;
+        }
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (bridge) {
@@ -310,7 +468,15 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
   const loadInitialState = useCallback(async () => {
     const api = bridgeRef.current;
     if (!api) {
-      setState((prev) => ({ ...prev, isLoading: false }));
+      const persisted = readPersistedPreferences();
+      const cloned = clonePreferenceRecord(persisted);
+      const storage = cloneStorageHealth(persisted?.storageHealth ?? null);
+      setState((prev) => ({
+        ...prev,
+        preferences: cloned ?? prev.preferences,
+        storageHealth: storage ?? prev.storageHealth,
+        isLoading: false
+      }));
       return;
     }
     try {
@@ -592,32 +758,61 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
   const updatePreferences = useCallback(
     async (input: PreferenceUpdateInput): Promise<DiagnosticsPreferenceRecordPayload | null> => {
       const api = bridgeRef.current;
-      if (!api || typeof api.updatePreferences !== "function") {
-        console.warn("Diagnostics bridge unavailable; cannot update preferences");
-        return null;
-      }
+
+  console.log("Diagnostics::updatePreferences invoked", input);
 
       const baseline = clonePreferenceRecord(
         state.preferences ?? state.snapshot?.activePreferences ?? null
       );
-      const optimisticRecord = baseline
-        ? {
-            ...baseline,
-            highContrastEnabled: input.highContrastEnabled,
-            reducedMotionEnabled: input.reducedMotionEnabled,
-            remoteProvidersEnabled: input.remoteProvidersEnabled,
-            consentSummary: input.consentSummary,
-            updatedBy: "renderer" as const,
-            lastUpdatedAt: new Date().toISOString()
-          }
-        : null;
+      const generatedId = (() => {
+        if (baseline?.id) {
+          return baseline.id;
+        }
+        if (state.preferences?.id) {
+          return state.preferences.id;
+        }
+        if (state.snapshot?.activePreferences?.id) {
+          return state.snapshot.activePreferences.id;
+        }
+        if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+          return crypto.randomUUID();
+        }
+        return `preview-preferences-${Date.now()}`;
+      })();
+
+      const optimisticRecord: DiagnosticsPreferenceRecordPayload = {
+        id: generatedId,
+        highContrastEnabled: input.highContrastEnabled,
+        reducedMotionEnabled: input.reducedMotionEnabled,
+        remoteProvidersEnabled: input.remoteProvidersEnabled,
+        consentSummary: input.consentSummary,
+        updatedBy: "renderer",
+        lastUpdatedAt: new Date().toISOString(),
+        consentEvents: baseline?.consentEvents ?? state.preferences?.consentEvents ?? [],
+        storageHealth: baseline?.storageHealth ?? state.preferences?.storageHealth ?? null
+      };
 
       setState((prev) => ({
         ...prev,
         preferences: optimisticRecord ?? prev.preferences,
-        storageHealth: optimisticRecord?.storageHealth ?? prev.storageHealth,
+        storageHealth: optimisticRecord.storageHealth ?? prev.storageHealth,
         isUpdatingPreferences: true
       }));
+
+      if (!api || typeof api.updatePreferences !== "function") {
+        console.log("Diagnostics::updatePreferences fallback", {
+          hasBridge: Boolean(api),
+          hasUpdate: Boolean(api?.updatePreferences)
+        });
+        console.log("Diagnostics::optimisticRecord", optimisticRecord);
+        writePersistedPreferences(optimisticRecord);
+        setState((prev) => ({
+          ...prev,
+          isUpdatingPreferences: false
+        }));
+        console.log("Diagnostics::returning optimistic record");
+        return optimisticRecord ?? state.preferences ?? null;
+      }
 
       const updatePayload: DiagnosticsPreferenceUpdatePayload = {
         highContrastEnabled: input.highContrastEnabled,
@@ -665,10 +860,18 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
           isUpdatingPreferences: false
         }));
 
+        if (!bridgeRef.current) {
+          writePersistedPreferences(nextRecord ?? null);
+        }
+
         schedulePreferenceRefresh();
+        console.log("Diagnostics::returning next record", nextRecord);
         return nextRecord;
       } catch (error) {
         console.warn("Failed to update diagnostics preferences", error);
+        if (!bridgeRef.current) {
+          writePersistedPreferences(optimisticRecord ?? state.preferences ?? null);
+        }
         setState((prev) => ({
           ...prev,
           isUpdatingPreferences: false

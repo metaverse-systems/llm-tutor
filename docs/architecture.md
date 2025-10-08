@@ -9,8 +9,8 @@ runtime architecture and highlights the responsibilities of each tier.
 
 | Component | Responsibilities | Key Technologies |
 |-----------|-----------------|------------------|
-| Electron Main Process | Boots the desktop shell, orchestrates app lifecycle, manages native menus, launches the bundled backend, exposes diagnostic dialogs, and enforces single-instance behavior. | Electron (main), Node.js |
-| Backend Services | Provide curriculum generation, tutoring orchestration, assessment storage, and model routing APIs. Run as Node.js processes invoked by the Electron shell; remain reachable via local IPC/HTTP. | Node.js, TypeScript, Express/Fastify (TBD) |
+| Electron Main Process | Boots the desktop shell, orchestrates app lifecycle, manages native menus, launches the bundled backend, exposes diagnostic dialogs, manages the diagnostics preference vault, and enforces single-instance behavior. | Electron (main), Node.js, electron-store |
+| Backend Services | Provide curriculum generation, tutoring orchestration, assessment storage, and model routing APIs. Run as Node.js processes invoked by the Electron shell; remain reachable via local IPC/HTTP. | Node.js, TypeScript, Fastify |
 | Renderer UI | Accessible React UI that renders lessons, practice, quizzes, analytics, and settings. Communicates with the backend through secure IPC channels or localhost HTTP. | React, TypeScript, Electron renderer |
 | Preload Layer | Bridges IPC calls between renderer and main, whitelisting capabilities, injecting context, and enforcing privacy boundaries. | Electron preload, TypeScript |
 | Local LLM Runtime | Hosts inference (default: `llama.cpp`) and vector retrieval stores. Keeps all learner data on-disk locally unless remote providers are toggled on. | llama.cpp, SQLite/PostgreSQL, vector index |
@@ -21,7 +21,7 @@ runtime architecture and highlights the responsibilities of each tier.
 |------|---------|--------|-------|
 | Workspace Tooling | Node.js 20.x, npm 10.8, TypeScript 5.5, ESLint, Prettier, Vitest, Playwright | ✅ Installed | Verified via `npm install` on 2025-10-07. |
 | Backend HTTP Layer | Fastify 4, Zod | ✅ Implemented | Fastify + Zod contracts wired into diagnostics API (`apps/backend`). |
-| Backend Storage Helpers | `electron-store` (shared usage) | ⚠️ Planned | Diagnostics ship with in-memory preference cache; electron-store adoption remains on the backlog for persistence parity. |
+| Backend Storage Helpers | `electron-store` (shared usage) | ✅ Implemented | Diagnostics preference vault persists accessibility + consent state and surfaces storage health alerts. |
 | Accessibility Tooling | Playwright, axe-core | ⚠️ In Progress | Playwright accessibility flows run in CI; axe-core assertions scheduled for the next polish sprint. |
 | Electron Diagnostics | `systeminformation`, `tree-kill` | ⚠️ Deferred | Cross-platform metrics use native Node APIs today; revisit external deps once Windows/Linux parity gaps surface. |
 
@@ -30,17 +30,17 @@ runtime architecture and highlights the responsibilities of each tier.
 ## 3. High-Level Data Flow
 
 1. **App Launch** – Electron main process starts, registers protocols, verifies local LLM
-	 availability, and spawns the backend service process.
+	availability, initialises the diagnostics preference vault from `electron-store`, and spawns the backend service process.
 2. **Renderer Boot** – Main process loads the React bundle into a BrowserWindow. Preload
-	 scripts expose a constrained API surface (e.g., `llm.connect`, `course.generate`).
+	scripts expose a constrained API surface (e.g., `llm.connect`, `diagnostics.updatePreferences`).
 3. **Curriculum Requests** – Renderer issues IPC/HTTP calls to backend endpoints. Backend
-	 composes prompts, consults domain models from `packages/shared`, and requests inference
-	 from the local LLM runtime.
-4. **Persistence** – Backend writes learner records, quizzes, and embeddings to the local
-	 relational database and vector store. No network egress occurs unless the user enables
-	 an optional remote backend.
-5. **Feedback Loop** – Results return to the renderer, which updates UI state and pushes
-	 telemetry to the local audit log for transparency.
+	composes prompts, consults domain models from `packages/shared`, and requests inference
+	from the local LLM runtime.
+4. **Preference Sync** – Renderer preference changes travel through preload IPC to the main process vault, which persists them and notifies the backend via Fastify routes to refresh snapshots.
+5. **Persistence** – Backend writes learner records, quizzes, and embeddings to the local
+	relational database and vector store. Preference records and storage alerts persist to `diagnostics-preferences.json`; no network egress occurs unless the user enables an optional remote backend.
+6. **Feedback Loop** – Results return to the renderer, which updates UI state and pushes
+	telemetry to the local audit log for transparency.
 
 ## 4. Packaging & Distribution
 
@@ -83,11 +83,11 @@ components and diagrams, and note any cross-cutting concerns introduced by Elect
 
 ## 7. Diagnostics Observability
 
-### 7.1 Snapshot Lifecycle
+### 7.1 Snapshot & Preference Lifecycle
 
-- **Collection** – The backend `snapshot.service` hydrates `DiagnosticsSnapshotPayload` by combining Fastify health checks, llama.cpp probe results, disk usage stats, and persisted accessibility preferences. The service emits structured JSONL entries into the per-user diagnostics directory.
+- **Collection** – The backend `snapshot.service` hydrates `DiagnosticsSnapshotPayload` by combining Fastify health checks, llama.cpp probe results, disk usage stats, and persisted accessibility preferences/consent events from the vault. The service emits structured JSONL entries into the per-user diagnostics directory.
 - **Transport** – Fastify exposes `GET /internal/diagnostics/summary` and `POST /internal/diagnostics/refresh`, which Electron’s main process proxies via IPC channels defined in `apps/desktop/src/ipc/diagnostics.ts`.
-- **Renderer Sync** – The preload bridge (`createDiagnosticsBridge`) pushes updates into the renderer hook `useDiagnostics`, which debounces polling, merges retention warnings, and normalizes process events.
+- **Renderer Sync** – The preload bridge (`createDiagnosticsBridge`) pushes updates into the renderer hook `useDiagnostics`, which debounces polling, merges retention warnings, maintains optimistic preference state, and normalizes process events. Preference updates propagate back through `diagnostics:preferences:update` IPC to the vault.
 
 ### 7.2 Export & Retention Flow
 
@@ -95,9 +95,10 @@ components and diagrams, and note any cross-cutting concerns introduced by Elect
 - **Export UX** – Triggering an export from the diagnostics panel invokes Electron’s `exportDiagnosticsSnapshot`, opens a save dialog, writes the JSONL payload, and returns success metadata back through the preload bridge.
 - **Testing Hooks** – Contract, integration, accessibility, unit, and Electron smoke suites cover these paths, and reports are archived under `docs/reports/diagnostics/`.
 
-### 7.3 Remote LLM Opt-In Path
+### 7.3 Remote LLM Opt-In & Storage Health
 
 1. **Toggle Location** – The renderer surfaces remote-provider opt-in under diagnostics > “LLM Connectivity”. Users must explicitly enable the flag before any network traffic occurs.
 2. **Consent Dialog** – Enabling remote providers launches a modal summarizing data handling, tenancy requirements, and the URLs that will be contacted. Users must confirm before preferences persist.
-3. **Preference Storage** – Upon confirmation, the selection writes to the diagnostics preference cache (electron-store pending). The backend reloads providers on the next snapshot refresh, ensuring local-first remains the default.
-4. **Auditing** – Each opt-in/out event registers as a `ProcessHealthEvent` so the export log captures the decision history for support scenarios.
+3. **Preference Storage** – Upon confirmation, the selection writes to the diagnostics preference vault (`electron-store`). The backend reloads providers on the next snapshot refresh, ensuring local-first remains the default.
+4. **Storage Health** – If persisting fails, the vault raises a `StorageHealthAlert` that travels to the renderer and backend responses (`503 session-only`). Recovery is automatic once filesystem issues are resolved.
+5. **Auditing** – Each opt-in/out event appends to the vault consent log so diagnostic exports capture the full decision history for support scenarios.

@@ -32,11 +32,11 @@
 - [x] T022 Refactor Electron dev harness script in `apps/desktop/package.json` (and related launch utilities) to prevent duplicate backend boot, using lock file + port probe per research decision. *(Depends on T013)* *(Completed 2025-10-08; desktop dev harness now guarded by lock-aware runner.)*
 
 ## Phase 3.4: Integration & Polish
-- [ ] T023 Update diagnostics runbook `docs/diagnostics.md` with persistence workflow, storage-failure remediation, and consent audit instructions. *(Depends on T016-T021)*
-- [ ] T024 Refresh architecture overview `docs/architecture.md` to document the preference vault module, IPC sync, and backend surface. *(Depends on T012-T021)*
-- [ ] T025 Revise quickstart `specs/002-persist-diagnostics-accessibility/quickstart.md` and link to new Playwright scenario steps. *(Depends on T016-T021)*
-- [ ] T026 Log validation outcomes in `docs/testing-log.md` after persistence regression passes. *(Depends on T027)*
-- [ ] T027 Execute full validation sweep: Vitest across all workspaces, Playwright accessibility + persistence suites, and desktop smoke to confirm dev harness fix; record results under `docs/reports/`. *(Depends on T012-T026)*
+- [x] T023 Update diagnostics runbook `docs/diagnostics.md` with persistence workflow, storage-failure remediation, and consent audit instructions. *(Depends on T016-T021)* *(Completed 2025-10-08; added preview troubleshooting, PWDEBUG timeout guidance, and consent audit checklist.)*
+- [x] T024 Refresh architecture overview `docs/architecture.md` to document the preference vault module, IPC sync, and backend surface. *(Depends on T012-T021)* *(Completed 2025-10-08; diagrams and data flow now include vault + renderer fallback.)*
+- [x] T025 Revise quickstart `specs/002-persist-diagnostics-accessibility/quickstart.md` and link to new Playwright scenario steps. *(Depends on T016-T021)* *(Completed 2025-10-08; onboarding highlights persistence suite and preview mode steps.)*
+- [x] T026 Log validation outcomes in `docs/testing-log.md` after persistence regression passes. *(Depends on T027; logged 2025-10-08, follow-up resolved by .js extension emit fix.)*
+- [x] T027 Execute full validation sweep: Vitest across all workspaces, Playwright accessibility + persistence suites, and desktop smoke to confirm dev harness fix; record results under `docs/reports/`. *(Depends on T012-T026; completed 2025-10-08 with report `docs/reports/diagnostics/2025-10-08-validation.md`.)*
 
 ## Dependencies
 - T002 → T020 (contract tests drive route implementation)

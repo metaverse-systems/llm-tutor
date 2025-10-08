@@ -16,12 +16,12 @@ import {
   ConsentEventLog,
   ConsentEventLogPayload,
   serializeConsentEventLog
-} from "./consent-event";
+} from "./consent-event.js";
 import {
   StorageHealthAlert,
   StorageHealthAlertPayload,
   serializeStorageHealthAlert
-} from "./storage-health";
+} from "./storage-health.js";
 
 export type DiagnosticsPreferenceRecordOverrides = Partial<DiagnosticsPreferenceRecord> & {
   consentEvents?: Array<ConsentEventLog | ConsentEventLogPayload>;

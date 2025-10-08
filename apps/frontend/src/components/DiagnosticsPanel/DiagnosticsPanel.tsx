@@ -187,6 +187,7 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
       .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
       .slice(0, 3)
       .map((event) => ({ id: event.eventId, label: describeConsentEvent(event) }));
+  }, [effectivePreferences]);
 
   const combinedWarnings = useMemo(() => combineWarnings(snapshot, warnings), [snapshot, warnings]);
 
@@ -269,7 +270,12 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
       ) : null}
 
       {showStorageAlert ? (
-        <aside className="diagnostics-panel__storage-alert" role="alert" aria-live="assertive">
+        <aside
+          className="diagnostics-panel__storage-alert"
+          role="alert"
+          aria-live="assertive"
+          data-testid="diagnostics-storage-panel-alert"
+        >
           <h3 className="diagnostics-panel__card-title">Preference storage issue</h3>
           <p>{storageAlert?.message}</p>
           <p className="diagnostics-panel__card-meta">

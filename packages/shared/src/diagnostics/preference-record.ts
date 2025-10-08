@@ -9,7 +9,7 @@ import {
 	serializeConsentEventLog,
 	type ConsentEventLog,
 	type ConsentEventLogPayload
-} from "./consent-event";
+} from "./consent-event.js";
 import {
 	createStorageHealthAlert,
 	parseStorageHealthAlert,
@@ -17,7 +17,7 @@ import {
 	storageHealthAlertSchema,
 	type StorageHealthAlert,
 	type StorageHealthAlertPayload
-} from "./storage-health";
+} from "./storage-health.js";
 
 export const diagnosticsPreferenceRecordSchema = z.object({
 	id: z.string().uuid().default(() => randomUUID()),

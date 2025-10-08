@@ -5,7 +5,7 @@ import {
 	serializeDiagnosticsPreferenceRecord,
 	type DiagnosticsPreferenceRecord,
 	type DiagnosticsPreferenceRecordPayload
-} from "./preference-record";
+} from "./preference-record.js";
 
 export const processHealthEventSchema = z.object({
 	id: z.string().uuid(),
@@ -103,6 +103,6 @@ export function serializeDiagnosticsSnapshot(snapshot: DiagnosticsSnapshot): Dia
 	};
 }
 
-export * from "./preference-record";
-export * from "./consent-event";
-export * from "./storage-health";
+export * from "./preference-record.js";
+export * from "./consent-event.js";
+export * from "./storage-health.js";

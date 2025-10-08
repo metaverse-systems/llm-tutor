@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DiagnosticsPreferenceRecordPayload } from "@metaverse-systems/llm-tutor-shared";
 
 import { DiagnosticsPanel } from "../../components/DiagnosticsPanel/DiagnosticsPanel";
 import { AccessibilityToggles } from "../../components/AccessibilityToggles/AccessibilityToggles";
@@ -38,18 +39,47 @@ export const LandingPage: React.FC = () => {
   const seenWarningsRef = useRef<Set<string>>(new Set());
   const seenStorageAlertsRef = useRef<Set<string>>(new Set());
   const exportButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [previewPreferences, setPreviewPreferences] = useState<{
+    highContrast: boolean;
+    reduceMotion: boolean;
+    remoteProviders: boolean;
+  } | null>(null);
+
+  const previewPreferenceRecord = useMemo((): DiagnosticsPreferenceRecordPayload | null => {
+    if (!previewPreferences) {
+      return null;
+    }
+
+    const baseline = diagnostics.preferences ?? diagnostics.snapshot?.activePreferences ?? null;
+    const consentSummary = previewPreferences.remoteProviders ? "Remote providers enabled" : "Remote providers are disabled";
+
+    return {
+      id: baseline?.id ?? "preview-preferences",
+      highContrastEnabled: previewPreferences.highContrast,
+      reducedMotionEnabled: previewPreferences.reduceMotion,
+      remoteProvidersEnabled: previewPreferences.remoteProviders,
+      consentSummary,
+      updatedBy: "renderer",
+      lastUpdatedAt: new Date().toISOString(),
+      consentEvents: baseline?.consentEvents ?? [],
+      storageHealth: baseline?.storageHealth ?? null
+    };
+  }, [diagnostics.preferences, diagnostics.snapshot?.activePreferences, previewPreferences]);
 
   const activePreferences = useMemo(() => {
-    return diagnostics.preferences ?? diagnostics.snapshot?.activePreferences ?? null;
-  }, [diagnostics.preferences, diagnostics.snapshot?.activePreferences]);
+    return previewPreferenceRecord ?? diagnostics.preferences ?? diagnostics.snapshot?.activePreferences ?? null;
+  }, [diagnostics.preferences, diagnostics.snapshot?.activePreferences, previewPreferenceRecord]);
 
   const derivedPreferences = useMemo(() => {
+    if (previewPreferences) {
+      return previewPreferences;
+    }
     return {
       highContrast: activePreferences?.highContrastEnabled ?? false,
       reduceMotion: activePreferences?.reducedMotionEnabled ?? false,
       remoteProviders: activePreferences?.remoteProvidersEnabled ?? false
     };
-  }, [activePreferences]);
+  }, [activePreferences, previewPreferences]);
 
   const storageHealthAlert = useMemo(() => {
     return diagnostics.storageHealth ?? activePreferences?.storageHealth ?? null;
@@ -84,6 +114,15 @@ export const LandingPage: React.FC = () => {
       applyDocumentPreferences({ highContrast: false, reduceMotion: false });
     };
   }, [derivedPreferences.highContrast, derivedPreferences.reduceMotion]);
+
+  useEffect(() => {
+    if (!previewPreferences) {
+      return;
+    }
+    if (diagnostics.preferences) {
+      setPreviewPreferences(null);
+    }
+  }, [diagnostics.preferences, previewPreferences]);
 
   useEffect(() => {
     const seen = seenWarningsRef.current;
@@ -133,10 +172,29 @@ export const LandingPage: React.FC = () => {
   }, [isExportDialogOpen]);
 
   const handleToggleChange = useCallback(
-    async (next: { highContrast: boolean; reduceMotion: boolean; remoteProviders: boolean }) => {
+    async (
+      updater: (previous: { highContrast: boolean; reduceMotion: boolean; remoteProviders: boolean }) => {
+        highContrast: boolean;
+        reduceMotion: boolean;
+        remoteProviders: boolean;
+      }
+    ) => {
+      const baseline = previewPreferences ?? derivedPreferences;
+      const next = updater({ ...baseline });
+
       const summary = next.remoteProviders ? "Remote providers enabled" : "Remote providers are disabled";
 
+      setPreviewPreferences(next);
+      console.log("LandingPage::handleToggleChange", next);
+
       try {
+        if (typeof window !== "undefined") {
+          window.__diagnosticsDebug = {
+            ...(window.__diagnosticsDebug ?? {}),
+            previewPreferences: next
+          };
+        }
+
         const outcome = await diagnostics.updatePreferences({
           highContrastEnabled: next.highContrast,
           reducedMotionEnabled: next.reduceMotion,
@@ -144,15 +202,24 @@ export const LandingPage: React.FC = () => {
           consentSummary: summary
         });
 
-        if (!outcome) {
-          addToast("Diagnostics preferences could not be saved. Settings may reset after restart.", "error");
+        if (typeof window !== "undefined") {
+          window.__diagnosticsDebug = {
+            ...(window.__diagnosticsDebug ?? {}),
+            lastPreferenceOutcome: outcome
+          };
         }
+
+        if (!outcome) {
+          return;
+        }
+
+        setPreviewPreferences(null);
       } catch (error) {
         console.warn("Failed to persist diagnostics preferences", error);
         addToast("Diagnostics preferences could not be saved. Check logs for details.", "error");
       }
     },
-    [addToast, diagnostics]
+    [addToast, diagnostics, derivedPreferences, previewPreferences]
   );
 
   const handleExportClick = useCallback(() => {
