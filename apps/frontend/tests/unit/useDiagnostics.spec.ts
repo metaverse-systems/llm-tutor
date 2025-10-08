@@ -288,12 +288,15 @@ describe("useDiagnostics", () => {
       });
     });
 
-    expect(harness.bridge.updatePreferences).toHaveBeenCalledWith({
-      highContrastEnabled: true,
-      reducedMotionEnabled: true,
-      remoteProvidersEnabled: false,
-      consentSummary: "Applied accessible layout"
-    });
+    expect(harness.bridge.updatePreferences).toHaveBeenCalledWith(
+      expect.objectContaining({
+        highContrastEnabled: true,
+        reducedMotionEnabled: true,
+        remoteProvidersEnabled: false,
+        consentSummary: "Applied accessible layout"
+      })
+    );
+    expect(harness.bridge.updatePreferences.mock.calls.at(-1)?.[0]?.expectedLastUpdatedAt).toBeDefined();
 
     const latest = api.preferences;
     expect(latest?.highContrastEnabled).toBe(true);
