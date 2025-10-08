@@ -62,6 +62,8 @@ export class DiagnosticsSnapshotService {
     const existingSnapshots = await this.repository.listSnapshots();
     const windowMs = (this.options.retentionWindowDays ?? DEFAULT_RETENTION_WINDOW_DAYS) * MS_PER_DAY;
 
+    // Compute snapshotCountLast30d here; this service is the single authority for this value.
+    // Callers (e.g., routes) should NOT recompute or override this value.
     const countLastWindow = existingSnapshots.filter((snapshot) => {
       return now.getTime() - snapshot.generatedAt.getTime() < windowMs;
     }).length + 1;
