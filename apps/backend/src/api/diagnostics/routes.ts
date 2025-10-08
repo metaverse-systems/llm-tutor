@@ -1,13 +1,18 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   DiagnosticsSnapshot,
-  serializeDiagnosticsSnapshot
+  serializeDiagnosticsSnapshot,
+  type DiagnosticsPreferenceRecordPayload
 } from "@metaverse-systems/llm-tutor-shared";
 import type {
   DiagnosticsSnapshotService,
   DiagnosticsSnapshotRepository
 } from "../../services/diagnostics/index.js";
 import { createDiagnosticsExport } from "../../infra/logging/index.js";
+import {
+	type DiagnosticsPreferenceAdapter
+} from "../../infra/preferences/index.js";
+import { registerDiagnosticsPreferenceRoutes } from "./preferences/routes.js";
 
 export type BackendLifecycleState = "ready" | "warming" | "error";
 
@@ -30,12 +35,10 @@ export interface DiagnosticsRoutesOptions {
   getBackendLifecycleState: () => BackendLifecycleState;
   now: () => Date;
   retentionWindowDays?: number;
-}
-
-function retentionWindowStart(now: Date, retentionWindowDays?: number): Date {
-  const days = retentionWindowDays ?? 30;
-  const windowStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  return windowStart;
+  preferences: {
+	adapter: DiagnosticsPreferenceAdapter;
+	onRecordUpdated: (payload: DiagnosticsPreferenceRecordPayload) => void;
+  };
 }
 
 export async function registerDiagnosticsRoutes(
@@ -43,6 +46,15 @@ export async function registerDiagnosticsRoutes(
   options: DiagnosticsRoutesOptions
 ): Promise<void> {
   const { store, snapshotService, refreshLimiter, getBackendLifecycleState, now, retentionWindowDays } = options;
+
+  await registerDiagnosticsPreferenceRoutes(app, {
+    adapter: options.preferences.adapter,
+    onRecordUpdated: options.preferences.onRecordUpdated,
+    refreshSnapshot: async () => {
+      const snapshot = await snapshotService.generateSnapshot();
+      await store.save(snapshot);
+    }
+  });
 
   app.get(
     "/internal/diagnostics/summary",
@@ -89,7 +101,7 @@ export async function registerDiagnosticsRoutes(
       await store.save(pendingSnapshot);
       refreshLimiter.recordSuccessfulRefresh(effectiveNow);
 
-      return reply.code(202).send(serializeDiagnosticsSnapshot(snapshotForStorage));
+      return reply.code(202).send(serializeDiagnosticsSnapshot(pendingSnapshot));
     }
   );
 

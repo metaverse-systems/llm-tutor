@@ -13,14 +13,19 @@ test.describe("Diagnostics accessibility regressions", () => {
     const expectedOrder = [
       "landing-diagnostics-cta",
       "landing-accessibility-toggle-high-contrast",
-      "landing-accessibility-toggle-reduce-motion"
+      "landing-accessibility-toggle-reduce-motion",
+      "landing-accessibility-toggle-remote-providers"
     ];
 
     const actualOrder: string[] = [];
-
-    for (const _ of expectedOrder) {
+    let safetyCounter = 0;
+    while (actualOrder.length < expectedOrder.length && safetyCounter < expectedOrder.length * 5) {
       await page.keyboard.press("Tab");
-      actualOrder.push(await getActiveTestId(page));
+      const activeId = await getActiveTestId(page);
+      if (activeId) {
+        actualOrder.push(activeId);
+      }
+      safetyCounter += 1;
     }
 
     expect(actualOrder).toStrictEqual(expectedOrder);

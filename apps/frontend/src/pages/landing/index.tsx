@@ -1,23 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AccessibilityPreferencePayload } from "@metaverse-systems/llm-tutor-shared";
 
 import { DiagnosticsPanel } from "../../components/DiagnosticsPanel/DiagnosticsPanel";
 import { AccessibilityToggles } from "../../components/AccessibilityToggles/AccessibilityToggles";
 import { useDiagnostics } from "../../hooks/useDiagnostics";
-
-interface AccessibilityPreferencesState {
-  highContrast: boolean;
-  reduceMotion: boolean;
-  updatedAt: Date;
-}
-
-type TogglePreferences = Pick<AccessibilityPreferencesState, "highContrast" | "reduceMotion">;
-
-interface DiagnosticsPreferencesBridge {
-  setAccessibilityPreference?: (preference: AccessibilityPreferencePayload) => Promise<void>;
-  saveAccessibilityPreference?: (preference: AccessibilityPreferencePayload) => Promise<void>;
-  updateAccessibilityPreference?: (preference: AccessibilityPreferencePayload) => Promise<void>;
-}
 
 type ToastTone = "info" | "success" | "warning" | "error";
 
@@ -27,102 +12,12 @@ interface ToastMessage {
   tone: ToastTone;
   testId?: string;
 }
-
-const STORAGE_KEY = "llm-tutor:accessibility-preferences";
-
-function defaultPreferences(): AccessibilityPreferencesState {
-  return {
-    highContrast: false,
-    reduceMotion: false,
-    updatedAt: new Date()
-  };
+interface DocumentAccessibilityPreferences {
+  highContrast: boolean;
+  reduceMotion: boolean;
 }
 
-function readStoredPreferences(): AccessibilityPreferencesState | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw) as Partial<AccessibilityPreferencePayload>;
-    if (typeof parsed.highContrast === "boolean" && typeof parsed.reduceMotion === "boolean") {
-      const updatedAt = parsed.updatedAt ? new Date(parsed.updatedAt) : new Date();
-      if (!Number.isNaN(updatedAt.getTime())) {
-        return {
-          highContrast: parsed.highContrast,
-          reduceMotion: parsed.reduceMotion,
-          updatedAt
-        };
-      }
-    }
-  } catch (error) {
-    console.warn("Unable to read stored accessibility preferences", error);
-  }
-
-  return null;
-}
-
-function persistPreferencesLocally(preferences: AccessibilityPreferencesState): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    const payload: AccessibilityPreferencePayload = {
-      highContrast: preferences.highContrast,
-      reduceMotion: preferences.reduceMotion,
-      updatedAt: preferences.updatedAt.toISOString()
-    };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  } catch (error) {
-    console.warn("Unable to persist accessibility preferences", error);
-  }
-}
-
-async function persistPreferencesThroughBridge(
-  preferences: AccessibilityPreferencesState
-): Promise<boolean> {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  const bridge = window.llmTutor?.diagnostics as (DiagnosticsPreferencesBridge & {
-    refreshSnapshot?: () => Promise<unknown>;
-  }) | undefined;
-
-  if (!bridge) {
-    return false;
-  }
-
-  const payload: AccessibilityPreferencePayload = {
-    highContrast: preferences.highContrast,
-    reduceMotion: preferences.reduceMotion,
-    updatedAt: preferences.updatedAt.toISOString()
-  };
-
-  const candidate =
-    bridge.setAccessibilityPreference ??
-    bridge.saveAccessibilityPreference ??
-    bridge.updateAccessibilityPreference;
-
-  if (typeof candidate !== "function") {
-    return false;
-  }
-
-  try {
-    await candidate(payload);
-    return true;
-  } catch (error) {
-    console.warn("Diagnostics bridge failed to persist accessibility preferences", error);
-    return false;
-  }
-}
-
-function applyDocumentPreferences(preferences: AccessibilityPreferencesState): void {
+function applyDocumentPreferences(preferences: DocumentAccessibilityPreferences): void {
   if (typeof document === "undefined") {
     return;
   }
@@ -136,16 +31,29 @@ function applyDocumentPreferences(preferences: AccessibilityPreferencesState): v
 
 export const LandingPage: React.FC = () => {
   const diagnostics = useDiagnostics();
-  const [preferences, setPreferences] = useState<AccessibilityPreferencesState>(() => {
-    return readStoredPreferences() ?? defaultPreferences();
-  });
-  const [isPersisting, setIsPersisting] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const toastIdRef = useRef(0);
   const seenWarningsRef = useRef<Set<string>>(new Set());
+  const seenStorageAlertsRef = useRef<Set<string>>(new Set());
   const exportButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const activePreferences = useMemo(() => {
+    return diagnostics.preferences ?? diagnostics.snapshot?.activePreferences ?? null;
+  }, [diagnostics.preferences, diagnostics.snapshot?.activePreferences]);
+
+  const derivedPreferences = useMemo(() => {
+    return {
+      highContrast: activePreferences?.highContrastEnabled ?? false,
+      reduceMotion: activePreferences?.reducedMotionEnabled ?? false,
+      remoteProviders: activePreferences?.remoteProvidersEnabled ?? false
+    };
+  }, [activePreferences]);
+
+  const storageHealthAlert = useMemo(() => {
+    return diagnostics.storageHealth ?? activePreferences?.storageHealth ?? null;
+  }, [diagnostics.storageHealth, activePreferences?.storageHealth]);
 
   const createToastId = useCallback(() => {
     toastIdRef.current += 1;
@@ -168,39 +76,14 @@ export const LandingPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    applyDocumentPreferences(preferences);
-    return () => {
-      applyDocumentPreferences(defaultPreferences());
-    };
-  }, [preferences]);
-
-  useEffect(() => {
-    const snapshotPreferences = diagnostics.snapshot?.activePreferences;
-    if (!snapshotPreferences) {
-      return;
-    }
-
-    const nextUpdatedAt = snapshotPreferences.updatedAt
-      ? new Date(snapshotPreferences.updatedAt)
-      : diagnostics.lastUpdatedAt ?? new Date();
-
-    if (Number.isNaN(nextUpdatedAt.getTime())) {
-      return;
-    }
-
-    setPreferences((current) => {
-      if (nextUpdatedAt.getTime() <= current.updatedAt.getTime()) {
-        return current;
-      }
-      const next: AccessibilityPreferencesState = {
-        highContrast: snapshotPreferences.highContrast,
-        reduceMotion: snapshotPreferences.reduceMotion,
-        updatedAt: nextUpdatedAt
-      };
-      persistPreferencesLocally(next);
-      return next;
+    applyDocumentPreferences({
+      highContrast: derivedPreferences.highContrast,
+      reduceMotion: derivedPreferences.reduceMotion
     });
-  }, [diagnostics.snapshot?.activePreferences, diagnostics.lastUpdatedAt]);
+    return () => {
+      applyDocumentPreferences({ highContrast: false, reduceMotion: false });
+    };
+  }, [derivedPreferences.highContrast, derivedPreferences.reduceMotion]);
 
   useEffect(() => {
     const seen = seenWarningsRef.current;
@@ -212,6 +95,23 @@ export const LandingPage: React.FC = () => {
       addToast(warning, "warning", { testId: "diagnostics-warning-toast" });
     });
   }, [diagnostics.warnings, addToast]);
+
+  useEffect(() => {
+    if (!storageHealthAlert || storageHealthAlert.status === "ok") {
+      return;
+    }
+    const key = `${storageHealthAlert.detectedAt}:${storageHealthAlert.message}`;
+    const seen = seenStorageAlertsRef.current;
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    addToast(
+      `${storageHealthAlert.message}. ${storageHealthAlert.recommendedAction}`,
+      "error",
+      { testId: "diagnostics-storage-alert-toast" }
+    );
+  }, [storageHealthAlert, addToast]);
 
   useEffect(() => {
     if (!isExportDialogOpen) {
@@ -233,24 +133,26 @@ export const LandingPage: React.FC = () => {
   }, [isExportDialogOpen]);
 
   const handleToggleChange = useCallback(
-    async (next: TogglePreferences) => {
-      const nextState: AccessibilityPreferencesState = {
-        highContrast: next.highContrast,
-        reduceMotion: next.reduceMotion,
-        updatedAt: new Date()
-      };
+    async (next: { highContrast: boolean; reduceMotion: boolean; remoteProviders: boolean }) => {
+      const summary = next.remoteProviders ? "Remote providers enabled" : "Remote providers are disabled";
 
-      setPreferences(nextState);
-      persistPreferencesLocally(nextState);
+      try {
+        const outcome = await diagnostics.updatePreferences({
+          highContrastEnabled: next.highContrast,
+          reducedMotionEnabled: next.reduceMotion,
+          remoteProvidersEnabled: next.remoteProviders,
+          consentSummary: summary
+        });
 
-      setIsPersisting(true);
-      const persisted = await persistPreferencesThroughBridge(nextState);
-      if (persisted) {
-        void diagnostics.requestSummary().catch(() => undefined);
+        if (!outcome) {
+          addToast("Diagnostics preferences could not be saved. Settings may reset after restart.", "error");
+        }
+      } catch (error) {
+        console.warn("Failed to persist diagnostics preferences", error);
+        addToast("Diagnostics preferences could not be saved. Check logs for details.", "error");
       }
-      setIsPersisting(false);
     },
-    [diagnostics]
+    [addToast, diagnostics]
   );
 
   const handleExportClick = useCallback(() => {
@@ -357,16 +259,15 @@ export const LandingPage: React.FC = () => {
         backend={diagnostics.backend}
         warnings={diagnostics.warnings}
         isLoading={diagnostics.isLoading}
-        disableAnimations={preferences.reduceMotion}
+        disableAnimations={derivedPreferences.reduceMotion}
+        preferences={activePreferences}
+        storageHealth={storageHealthAlert}
       />
 
       <AccessibilityToggles
-        preferences={{
-          highContrast: preferences.highContrast,
-          reduceMotion: preferences.reduceMotion
-        }}
+        preferences={derivedPreferences}
         onChange={handleToggleChange}
-        isPersisting={isPersisting}
+        isPersisting={diagnostics.isUpdatingPreferences}
       />
 
       {isExportDialogOpen ? (
