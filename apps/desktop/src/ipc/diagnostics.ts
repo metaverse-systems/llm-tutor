@@ -6,21 +6,11 @@ import type {
 import { createProcessHealthEventPayload } from "@metaverse-systems/llm-tutor-shared";
 import type { BackendProcessState, DiagnosticsManager, DiagnosticsRefreshResult } from "../main/diagnostics";
 import { exportDiagnosticsSnapshot } from "../main/diagnostics/export";
+import { DIAGNOSTICS_CHANNELS } from "./channels";
+import type { DiagnosticsChannels } from "./channels";
 
-export const DIAGNOSTICS_CHANNELS = {
-	getState: "diagnostics:get-state",
-	getSummary: "diagnostics:get-summary",
-	refresh: "diagnostics:refresh",
-	openLogDirectory: "diagnostics:open-log-directory",
-	getProcessEvents: "diagnostics:get-process-events",
-	exportSnapshot: "diagnostics:export-snapshot",
-	backendStateChanged: "diagnostics:backend-state-changed",
-	processEvent: "diagnostics:process-event",
-	retentionWarning: "diagnostics:retention-warning",
-	snapshotUpdated: "diagnostics:snapshot-updated"
-} as const;
-
-export type DiagnosticsChannels = typeof DIAGNOSTICS_CHANNELS;
+export { DIAGNOSTICS_CHANNELS };
+export type { DiagnosticsChannels };
 
 export interface SerializableBackendProcessState
 	extends Omit<BackendProcessState, "updatedAt"> {

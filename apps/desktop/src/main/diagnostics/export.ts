@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { WebContents } from "electron";
 import type { DiagnosticsManager, DiagnosticsExportPayload } from "./index";
 
@@ -33,12 +34,23 @@ export async function exportDiagnosticsSnapshot(
 	}
 
 	const session = webContents.session;
+	const testExportDir = process.env.LLM_TUTOR_TEST_EXPORT_DIR?.trim();
 
 	const dataUrl = toDataUrl(payload);
 
 	return await new Promise<DiagnosticsExportResult>((resolve) => {
 		const handleDownload = (_event: Electron.Event, item: Electron.DownloadItem) => {
 			session.removeListener("will-download", handleDownload);
+
+			if (testExportDir) {
+				const filename = payload.filename?.trim() || "diagnostics-snapshot.jsonl";
+				const destination = path.join(testExportDir, filename);
+				try {
+					item.setSavePath(destination);
+				} catch (error) {
+					logger.warn?.("Failed to assign diagnostics export save path", error);
+				}
+			}
 
 			if (typeof item.setSaveDialogOptions === "function") {
 				item.setSaveDialogOptions({

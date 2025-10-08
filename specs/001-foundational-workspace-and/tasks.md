@@ -41,11 +41,11 @@
 - [x] T025 [P] Instrument log retention warnings to surface in renderer toasts and accessibility-friendly alerts.
 
 ## Phase 3.7: Polish & Validation
-- [ ] T026 Backfill unit tests for renderer hooks and IPC utilities (`apps/frontend/tests/unit/useDiagnostics.spec.ts`, `apps/desktop/tests/preload/diagnostics.spec.ts`).
-- [ ] T027 Update documentation: extend `docs/architecture.md` diagnostics section, add runbook in `docs/diagnostics.md`, and record opt-in steps for remote LLMs.
-- [ ] T028 Execute `quickstart.md` steps end-to-end, capturing screenshots/logs, and attach verification results in `docs/testing-log.md`.
-- [ ] T029 Run full validation suite (Vitest across workspaces, Playwright accessibility, Electron smoke) and archive reports under `docs/reports/diagnostics/`.
-- [ ] T030 Prepare release notes in `docs/release-notes/001-foundational-workspace-and.md` summarizing diagnostics feature readiness and outstanding follow-ups.
+- [x] T026 Backfill unit tests for renderer hooks and IPC utilities (`apps/frontend/tests/unit/useDiagnostics.spec.ts`, `apps/desktop/tests/preload/diagnostics.spec.ts`).
+- [x] T027 Update documentation: extend `docs/architecture.md` diagnostics section, add runbook in `docs/diagnostics.md`, and record opt-in steps for remote LLMs.
+- [x] T028 Execute `quickstart.md` steps end-to-end, capturing screenshots/logs, and attach verification results in `docs/testing-log.md`.
+- [x] T029 Run full validation suite (Vitest across workspaces, Playwright accessibility, Electron smoke) and archive reports under `docs/reports/diagnostics/`.
+- [x] T030 Prepare release notes in `docs/release-notes/001-foundational-workspace-and.md` summarizing diagnostics feature readiness and outstanding follow-ups.
 
 ## Dependencies
 - T001 → T002 → T003/T004
@@ -69,6 +69,6 @@
 ## Validation Checklist
 - [x] All contract, integration, accessibility, and smoke tests exist and initially failed.
 - [x] Implementation tasks trace directly to shared models, backend routes, IPC bridges, and renderer UI.
-- [ ] Parallel `[P]` tasks edit disjoint files to avoid conflicts.
-- [ ] Documentation updated alongside code (runbook, release notes, testing log).
-- [ ] Final validation suite executed with artifacts stored in `docs/reports/diagnostics/`.
+- [x] Parallel `[P]` tasks edit disjoint files to avoid conflicts.
+- [x] Documentation updated alongside code (runbook, release notes, testing log).
+- [x] Final validation suite executed with artifacts stored in `docs/reports/diagnostics/`.

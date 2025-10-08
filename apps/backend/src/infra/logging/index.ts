@@ -1,19 +1,19 @@
 export {
 	enforceDiagnosticsRetention
-} from "./retention";
+} from "./retention.js";
 
 export {
 	createDiagnosticsExport
-} from "./export";
+} from "./export.js";
 
 export type {
 	DiagnosticsExportOptions,
 	DiagnosticsExportResult
-} from "./export";
+} from "./export.js";
 
 export type {
 	DiagnosticsRetentionConfig,
 	DiagnosticsRetentionOptions,
 	DiagnosticsRetentionResult,
 	DiagnosticsSnapshotFile
-} from "./retention";
+} from "./retention.js";

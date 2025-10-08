@@ -13,14 +13,14 @@ import {
 	DiagnosticsSnapshotServiceOptions,
 	MutableDiagnosticsStorageMetricsCollector,
 	createMutableDiagnosticsStorageMetricsCollector
-} from "../../services/diagnostics";
+} from "../../services/diagnostics/index.js";
 import {
 	registerDiagnosticsRoutes,
 	type BackendLifecycleState,
 	type DiagnosticsRoutesOptions,
 	type DiagnosticsSnapshotStore,
 	type RefreshRateLimiter
-} from "./routes";
+} from "./routes.js";
 
 const DEFAULT_STORAGE_DIR = "/tmp/llm-tutor/diagnostics";
 

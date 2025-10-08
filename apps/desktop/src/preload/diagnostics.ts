@@ -7,7 +7,7 @@ import type {
 	BackendProcessState,
 	DiagnosticsRefreshResult
 } from "../main/diagnostics";
-import { DIAGNOSTICS_CHANNELS } from "../ipc/diagnostics";
+import { DIAGNOSTICS_CHANNELS } from "../ipc/channels";
 
 export interface DiagnosticsExportResult {
 	success: boolean;

@@ -499,14 +499,18 @@ export class DiagnosticsManager extends TypedEventEmitter {
 
 		try {
 			const requestUrl = new URL(pathname, this.diagnosticsApiOrigin);
+			const headers = new Headers(init.headers ?? undefined);
+			if (!headers.has("accept")) {
+				headers.set("accept", "application/json");
+			}
+			if (init.body !== undefined && !headers.has("content-type")) {
+				headers.set("content-type", "application/json");
+			}
+
 			return await fetch(requestUrl, {
 				...init,
 				signal: controller.signal,
-				headers: {
-					"content-type": "application/json",
-					accept: "application/json",
-					...init.headers
-				}
+				headers
 			});
 		} finally {
 			clearTimeout(timeout);

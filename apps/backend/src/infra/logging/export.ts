@@ -1,5 +1,5 @@
 import { serializeDiagnosticsSnapshot, type DiagnosticsSnapshot } from "@metaverse-systems/llm-tutor-shared";
-import type { DiagnosticsSnapshotStore } from "../../api/diagnostics/routes";
+import type { DiagnosticsSnapshotStore } from "../../api/diagnostics/routes.js";
 
 export interface DiagnosticsExportOptions {
   store: Pick<DiagnosticsSnapshotStore, "listSnapshots">;

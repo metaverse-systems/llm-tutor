@@ -20,10 +20,10 @@ runtime architecture and highlights the responsibilities of each tier.
 | Area | Tooling | Status | Notes |
 |------|---------|--------|-------|
 | Workspace Tooling | Node.js 20.x, npm 10.8, TypeScript 5.5, ESLint, Prettier, Vitest, Playwright | ✅ Installed | Verified via `npm install` on 2025-10-07. |
-| Backend HTTP Layer | Fastify 4, `@fastify/type-provider-zod` | ⚠️ Pending | Required for diagnostics API slice; add to `apps/backend` dependencies before implementation tasks T012–T014. |
-| Backend Storage Helpers | `electron-store` (shared usage) | ⚠️ Pending | Needed to persist accessibility preferences; install under `apps/desktop` and share preload typings. |
-| Accessibility Tooling | `@axe-core/playwright`, `axe-html-reporter` | ⚠️ Pending | Supports Phase 3.2 accessibility regression; add to `apps/frontend` devDependencies alongside Playwright config update. |
-| Electron Diagnostics | `systeminformation`, `tree-kill` | ⚠️ Review | Evaluate during diagnostics snapshot implementation for cross-platform process stats and safe shutdown. |
+| Backend HTTP Layer | Fastify 4, Zod | ✅ Implemented | Fastify + Zod contracts wired into diagnostics API (`apps/backend`). |
+| Backend Storage Helpers | `electron-store` (shared usage) | ⚠️ Planned | Diagnostics ship with in-memory preference cache; electron-store adoption remains on the backlog for persistence parity. |
+| Accessibility Tooling | Playwright, axe-core | ⚠️ In Progress | Playwright accessibility flows run in CI; axe-core assertions scheduled for the next polish sprint. |
+| Electron Diagnostics | `systeminformation`, `tree-kill` | ⚠️ Deferred | Cross-platform metrics use native Node APIs today; revisit external deps once Windows/Linux parity gaps surface. |
 
 > Update this matrix as tooling is installed during Phase 3 execution.
 
@@ -80,3 +80,24 @@ runtime architecture and highlights the responsibilities of each tier.
 This architecture description will evolve as implementation details solidify. Each major
 feature plan should reference the constitution, update this document with concrete
 components and diagrams, and note any cross-cutting concerns introduced by Electron.
+
+## 7. Diagnostics Observability
+
+### 7.1 Snapshot Lifecycle
+
+- **Collection** – The backend `snapshot.service` hydrates `DiagnosticsSnapshotPayload` by combining Fastify health checks, llama.cpp probe results, disk usage stats, and persisted accessibility preferences. The service emits structured JSONL entries into the per-user diagnostics directory.
+- **Transport** – Fastify exposes `GET /internal/diagnostics/summary` and `POST /internal/diagnostics/refresh`, which Electron’s main process proxies via IPC channels defined in `apps/desktop/src/ipc/diagnostics.ts`.
+- **Renderer Sync** – The preload bridge (`createDiagnosticsBridge`) pushes updates into the renderer hook `useDiagnostics`, which debounces polling, merges retention warnings, and normalizes process events.
+
+### 7.2 Export & Retention Flow
+
+- **Retention Guardrails** – `retention.ts` runs on an interval to prune snapshots older than 30 days and raises warnings when JSONL payloads exceed 500 MB. Warnings surface through IPC and render as toast alerts with accessible messaging.
+- **Export UX** – Triggering an export from the diagnostics panel invokes Electron’s `exportDiagnosticsSnapshot`, opens a save dialog, writes the JSONL payload, and returns success metadata back through the preload bridge.
+- **Testing Hooks** – Contract, integration, accessibility, unit, and Electron smoke suites cover these paths, and reports are archived under `docs/reports/diagnostics/`.
+
+### 7.3 Remote LLM Opt-In Path
+
+1. **Toggle Location** – The renderer surfaces remote-provider opt-in under diagnostics > “LLM Connectivity”. Users must explicitly enable the flag before any network traffic occurs.
+2. **Consent Dialog** – Enabling remote providers launches a modal summarizing data handling, tenancy requirements, and the URLs that will be contacted. Users must confirm before preferences persist.
+3. **Preference Storage** – Upon confirmation, the selection writes to the diagnostics preference cache (electron-store pending). The backend reloads providers on the next snapshot refresh, ensuring local-first remains the default.
+4. **Auditing** – Each opt-in/out event registers as a `ProcessHealthEvent` so the export log captures the decision history for support scenarios.

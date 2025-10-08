@@ -1,6 +1,6 @@
 import { describeProject } from "@metaverse-systems/llm-tutor-shared";
-import { createDiagnosticsApp, type DiagnosticsAppOptions } from "./api/diagnostics";
-import { createLlmProbe } from "./services/diagnostics";
+import { createDiagnosticsApp, type DiagnosticsAppOptions } from "./api/diagnostics/index.js";
+import { createLlmProbe } from "./services/diagnostics/index.js";
 
 const DEFAULT_PORT = 4319;
 const DEFAULT_HOST = "127.0.0.1";

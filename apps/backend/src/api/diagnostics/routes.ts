@@ -6,8 +6,8 @@ import {
 import type {
   DiagnosticsSnapshotService,
   DiagnosticsSnapshotRepository
-} from "../../services/diagnostics";
-import { createDiagnosticsExport } from "../../infra/logging";
+} from "../../services/diagnostics/index.js";
+import { createDiagnosticsExport } from "../../infra/logging/index.js";
 
 export type BackendLifecycleState = "ready" | "warming" | "error";
 

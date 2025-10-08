@@ -1,5 +1,5 @@
 import { URL } from "node:url";
-import type { LlmProbeResult } from "./snapshot.service";
+import type { LlmProbeResult } from "./snapshot.service.js";
 
 export interface LlmProbeOptions {
 	endpoint?: string | null;
