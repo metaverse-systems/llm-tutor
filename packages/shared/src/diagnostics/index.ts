@@ -1,11 +1,27 @@
 import { z } from "zod";
-import {
-	diagnosticsPreferenceRecordSchema,
-	parseDiagnosticsPreferenceRecord,
-	serializeDiagnosticsPreferenceRecord,
-	type DiagnosticsPreferenceRecord,
-	type DiagnosticsPreferenceRecordPayload
-} from "./preference-record";
+
+export const accessibilityPreferenceSchema = z.object({
+	highContrast: z.boolean(),
+	reduceMotion: z.boolean(),
+	updatedAt: z.string().datetime()
+});
+
+export type AccessibilityPreferencePayload = z.infer<typeof accessibilityPreferenceSchema>;
+
+export interface AccessibilityPreference {
+	highContrast: boolean;
+	reduceMotion: boolean;
+	updatedAt: Date;
+}
+
+export function parseAccessibilityPreference(input: unknown): AccessibilityPreference {
+	const payload = accessibilityPreferenceSchema.parse(input);
+	return {
+		highContrast: payload.highContrast,
+		reduceMotion: payload.reduceMotion,
+		updatedAt: new Date(payload.updatedAt)
+	};
+}
 
 export const processHealthEventSchema = z.object({
 	id: z.string().uuid(),
@@ -48,7 +64,7 @@ export const diagnosticsSnapshotSchema = z.object({
 	snapshotCountLast30d: z.number().int().nonnegative().optional(),
 	diskUsageBytes: z.number().int().nonnegative(),
 	warnings: z.array(z.string().min(1)).optional(),
-	activePreferences: diagnosticsPreferenceRecordSchema
+	activePreferences: accessibilityPreferenceSchema
 });
 
 export type DiagnosticsSnapshotPayload = z.infer<typeof diagnosticsSnapshotSchema>;
@@ -65,7 +81,7 @@ export interface DiagnosticsSnapshot {
 	snapshotCountLast30d?: number;
 	diskUsageBytes: number;
 	warnings: string[];
-	activePreferences: DiagnosticsPreferenceRecord;
+	activePreferences: AccessibilityPreference;
 }
 
 export function parseDiagnosticsSnapshot(input: unknown): DiagnosticsSnapshot {
@@ -82,7 +98,15 @@ export function parseDiagnosticsSnapshot(input: unknown): DiagnosticsSnapshot {
 		snapshotCountLast30d: payload.snapshotCountLast30d,
 		diskUsageBytes: payload.diskUsageBytes,
 		warnings: payload.warnings ?? [],
-		activePreferences: parseDiagnosticsPreferenceRecord(payload.activePreferences)
+		activePreferences: parseAccessibilityPreference(payload.activePreferences)
+	};
+}
+
+export function serializeAccessibilityPreference(preference: AccessibilityPreference): AccessibilityPreferencePayload {
+	return {
+		highContrast: preference.highContrast,
+		reduceMotion: preference.reduceMotion,
+		updatedAt: preference.updatedAt.toISOString()
 	};
 }
 
@@ -99,10 +123,6 @@ export function serializeDiagnosticsSnapshot(snapshot: DiagnosticsSnapshot): Dia
 		snapshotCountLast30d: snapshot.snapshotCountLast30d,
 		diskUsageBytes: snapshot.diskUsageBytes,
 		warnings: snapshot.warnings.length > 0 ? snapshot.warnings : undefined,
-		activePreferences: serializeDiagnosticsPreferenceRecord(snapshot.activePreferences)
+		activePreferences: serializeAccessibilityPreference(snapshot.activePreferences)
 	};
 }
-
-export * from "./preference-record";
-export * from "./consent-event";
-export * from "./storage-health";

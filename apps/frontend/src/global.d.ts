@@ -1,8 +1,6 @@
 import type {
   DiagnosticsSnapshotPayload,
-  ProcessHealthEventPayload,
-  DiagnosticsPreferenceRecordPayload,
-  StorageHealthAlertPayload
+  ProcessHealthEventPayload
 } from "@metaverse-systems/llm-tutor-shared";
 
 export {}; // Ensures this file is treated as a module
@@ -21,8 +19,6 @@ interface DiagnosticsStatePayload {
   warnings: string[];
   latestSnapshot: DiagnosticsSnapshotPayload | null | undefined;
   processEvents: ProcessHealthEventPayload[];
-  preferences: DiagnosticsPreferenceRecordPayload | null;
-  storageHealth: StorageHealthAlertPayload | null;
 }
 
 interface DiagnosticsRefreshResult {
@@ -47,24 +43,10 @@ interface DiagnosticsPreloadApi {
   refreshSnapshot(): Promise<DiagnosticsRefreshResult>;
   openLogDirectory(): Promise<boolean>;
   exportSnapshot(): Promise<DiagnosticsExportResult>;
-  updatePreferences(payload: DiagnosticsPreferenceUpdatePayload): Promise<DiagnosticsPreferenceRecordPayload>;
   onBackendStateChanged(listener: (state: SerializableBackendProcessState) => void): () => void;
   onProcessEvent(listener: (event: ProcessHealthEventPayload) => void): () => void;
   onRetentionWarning(listener: (warning: string) => void): () => void;
   onSnapshotUpdated(listener: (snapshot: DiagnosticsSnapshotPayload | null) => void): () => void;
-  onPreferencesUpdated(listener: (payload: DiagnosticsPreferenceRecordPayload) => void): () => void;
-  onStorageHealthChanged(
-    listener: (payload: StorageHealthAlertPayload | null) => void
-  ): () => void;
-}
-
-interface DiagnosticsPreferenceUpdatePayload {
-  highContrastEnabled: boolean;
-  reducedMotionEnabled: boolean;
-  remoteProvidersEnabled: boolean;
-  consentSummary: string;
-  expectedLastUpdatedAt?: string;
-  consentEvent?: unknown;
 }
 
 declare global {

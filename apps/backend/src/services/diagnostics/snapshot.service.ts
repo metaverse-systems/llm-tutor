@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
-  DiagnosticsPreferenceRecord,
+  AccessibilityPreference,
   DiagnosticsSnapshot
 } from "@metaverse-systems/llm-tutor-shared";
 
@@ -39,7 +39,7 @@ export interface DiagnosticsSnapshotServiceOptions {
   storageDir: string;
   rendererUrlProvider: () => string | Promise<string>;
   backendStateProvider: () => BackendHealthState;
-  preferenceRecordLoader: () => Promise<DiagnosticsPreferenceRecord>;
+  accessibilityPreferenceLoader: () => Promise<AccessibilityPreference>;
   llmProbe: () => Promise<LlmProbeResult>;
   retentionWindowDays?: number;
   now?: () => Date;
@@ -56,7 +56,7 @@ export class DiagnosticsSnapshotService {
     const now = this.options.now?.() ?? new Date();
     const rendererUrl = await Promise.resolve(this.options.rendererUrlProvider());
     const backend = this.options.backendStateProvider();
-  const preferences = await this.options.preferenceRecordLoader();
+    const preferences = await this.options.accessibilityPreferenceLoader();
     const llm = await this.options.llmProbe();
     const diskUsageBytes = await this.metricsCollector.getDiskUsageBytes();
     const existingSnapshots = await this.repository.listSnapshots();
@@ -95,8 +95,8 @@ export class DiagnosticsSnapshotService {
       // NOTE: snapshotCountLast30d should only be computed here.
       snapshotCountLast30d: countLastWindow,
       diskUsageBytes,
-    warnings: Array.from(combinedWarnings),
-    activePreferences: preferences
+      warnings: Array.from(combinedWarnings),
+      activePreferences: preferences
     };
 
     if (snapshot.warnings.length === 0) {

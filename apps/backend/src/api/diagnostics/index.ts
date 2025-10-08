@@ -1,14 +1,9 @@
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import {
-	DiagnosticsPreferenceRecord,
-	DiagnosticsPreferenceRecordPayload,
 	DiagnosticsSnapshot,
 	DiagnosticsSnapshotPayload,
-	createDiagnosticsPreferenceRecord,
-	parseDiagnosticsPreferenceRecord,
 	parseDiagnosticsSnapshot,
-	serializeDiagnosticsPreferenceRecord,
 	serializeDiagnosticsSnapshot
 } from "@metaverse-systems/llm-tutor-shared";
 import {
@@ -26,10 +21,6 @@ import {
 	type DiagnosticsSnapshotStore,
 	type RefreshRateLimiter
 } from "./routes.js";
-import {
-	createInMemoryDiagnosticsPreferenceAdapter,
-	type DiagnosticsPreferenceAdapter
-} from "../../infra/preferences/index.js";
 
 const DEFAULT_STORAGE_DIR = "/tmp/llm-tutor/diagnostics";
 
@@ -88,18 +79,18 @@ class InMemoryDiagnosticsSnapshotStore implements DiagnosticsSnapshotStore {
 }
 
 class PreferenceManager {
-	private preference: DiagnosticsPreferenceRecord;
+	private preference: DiagnosticsSnapshot["activePreferences"];
 
-	constructor(seed: DiagnosticsPreferenceRecord) {
-		this.preference = parseDiagnosticsPreferenceRecord(serializeDiagnosticsPreferenceRecord(seed));
+	constructor(seed: DiagnosticsSnapshot["activePreferences"]) {
+		this.preference = seed;
 	}
 
-	get(): DiagnosticsPreferenceRecord {
-		return parseDiagnosticsPreferenceRecord(serializeDiagnosticsPreferenceRecord(this.preference));
+	get(): DiagnosticsSnapshot["activePreferences"] {
+		return { ...this.preference, updatedAt: new Date(this.preference.updatedAt) };
 	}
 
-	set(preference: DiagnosticsPreferenceRecord): void {
-		this.preference = parseDiagnosticsPreferenceRecord(serializeDiagnosticsPreferenceRecord(preference));
+	set(preference: DiagnosticsSnapshot["activePreferences"]): void {
+		this.preference = preference;
 	}
 }
 
@@ -160,67 +151,17 @@ class SimpleRefreshRateLimiter implements RefreshRateLimiter {
 	}
 }
 
-type LegacyDiagnosticsPreferenceSeed = {
-	highContrast: boolean;
-	reduceMotion: boolean;
-	updatedAt: string;
-};
-
-type LegacyDiagnosticsSnapshotSeed = Omit<DiagnosticsSnapshotPayload, "activePreferences"> & {
-	activePreferences: LegacyDiagnosticsPreferenceSeed;
-};
-
-type DiagnosticsSnapshotSeedInput = DiagnosticsSnapshotPayload | LegacyDiagnosticsSnapshotSeed;
-
-function isLegacySnapshotSeed(
-	seed: DiagnosticsSnapshotSeedInput
-): seed is LegacyDiagnosticsSnapshotSeed {
-	const prefs = (seed as LegacyDiagnosticsSnapshotSeed).activePreferences;
-	return (
-		prefs !== undefined &&
-		"highContrast" in prefs &&
-		!Object.prototype.hasOwnProperty.call(prefs, "highContrastEnabled")
-	);
-}
-
-function normalizeSnapshotSeed(seed: DiagnosticsSnapshotSeedInput): DiagnosticsSnapshotPayload {
-	if (!isLegacySnapshotSeed(seed)) {
-		return seed;
-	}
-
-	const preference = createDiagnosticsPreferenceRecord({
-		highContrastEnabled: seed.activePreferences.highContrast,
-		reducedMotionEnabled: seed.activePreferences.reduceMotion,
-		remoteProvidersEnabled: false,
-		lastUpdatedAt: new Date(seed.activePreferences.updatedAt),
-		updatedBy: "main",
-		consentSummary:
-			seed.activePreferences.highContrast || seed.activePreferences.reduceMotion
-				? "Accessibility preferences updated"
-				: "Remote providers are disabled"
-	});
-
-	return {
-		...seed,
-		activePreferences: serializeDiagnosticsPreferenceRecord(preference)
-	};
-}
-
 interface DiagnosticsTestHarnessOptions {
-	initialSnapshot?: DiagnosticsSnapshotSeedInput | null;
+	initialSnapshot?: DiagnosticsSnapshotPayload | null;
 }
 
 interface DiagnosticsTestHarness {
 	app: FastifyInstance;
-	seedSnapshot(seed: DiagnosticsSnapshotSeedInput): Promise<void>;
+	seedSnapshot(seed: DiagnosticsSnapshotPayload): Promise<void>;
 	clearSnapshots(): Promise<void>;
 	setBackendState(state: BackendLifecycleState, message?: string): Promise<void>;
 	setRefreshCooldown(seconds: number): void;
 	advanceTime(milliseconds: number): void;
-	loadPreferenceState(): Promise<DiagnosticsPreferenceRecordPayload>;
-	seedPreferenceState(payload: DiagnosticsPreferenceRecordPayload): Promise<void>;
-	simulatePreferenceVaultUnavailable(): Promise<void>;
-	restorePreferenceVault(): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -236,8 +177,8 @@ function createSnapshotService(
 		storageDir: overrides.storageDir ?? DEFAULT_STORAGE_DIR,
 		rendererUrlProvider: overrides.rendererUrlProvider ?? (() => "http://localhost:5173"),
 		backendStateProvider: overrides.backendStateProvider ?? (() => backendLifecycle.asHealthState()),
-		preferenceRecordLoader:
-			overrides.preferenceRecordLoader ?? (async () => preferences.get()),
+		accessibilityPreferenceLoader:
+			overrides.accessibilityPreferenceLoader ?? (async () => preferences.get()),
 		llmProbe: overrides.llmProbe ?? (async () => ({ status: "disabled" })),
 		retentionWindowDays: overrides.retentionWindowDays ?? 30,
 		now: overrides.now ?? (() => clock.now())
@@ -251,9 +192,7 @@ async function buildFastifyApp(
 	snapshotService: DiagnosticsSnapshotService,
 	refreshLimiter: SimpleRefreshRateLimiter,
 	backendLifecycle: BackendLifecycleController,
-	clock: VirtualClock,
-	preferenceAdapter: DiagnosticsPreferenceAdapter,
-	preferences: PreferenceManager
+	clock: VirtualClock
 ): Promise<FastifyInstance> {
 	const app = Fastify({ logger: false });
 
@@ -263,14 +202,7 @@ async function buildFastifyApp(
 		refreshLimiter,
 		getBackendLifecycleState: () => backendLifecycle.getLifecycle(),
 		now: () => clock.now(),
-		retentionWindowDays: 30,
-		preferences: {
-			adapter: preferenceAdapter,
-			onRecordUpdated: (payload: DiagnosticsPreferenceRecordPayload) => {
-				const record = parseDiagnosticsPreferenceRecord(payload);
-				preferences.set(record);
-			}
-		}
+		retentionWindowDays: 30
 	};
 
 	await registerDiagnosticsRoutes(app, routes);
@@ -285,15 +217,10 @@ export async function createDiagnosticsTestHarness(
 	const store = new InMemoryDiagnosticsSnapshotStore();
 	const metricsCollector = createMutableDiagnosticsStorageMetricsCollector();
 	const backendLifecycle = new BackendLifecycleController();
-	const preferenceManager = new PreferenceManager(
-		createDiagnosticsPreferenceRecord({
-			lastUpdatedAt: clock.now(),
-			updatedBy: "main"
-		})
-	);
-	const preferenceAdapter = createInMemoryDiagnosticsPreferenceAdapter({
-		initialRecord: preferenceManager.get(),
-		now: () => clock.now()
+	const preferenceManager = new PreferenceManager({
+		highContrast: false,
+		reduceMotion: false,
+		updatedAt: clock.now()
 	});
 	const refreshLimiter = new SimpleRefreshRateLimiter();
 
@@ -305,22 +232,12 @@ export async function createDiagnosticsTestHarness(
 		backendLifecycle
 	);
 
-	const app = await buildFastifyApp(
-		store,
-		snapshotService,
-		refreshLimiter,
-		backendLifecycle,
-		clock,
-		preferenceAdapter,
-		preferenceManager
-	);
+	const app = await buildFastifyApp(store, snapshotService, refreshLimiter, backendLifecycle, clock);
 
-	async function seedSnapshot(seed: DiagnosticsSnapshotSeedInput): Promise<void> {
-		const normalized = normalizeSnapshotSeed(seed);
-		const snapshot = parseDiagnosticsSnapshot(normalized);
+	async function seedSnapshot(seed: DiagnosticsSnapshotPayload): Promise<void> {
+		const snapshot = parseDiagnosticsSnapshot(seed);
 		await store.save(snapshot);
 		preferenceManager.set(snapshot.activePreferences);
-		await preferenceAdapter.seed?.(serializeDiagnosticsPreferenceRecord(snapshot.activePreferences));
 		metricsCollector.setDiskUsageBytes(seed.diskUsageBytes);
 		metricsCollector.setWarnings(seed.warnings ?? []);
 	}
@@ -347,18 +264,6 @@ export async function createDiagnosticsTestHarness(
 		advanceTime: (milliseconds: number) => {
 			clock.advance(milliseconds);
 		},
-		loadPreferenceState: async () => preferenceAdapter.load(),
-		seedPreferenceState: async (payload) => {
-			await preferenceAdapter.seed?.(payload);
-			const record = parseDiagnosticsPreferenceRecord(payload);
-			preferenceManager.set(record);
-		},
-		simulatePreferenceVaultUnavailable: async () => {
-			await preferenceAdapter.simulateUnavailable?.();
-		},
-		restorePreferenceVault: async () => {
-			await preferenceAdapter.restoreAvailability?.();
-		},
 		close: async () => {
 			await app.close();
 		}
@@ -376,15 +281,10 @@ export async function createDiagnosticsApp(
 	const store = new InMemoryDiagnosticsSnapshotStore();
 	const metricsCollector = createMutableDiagnosticsStorageMetricsCollector();
 	const backendLifecycle = new BackendLifecycleController();
-	const preferenceManager = new PreferenceManager(
-		createDiagnosticsPreferenceRecord({
-			lastUpdatedAt: clock.now(),
-			updatedBy: "main"
-		})
-	);
-	const preferenceAdapter = createInMemoryDiagnosticsPreferenceAdapter({
-		initialRecord: preferenceManager.get(),
-		now: () => clock.now()
+	const preferenceManager = new PreferenceManager({
+		highContrast: false,
+		reduceMotion: false,
+		updatedAt: clock.now()
 	});
 	const refreshLimiter = new SimpleRefreshRateLimiter();
 
@@ -397,20 +297,7 @@ export async function createDiagnosticsApp(
 		options.snapshotServiceOverrides
 	);
 
-	const app = await buildFastifyApp(
-		store,
-		snapshotService,
-		refreshLimiter,
-		backendLifecycle,
-		clock,
-		preferenceAdapter,
-		preferenceManager
-	);
-
-	const bootstrapSnapshot = await snapshotService.generateSnapshot();
-	await store.save(bootstrapSnapshot);
-
-	return app;
+	return buildFastifyApp(store, snapshotService, refreshLimiter, backendLifecycle, clock);
 }
 
 export {
