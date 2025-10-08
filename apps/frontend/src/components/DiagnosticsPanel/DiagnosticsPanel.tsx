@@ -182,11 +182,11 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
     if (!effectivePreferences?.consentEvents?.length) {
       return [];
     }
-    return [...effectivePreferences.consentEvents]
-      .sort((a, b) => Date.parse(b.occurredAt ?? "") - Date.parse(a.occurredAt ?? ""))
+    return effectivePreferences.consentEvents
+      .filter(event => typeof event.occurredAt === "string" && !isNaN(Date.parse(event.occurredAt)))
+      .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
       .slice(0, 3)
       .map((event) => ({ id: event.eventId, label: describeConsentEvent(event) }));
-  }, [effectivePreferences?.consentEvents]);
 
   const combinedWarnings = useMemo(() => combineWarnings(snapshot, warnings), [snapshot, warnings]);
 
