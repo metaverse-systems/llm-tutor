@@ -8,7 +8,9 @@ import {
 } from "@metaverse-systems/llm-tutor-shared";
 import type {
   DiagnosticsSnapshotPayload,
-  ProcessHealthEventPayload
+  ProcessHealthEventPayload,
+  DiagnosticsPreferenceRecordPayload,
+  StorageHealthAlertPayload
 } from "@metaverse-systems/llm-tutor-shared";
 import { useDiagnostics } from "../../src/hooks/useDiagnostics";
 
@@ -17,6 +19,8 @@ type ListenerMap = {
   processEvent?: (payload: ProcessHealthEventPayload) => void;
   retentionWarning?: (payload: string) => void;
   snapshotUpdated?: (payload: DiagnosticsSnapshotPayload | null) => void;
+  preferencesUpdated?: (payload: DiagnosticsPreferenceRecordPayload) => void;
+  storageHealth?: (payload: StorageHealthAlertPayload | null) => void;
 };
 
 function createDiagnosticsBridgeHarness() {
@@ -37,6 +41,18 @@ function createDiagnosticsBridgeHarness() {
     updatedAt: new Date().toISOString()
   };
 
+  const preferenceRecord: DiagnosticsPreferenceRecordPayload = {
+    id: "9cf0b9c2-c9a0-4c30-8da5-2ca6f1f6ec09",
+    highContrastEnabled: false,
+    reducedMotionEnabled: false,
+    remoteProvidersEnabled: false,
+    lastUpdatedAt: new Date().toISOString(),
+    updatedBy: "main",
+    consentSummary: "Defaults applied",
+    consentEvents: [],
+    storageHealth: null
+  };
+
   const getState = vi.fn().mockResolvedValue({
     backend,
     warnings: ["initial-warning"],
@@ -44,11 +60,33 @@ function createDiagnosticsBridgeHarness() {
     processEvents: [] satisfies ProcessHealthEventPayload[]
   });
 
+  const getPreferences = vi.fn().mockResolvedValue(preferenceRecord);
+
   const getProcessEvents = vi.fn().mockResolvedValue([] as ProcessHealthEventPayload[]);
   const requestSummary = vi.fn().mockResolvedValue(snapshot);
   const refreshSnapshot = vi.fn().mockResolvedValue({ success: true, snapshot });
   const openLogDirectory = vi.fn().mockResolvedValue(true);
   const exportSnapshot = vi.fn().mockResolvedValue({ success: true, filename: "snapshot.jsonl" });
+
+  const updatePreferences = vi.fn(async (payload: {
+    highContrastEnabled: boolean;
+    reducedMotionEnabled: boolean;
+    remoteProvidersEnabled: boolean;
+    consentSummary: string;
+    expectedLastUpdatedAt?: string;
+  }) => {
+    preferenceRecord.highContrastEnabled = payload.highContrastEnabled;
+    preferenceRecord.reducedMotionEnabled = payload.reducedMotionEnabled;
+    preferenceRecord.remoteProvidersEnabled = payload.remoteProvidersEnabled;
+    preferenceRecord.consentSummary = payload.consentSummary;
+    preferenceRecord.lastUpdatedAt = new Date(Date.now() + 1000).toISOString();
+    preferenceRecord.updatedBy = "renderer";
+    listeners.preferencesUpdated?.(preferenceRecord);
+    return {
+      record: preferenceRecord,
+      storageHealth: preferenceRecord.storageHealth
+    };
+  });
 
   const registerListener = <T extends keyof ListenerMap>(key: T) =>
     vi.fn((listener: ListenerMap[T]) => {
@@ -62,18 +100,22 @@ function createDiagnosticsBridgeHarness() {
 
   const bridge = {
     getState,
+    getPreferences,
     getProcessEvents,
     requestSummary,
     refreshSnapshot,
     openLogDirectory,
     exportSnapshot,
+    updatePreferences,
     onBackendStateChanged: registerListener("backend"),
     onProcessEvent: registerListener("processEvent"),
     onRetentionWarning: registerListener("retentionWarning"),
-    onSnapshotUpdated: registerListener("snapshotUpdated")
+    onSnapshotUpdated: registerListener("snapshotUpdated"),
+    onPreferencesUpdated: registerListener("preferencesUpdated"),
+    onStorageHealthChanged: registerListener("storageHealth")
   };
 
-  return { bridge, listeners, snapshot, backend };
+  return { bridge, listeners, snapshot, backend, preferenceRecord };
 }
 
 describe("useDiagnostics", () => {
@@ -177,5 +219,84 @@ describe("useDiagnostics", () => {
 
     expect(result.current.processEvents).toHaveLength(25);
     expect(result.current.processEvents[0]?.id).toBe(extraEvents.at(-1)?.id);
+  });
+
+  it("loads persisted preferences and responds to preference broadcasts", async () => {
+    const { result } = renderHook(() => useDiagnostics());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const state = result.current as unknown as {
+      preferences: DiagnosticsPreferenceRecordPayload | null;
+    };
+
+    expect(state.preferences?.highContrastEnabled).toBe(false);
+
+    harness.listeners.preferencesUpdated?.({
+      ...harness.preferenceRecord,
+      highContrastEnabled: true,
+      remoteProvidersEnabled: true,
+      lastUpdatedAt: new Date(Date.now() + 2000).toISOString()
+    });
+
+    await waitFor(() => {
+      const latest = (result.current as unknown as { preferences: DiagnosticsPreferenceRecordPayload | null }).preferences;
+      expect(latest?.highContrastEnabled).toBe(true);
+      expect(latest?.remoteProvidersEnabled).toBe(true);
+    });
+  });
+
+  it("surfaces storage health alerts from the diagnostics bridge", async () => {
+    const { result } = renderHook(() => useDiagnostics());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    harness.listeners.storageHealth?.({
+      status: "degraded",
+      detectedAt: new Date().toISOString(),
+      reason: "permission-denied",
+      message: "Vault locked",
+      recommendedAction: "Check disk permissions",
+      retryAvailableAt: null
+    });
+
+    await waitFor(() => {
+      const latest = (result.current as unknown as { storageHealth: StorageHealthAlertPayload | null }).storageHealth;
+      expect(latest?.status).toBe("degraded");
+      expect(latest?.reason).toBe("permission-denied");
+    });
+  });
+
+  it("forwards preference updates through the bridge and merges optimistic state", async () => {
+    const { result } = renderHook(() => useDiagnostics());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const api = result.current as unknown as {
+      updatePreferences: (payload: {
+        highContrastEnabled: boolean;
+        reducedMotionEnabled: boolean;
+        remoteProvidersEnabled: boolean;
+        consentSummary: string;
+      }) => Promise<void>;
+      preferences: DiagnosticsPreferenceRecordPayload | null;
+    };
+
+    await act(async () => {
+      await api.updatePreferences({
+        highContrastEnabled: true,
+        reducedMotionEnabled: true,
+        remoteProvidersEnabled: false,
+        consentSummary: "Applied accessible layout"
+      });
+    });
+
+    expect(harness.bridge.updatePreferences).toHaveBeenCalledWith({
+      highContrastEnabled: true,
+      reducedMotionEnabled: true,
+      remoteProvidersEnabled: false,
+      consentSummary: "Applied accessible layout"
+    });
+
+    const latest = api.preferences;
+    expect(latest?.highContrastEnabled).toBe(true);
+    expect(latest?.reducedMotionEnabled).toBe(true);
   });
 });

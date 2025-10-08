@@ -4,15 +4,15 @@
 **Prerequisites**: plan.md (required), research.md, data-model.md, contracts/
 
 ## Phase 3.1: Setup
-- [ ] T001 Scaffold diagnostics preference workspace directories (`apps/backend/src/api/diagnostics/preferences/`, `apps/backend/src/infra/preferences/`, `apps/desktop/src/main/diagnostics/preferences/`) and add placeholder exports in `packages/shared/src/diagnostics/index.ts` for upcoming schemas. *(No dependencies)*
+- [x] T001 Scaffold diagnostics preference workspace directories (`apps/backend/src/api/diagnostics/preferences/`, `apps/backend/src/infra/preferences/`, `apps/desktop/src/main/diagnostics/preferences/`) and add placeholder exports in `packages/shared/src/diagnostics/index.ts` for upcoming schemas. *(No dependencies)*
 
 ## Phase 3.2: Tests First (TDD)
-- [ ] T002 [P] Create failing Vitest contract tests for `GET/PUT /internal/diagnostics/preferences` in `apps/backend/tests/contract/diagnostics-preferences.contract.test.ts` covering success, stale update, and storage-unavailable responses. *(Depends on T001)*
-- [ ] T003 [P] Add failing shared schema unit tests in `packages/shared/src/diagnostics/__tests__/preferences.schemas.spec.ts` validating `DiagnosticsPreferenceRecord`, `ConsentEventLog`, and `StorageHealthAlert` shapes. *(Depends on T001)*
-- [ ] T004 [P] Add failing Electron main-process unit tests in `apps/desktop/tests/main/preferencesVault.spec.ts` asserting vault bootstrap, write queueing, and storage-failure events. *(Depends on T001)*
-- [ ] T005 [P] Extend failing renderer hook tests in `apps/frontend/tests/unit/useDiagnostics.spec.ts` to expect persisted toggles, IPC updates, and storage warning handling. *(Depends on T001)*
-- [ ] T006 [P] Author failing Playwright scenario `apps/frontend/tests/accessibility/diagnostics-persistence.spec.ts` verifying restart persistence, consent messaging, and storage-failure fallback copy. *(Depends on T001)*
-- [ ] T007 [P] Introduce failing backend integration test in `apps/backend/tests/integration/diagnostics-preferences.integration.test.ts` covering Fastify route wiring and diagnostics snapshot export enrichment. *(Depends on T002)*
+- [x] T002 [P] Create failing Vitest contract tests for `GET/PUT /internal/diagnostics/preferences` in `apps/backend/tests/contract/diagnostics-preferences.contract.test.ts` covering success, stale update, and storage-unavailable responses. *(Depends on T001)*
+- [x] T003 [P] Add failing shared schema unit tests in `packages/shared/src/diagnostics/__tests__/preferences.schemas.spec.ts` validating `DiagnosticsPreferenceRecord`, `ConsentEventLog`, and `StorageHealthAlert` shapes. *(Depends on T001)*
+- [x] T004 [P] Add failing Electron main-process unit tests in `apps/desktop/tests/main/preferencesVault.spec.ts` asserting vault bootstrap, write queueing, and storage-failure events. *(Depends on T001)*
+- [x] T005 [P] Extend failing renderer hook tests in `apps/frontend/tests/unit/useDiagnostics.spec.ts` to expect persisted toggles, IPC updates, and storage warning handling. *(Depends on T001)*
+- [x] T006 [P] Author failing Playwright scenario `apps/frontend/tests/accessibility/diagnostics-persistence.spec.ts` verifying restart persistence, consent messaging, and storage-failure fallback copy. *(Depends on T001)*
+- [x] T007 [P] Introduce failing backend integration test in `apps/backend/tests/integration/diagnostics-preferences.integration.test.ts` covering Fastify route wiring and diagnostics snapshot export enrichment. *(Depends on T002)*
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 - [ ] T008 [P] Implement `DiagnosticsPreferenceRecord` schema module in `packages/shared/src/diagnostics/preference-record.ts` with Zod validation and defaults. *(Depends on T003)*
