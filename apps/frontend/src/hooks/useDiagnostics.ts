@@ -40,6 +40,7 @@ interface DiagnosticsBridge {
   requestSummary(): Promise<DiagnosticsSnapshotPayload | null>;
   refreshSnapshot(): Promise<DiagnosticsRefreshResultPayload>;
   openLogDirectory(): Promise<boolean>;
+  exportSnapshot(): Promise<DiagnosticsExportResultPayload>;
   onBackendStateChanged?(listener: (state: BackendProcessStatePayload) => void): () => void;
   onProcessEvent?(listener: (event: ProcessHealthEventPayload) => void): () => void;
   onRetentionWarning?(listener: (warning: string) => void): () => void;
@@ -78,6 +79,12 @@ export interface UseDiagnosticsResult {
   refresh: () => Promise<DiagnosticsRefreshOutcome>;
   requestSummary: () => Promise<DiagnosticsSnapshotPayload | null>;
   openLogDirectory: () => Promise<boolean>;
+  exportSnapshot: () => Promise<DiagnosticsExportResultPayload>;
+}
+
+interface DiagnosticsExportResultPayload {
+  success: boolean;
+  filename?: string;
 }
 
 function getBridge(): DiagnosticsBridge | null {
@@ -436,6 +443,19 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
     }
   }, [handleBridgeFailure]);
 
+  const exportSnapshot = useCallback(async (): Promise<DiagnosticsExportResultPayload> => {
+    const api = bridgeRef.current;
+    if (!api) {
+      return { success: false };
+    }
+    try {
+      return await api.exportSnapshot();
+    } catch (error) {
+      handleBridgeFailure(error);
+      return { success: false };
+    }
+  }, [handleBridgeFailure]);
+
   const combinedWarnings = useMemo(() => {
     return mergeWarnings(state.warnings, state.snapshot?.warnings ?? []);
   }, [state.snapshot?.warnings, state.warnings]);
@@ -452,6 +472,7 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
     error: state.error,
     refresh,
     requestSummary,
-    openLogDirectory
+    openLogDirectory,
+    exportSnapshot
   };
 }

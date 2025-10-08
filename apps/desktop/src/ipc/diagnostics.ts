@@ -5,6 +5,7 @@ import type {
 } from "@metaverse-systems/llm-tutor-shared";
 import { createProcessHealthEventPayload } from "@metaverse-systems/llm-tutor-shared";
 import type { BackendProcessState, DiagnosticsManager, DiagnosticsRefreshResult } from "../main/diagnostics";
+import { exportDiagnosticsSnapshot } from "../main/diagnostics/export";
 
 export const DIAGNOSTICS_CHANNELS = {
 	getState: "diagnostics:get-state",
@@ -12,6 +13,7 @@ export const DIAGNOSTICS_CHANNELS = {
 	refresh: "diagnostics:refresh",
 	openLogDirectory: "diagnostics:open-log-directory",
 	getProcessEvents: "diagnostics:get-process-events",
+	exportSnapshot: "diagnostics:export-snapshot",
 	backendStateChanged: "diagnostics:backend-state-changed",
 	processEvent: "diagnostics:process-event",
 	retentionWarning: "diagnostics:retention-warning",
@@ -84,6 +86,12 @@ export function registerDiagnosticsIpcHandlers(
 	ipcMain.handle(DIAGNOSTICS_CHANNELS.getSummary, async () => manager.fetchLatestSnapshot());
 	ipcMain.handle(DIAGNOSTICS_CHANNELS.refresh, async () => manager.refreshSnapshot());
 	ipcMain.handle(DIAGNOSTICS_CHANNELS.openLogDirectory, async () => manager.openDiagnosticsDirectory());
+	ipcMain.handle(DIAGNOSTICS_CHANNELS.exportSnapshot, async () =>
+		exportDiagnosticsSnapshot({
+			manager,
+			webContents: getWebContents()
+		})
+	);
 
 	const handleBackendStateChanged = (state: BackendProcessState) => {
 		sendToRenderer(

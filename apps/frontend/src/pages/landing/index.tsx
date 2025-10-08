@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AccessibilityPreferencePayload } from "@metaverse-systems/llm-tutor-shared";
 
 import { DiagnosticsPanel } from "../../components/DiagnosticsPanel/DiagnosticsPanel";
@@ -17,6 +17,15 @@ interface DiagnosticsPreferencesBridge {
   setAccessibilityPreference?: (preference: AccessibilityPreferencePayload) => Promise<void>;
   saveAccessibilityPreference?: (preference: AccessibilityPreferencePayload) => Promise<void>;
   updateAccessibilityPreference?: (preference: AccessibilityPreferencePayload) => Promise<void>;
+}
+
+type ToastTone = "info" | "success" | "warning" | "error";
+
+interface ToastMessage {
+  id: string;
+  message: string;
+  tone: ToastTone;
+  testId?: string;
 }
 
 const STORAGE_KEY = "llm-tutor:accessibility-preferences";
@@ -131,6 +140,32 @@ export const LandingPage: React.FC = () => {
     return readStoredPreferences() ?? defaultPreferences();
   });
   const [isPersisting, setIsPersisting] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const toastIdRef = useRef(0);
+  const seenWarningsRef = useRef<Set<string>>(new Set());
+  const exportButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const createToastId = useCallback(() => {
+    toastIdRef.current += 1;
+    return `toast-${toastIdRef.current}`;
+  }, []);
+
+  const addToast = useCallback(
+    (message: string, tone: ToastTone, options?: { testId?: string }) => {
+      const id = createToastId();
+      setToasts((current) => {
+        const next = [...current.slice(-4), { id, message, tone, testId: options?.testId }];
+        return next;
+      });
+    },
+    [createToastId]
+  );
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }, []);
 
   useEffect(() => {
     applyDocumentPreferences(preferences);
@@ -167,6 +202,36 @@ export const LandingPage: React.FC = () => {
     });
   }, [diagnostics.snapshot?.activePreferences, diagnostics.lastUpdatedAt]);
 
+  useEffect(() => {
+    const seen = seenWarningsRef.current;
+    diagnostics.warnings.forEach((warning) => {
+      if (!warning || seen.has(warning)) {
+        return;
+      }
+      seen.add(warning);
+      addToast(warning, "warning", { testId: "diagnostics-warning-toast" });
+    });
+  }, [diagnostics.warnings, addToast]);
+
+  useEffect(() => {
+    if (!isExportDialogOpen) {
+      return;
+    }
+
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsExportDialogOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    exportButtonRef.current?.focus();
+
+    return () => {
+      window.removeEventListener("keydown", handler);
+    };
+  }, [isExportDialogOpen]);
+
   const handleToggleChange = useCallback(
     async (next: TogglePreferences) => {
       const nextState: AccessibilityPreferencesState = {
@@ -188,12 +253,34 @@ export const LandingPage: React.FC = () => {
     [diagnostics]
   );
 
-  const handleExportClick = useCallback(async () => {
+  const handleExportClick = useCallback(() => {
+    setIsExportDialogOpen(true);
+  }, []);
+
+  const handleExportDownload = useCallback(async () => {
+    setIsExporting(true);
+    const result = await diagnostics.exportSnapshot();
+    setIsExporting(false);
+
+    if (result.success) {
+      const filename = result.filename ? `Saved ${result.filename}` : "Diagnostics snapshot ready";
+      addToast(filename, "success");
+      setIsExportDialogOpen(false);
+    } else {
+      addToast("Diagnostics export failed. Check logs for details.", "error");
+    }
+  }, [addToast, diagnostics]);
+
+  const handleOpenDirectory = useCallback(async () => {
     const success = await diagnostics.openLogDirectory();
     if (!success) {
-      console.info("Diagnostics export bridge unavailable or declined");
+      addToast("Unable to open diagnostics directory.", "error");
     }
-  }, [diagnostics]);
+  }, [addToast, diagnostics]);
+
+  const handleCloseExportDialog = useCallback(() => {
+    setIsExportDialogOpen(false);
+  }, []);
 
   const lastUpdatedLabel = useMemo(() => {
     if (!diagnostics.lastUpdatedAt) {
@@ -241,6 +328,30 @@ export const LandingPage: React.FC = () => {
         </div>
       ) : null}
 
+      {toasts.length > 0 ? (
+        <div className="landing__toasts" role="region" aria-live="assertive" aria-label="Diagnostics notifications">
+          <ul>
+            {toasts.map((toast) => (
+              <li
+                key={toast.id}
+                role="alert"
+                className={`landing__toast landing__toast--${toast.tone}`}
+                data-testid={toast.testId}
+              >
+                <span>{toast.message}</span>
+                <button
+                  type="button"
+                  aria-label="Dismiss notification"
+                  onClick={() => dismissToast(toast.id)}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <DiagnosticsPanel
         snapshot={diagnostics.snapshot}
         backend={diagnostics.backend}
@@ -257,6 +368,52 @@ export const LandingPage: React.FC = () => {
         onChange={handleToggleChange}
         isPersisting={isPersisting}
       />
+
+      {isExportDialogOpen ? (
+        <div className="landing__export-overlay" role="presentation">
+          <div
+            className="landing__export-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="diagnostics-export-heading"
+          >
+            <header className="landing__export-header">
+              <h2 id="diagnostics-export-heading">Export diagnostics snapshot</h2>
+              <button type="button" className="landing__export-close" onClick={handleCloseExportDialog} aria-label="Close export dialog">
+                ×
+              </button>
+            </header>
+            <p className="landing__export-copy">
+              Export the most recent diagnostics snapshot as a JSONL file or open the diagnostics directory to review historical logs.
+            </p>
+            <div className="landing__export-actions">
+              <button
+                type="button"
+                ref={exportButtonRef}
+                data-testid="diagnostics-export-button"
+                className="landing__export-primary"
+                onClick={handleExportDownload}
+                disabled={isExporting}
+                aria-busy={isExporting}
+              >
+                {isExporting ? "Preparing export…" : "Download latest snapshot"}
+              </button>
+              <button
+                type="button"
+                className="landing__export-secondary"
+                onClick={handleOpenDirectory}
+              >
+                Open diagnostics directory
+              </button>
+            </div>
+            <footer className="landing__export-footer">
+              <button type="button" className="landing__export-cancel" onClick={handleCloseExportDialog}>
+                Cancel
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 };

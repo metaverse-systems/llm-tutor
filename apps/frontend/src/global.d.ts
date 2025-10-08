@@ -31,12 +31,18 @@ interface DiagnosticsRefreshResult {
   };
 }
 
+interface DiagnosticsExportResult {
+  success: boolean;
+  filename?: string;
+}
+
 interface DiagnosticsPreloadApi {
   getState(): Promise<DiagnosticsStatePayload>;
   getProcessEvents(): Promise<ProcessHealthEventPayload[]>;
   requestSummary(): Promise<DiagnosticsSnapshotPayload | null>;
   refreshSnapshot(): Promise<DiagnosticsRefreshResult>;
   openLogDirectory(): Promise<boolean>;
+  exportSnapshot(): Promise<DiagnosticsExportResult>;
   onBackendStateChanged(listener: (state: SerializableBackendProcessState) => void): () => void;
   onProcessEvent(listener: (event: ProcessHealthEventPayload) => void): () => void;
   onRetentionWarning(listener: (warning: string) => void): () => void;

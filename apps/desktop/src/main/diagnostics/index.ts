@@ -30,6 +30,12 @@ export interface DiagnosticsManagerState {
 	latestSnapshot?: DiagnosticsSnapshotPayload | null;
 }
 
+export interface DiagnosticsExportPayload {
+	filename: string;
+	contentType: string;
+	body: string;
+}
+
 interface DiagnosticsManagerEvents {
 	"backend-state-changed": (state: BackendProcessState) => void;
 	"process-event": (event: ProcessHealthEvent) => void;
@@ -115,6 +121,7 @@ export class DiagnosticsManager extends TypedEventEmitter {
 	async initialize(): Promise<void> {
 		this.ensureDiagnosticsDirectory();
 		await this.startBackendProcess();
+		void this.fetchLatestSnapshot().catch(() => null);
 	}
 
 	async shutdown(): Promise<void> {
@@ -157,6 +164,43 @@ export class DiagnosticsManager extends TypedEventEmitter {
 			this.setLatestSnapshot(result.snapshot);
 		}
 		return result;
+	}
+
+	async exportSnapshot(): Promise<DiagnosticsExportPayload | null> {
+		try {
+			const response = await this.performFetch("/internal/diagnostics/export", {
+				method: "GET"
+			});
+
+			if (response.status === 204) {
+				return this.ensureFallbackExport();
+			}
+
+			if (!response.ok) {
+				this.options.getLogger?.().warn?.(
+					`Diagnostics export request failed: ${response.status}`
+				);
+				return this.ensureFallbackExport();
+			}
+
+			const body = await response.text();
+			const contentType = response.headers.get("content-type") ?? "application/x-ndjson";
+			const filename = this.extractFilename(response) ?? this.buildExportFilename(new Date());
+
+			if (!body.trim()) {
+				return this.ensureFallbackExport();
+			}
+
+			return {
+				filename,
+				contentType,
+				body
+			};
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			this.options.getLogger?.().warn?.(`Diagnostics export failed: ${message}`);
+			return this.ensureFallbackExport();
+		}
 	}
 
 	addRetentionWarning(message: string): void {
@@ -467,6 +511,55 @@ export class DiagnosticsManager extends TypedEventEmitter {
 		} finally {
 			clearTimeout(timeout);
 		}
+	}
+
+	private buildExportFilename(source: Date): string {
+		const iso = source.toISOString();
+		return `diagnostics-snapshot-${iso.replace(/\.\d{3}Z$/, "Z").replace(/:/g, "")}.jsonl`;
+	}
+
+	private createFallbackExport(): DiagnosticsExportPayload | null {
+		if (!this.latestSnapshot) {
+			return null;
+		}
+
+		const generatedAtRaw = this.latestSnapshot.generatedAt ?? new Date().toISOString();
+		const generatedAt = new Date(generatedAtRaw);
+		const timestamp = Number.isNaN(generatedAt.getTime()) ? new Date() : generatedAt;
+		const filename = this.buildExportFilename(timestamp);
+		const body = `${JSON.stringify(this.latestSnapshot)}\n`;
+
+		return {
+			filename,
+			contentType: "application/x-ndjson",
+			body
+		};
+	}
+
+	private extractFilename(response: Response): string | null {
+		const disposition = response.headers.get("content-disposition");
+		if (!disposition) {
+			return null;
+		}
+
+		const match = disposition.match(/filename\*?=(?:UTF-8''|\")?([^";]+)/i);
+		if (!match) {
+			return null;
+		}
+
+		try {
+			return decodeURIComponent(match[1]);
+		} catch (error) {
+			this.options.getLogger?.().warn?.("Failed to decode diagnostics export filename", error);
+			return match[1];
+		}
+	}
+
+	private async ensureFallbackExport(): Promise<DiagnosticsExportPayload | null> {
+		if (!this.latestSnapshot) {
+			await this.fetchLatestSnapshot().catch(() => null);
+		}
+		return this.createFallbackExport();
 	}
 }
 

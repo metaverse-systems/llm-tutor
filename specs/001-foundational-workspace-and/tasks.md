@@ -35,10 +35,10 @@
 - [x] T021 Integrate renderer hooks (`apps/frontend/src/hooks/useDiagnostics.ts`) to poll diagnostics summary, react to refresh, and debounce requests while offline.
 
 ## Phase 3.6: Integration & Export Workflows
-- [ ] T022 Connect renderer IPC calls to Fastify endpoints through preload bridge and Electron main routing, ensuring offline fallbacks and optimistic UI updates.
-- [ ] T023 Implement JSONL export flow in `apps/backend/src/infra/logging/export.ts` and surface download dialog handling in `apps/desktop/src/main/diagnostics/export.ts`.
-- [ ] T024 [P] Add llama.cpp health probe adapter in `apps/backend/src/services/diagnostics/probe.ts` with disabled/offline states aligned to spec.
-- [ ] T025 [P] Instrument log retention warnings to surface in renderer toasts and accessibility-friendly alerts.
+- [x] T022 Connect renderer IPC calls to Fastify endpoints through preload bridge and Electron main routing, ensuring offline fallbacks and optimistic UI updates.
+- [x] T023 Implement JSONL export flow in `apps/backend/src/infra/logging/export.ts` and surface download dialog handling in `apps/desktop/src/main/diagnostics/export.ts`.
+- [x] T024 [P] Add llama.cpp health probe adapter in `apps/backend/src/services/diagnostics/probe.ts` with disabled/offline states aligned to spec.
+- [x] T025 [P] Instrument log retention warnings to surface in renderer toasts and accessibility-friendly alerts.
 
 ## Phase 3.7: Polish & Validation
 - [ ] T026 Backfill unit tests for renderer hooks and IPC utilities (`apps/frontend/tests/unit/useDiagnostics.spec.ts`, `apps/desktop/tests/preload/diagnostics.spec.ts`).
@@ -68,7 +68,7 @@
 
 ## Validation Checklist
 - [x] All contract, integration, accessibility, and smoke tests exist and initially failed.
-- [ ] Implementation tasks trace directly to shared models, backend routes, IPC bridges, and renderer UI.
+- [x] Implementation tasks trace directly to shared models, backend routes, IPC bridges, and renderer UI.
 - [ ] Parallel `[P]` tasks edit disjoint files to avoid conflicts.
 - [ ] Documentation updated alongside code (runbook, release notes, testing log).
 - [ ] Final validation suite executed with artifacts stored in `docs/reports/diagnostics/`.

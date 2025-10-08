@@ -300,4 +300,53 @@ describe("Diagnostics API contract", () => {
       expect(thirdResponse.statusCode).toBe(202);
     });
   });
+
+  describe("GET /internal/diagnostics/export", () => {
+    it("returns NDJSON payload when snapshots exist", async () => {
+      const testHarness = await loadHarness();
+      const seed: DiagnosticsSnapshotSeed = {
+        id: "a73aafbf-9d9c-4bc6-8d18-c7c655abc012",
+        generatedAt: "2025-10-07T12:34:56.000Z",
+        backendStatus: "running",
+        rendererUrl: "http://localhost:5173",
+        llmStatus: "disabled",
+        logDirectory: "/tmp/llm-tutor/diagnostics",
+        diskUsageBytes: 32_000,
+        snapshotCountLast30d: 1,
+        activePreferences: {
+          highContrast: false,
+          reduceMotion: false,
+          updatedAt: "2025-10-07T12:30:00.000Z"
+        }
+      };
+
+      await testHarness.seedSnapshot(seed);
+
+      const response = await testHarness.app.inject({
+        method: "GET",
+        url: "/internal/diagnostics/export"
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toContain("application/x-ndjson");
+      expect(response.headers["content-disposition"]).toContain("diagnostics-snapshot-");
+      const lines = response.body.trim().split("\n");
+      expect(lines).toHaveLength(1);
+      const payload = JSON.parse(lines[0]) as DiagnosticsSnapshotSeed;
+      expect(payload.id).toBe(seed.id);
+    });
+
+    it("returns 204 when no snapshots are stored", async () => {
+      const testHarness = await loadHarness(null);
+      await testHarness.clearSnapshots();
+
+      const response = await testHarness.app.inject({
+        method: "GET",
+        url: "/internal/diagnostics/export"
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(response.body).toHaveLength(0);
+    });
+  });
 });

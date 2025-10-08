@@ -9,6 +9,11 @@ import type {
 } from "../main/diagnostics";
 import { DIAGNOSTICS_CHANNELS } from "../ipc/diagnostics";
 
+export interface DiagnosticsExportResult {
+	success: boolean;
+	filename?: string;
+}
+
 export interface DiagnosticsStatePayload {
 	backend: BackendProcessState;
 	warnings: string[];
@@ -31,6 +36,7 @@ export interface DiagnosticsRendererBridge {
 	requestSummary(): Promise<DiagnosticsSnapshotPayload | null>;
 	refreshSnapshot(): Promise<DiagnosticsRefreshResult>;
 	openLogDirectory(): Promise<boolean>;
+	exportSnapshot(): Promise<DiagnosticsExportResult>;
 	onBackendStateChanged(listener: Listener<BackendProcessState>): () => void;
 	onProcessEvent(listener: Listener<ProcessHealthEventPayload>): () => void;
 	onRetentionWarning(listener: Listener<string>): () => void;
@@ -53,6 +59,9 @@ export function createDiagnosticsBridge(): DiagnosticsRendererBridge {
 		},
 		async openLogDirectory() {
 			return ipcRenderer.invoke(DIAGNOSTICS_CHANNELS.openLogDirectory) as Promise<boolean>;
+		},
+		exportSnapshot() {
+			return ipcRenderer.invoke(DIAGNOSTICS_CHANNELS.exportSnapshot) as Promise<DiagnosticsExportResult>;
 		},
 		onBackendStateChanged(listener) {
 			return subscribe(DIAGNOSTICS_CHANNELS.backendStateChanged, listener);

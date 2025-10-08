@@ -7,6 +7,7 @@ import type {
   DiagnosticsSnapshotService,
   DiagnosticsSnapshotRepository
 } from "../../services/diagnostics";
+import { createDiagnosticsExport } from "../../infra/logging";
 
 export type BackendLifecycleState = "ready" | "warming" | "error";
 
@@ -95,6 +96,26 @@ export async function registerDiagnosticsRoutes(
       refreshLimiter.recordSuccessfulRefresh(effectiveNow);
 
       return reply.code(202).send(serializeDiagnosticsSnapshot(snapshotForStorage));
+    }
+  );
+
+  app.get(
+    "/internal/diagnostics/export",
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const exportResult = await createDiagnosticsExport({
+        store,
+        now
+      });
+
+      if (!exportResult) {
+        return reply.code(204).send();
+      }
+
+      return reply
+        .header("content-type", exportResult.contentType)
+        .header("content-disposition", `attachment; filename="${exportResult.filename}"`)
+        .code(200)
+        .send(exportResult.body);
     }
   );
 }

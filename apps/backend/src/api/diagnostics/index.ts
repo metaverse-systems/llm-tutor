@@ -270,7 +270,13 @@ export async function createDiagnosticsTestHarness(
 	};
 }
 
-export async function createDiagnosticsApp(): Promise<FastifyInstance> {
+export interface DiagnosticsAppOptions {
+	snapshotServiceOverrides?: Partial<DiagnosticsSnapshotServiceOptions>;
+}
+
+export async function createDiagnosticsApp(
+	options: DiagnosticsAppOptions = {}
+): Promise<FastifyInstance> {
 	const clock = new VirtualClock();
 	const store = new InMemoryDiagnosticsSnapshotStore();
 	const metricsCollector = createMutableDiagnosticsStorageMetricsCollector();
@@ -287,7 +293,8 @@ export async function createDiagnosticsApp(): Promise<FastifyInstance> {
 		metricsCollector,
 		clock,
 		preferenceManager,
-		backendLifecycle
+		backendLifecycle,
+		options.snapshotServiceOverrides
 	);
 
 	return buildFastifyApp(store, snapshotService, refreshLimiter, backendLifecycle, clock);

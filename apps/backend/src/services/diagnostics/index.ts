@@ -3,6 +3,10 @@ export {
 	createMutableDiagnosticsStorageMetricsCollector
 } from "./snapshot.service";
 
+export {
+	createLlmProbe
+} from "./probe";
+
 export type {
 	BackendHealthState,
 	BackendLifecycleStatus,
@@ -12,3 +16,7 @@ export type {
 	LlmProbeResult,
 	MutableDiagnosticsStorageMetricsCollector
 } from "./snapshot.service";
+
+export type {
+	LlmProbeOptions
+} from "./probe";
