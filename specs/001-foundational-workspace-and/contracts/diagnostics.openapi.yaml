@@ -1,0 +1,119 @@
+openapi: 3.1.0
+info:
+  title: Diagnostics Service API
+  version: 0.1.0
+  description: Offline-only diagnostics endpoints exposed by the LLM Tutor backend.
+servers:
+  - url: http://127.0.0.1:8787
+    description: Local development server spawned by the desktop shell.
+paths:
+  /internal/diagnostics/summary:
+    get:
+      summary: Retrieve the latest diagnostics snapshot.
+      operationId: getDiagnosticsSummary
+      responses:
+        '200':
+          description: The most recent snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticsSnapshot'
+        '503':
+          description: Backend is not ready yet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /internal/diagnostics/refresh:
+    post:
+      summary: Force the backend to generate a new diagnostics snapshot.
+      operationId: refreshDiagnosticsSnapshot
+      requestBody:
+        required: false
+      responses:
+        '202':
+          description: Snapshot generation started; latest snapshot returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticsSnapshot'
+        '429':
+          description: Refresh requested too soon after a previous run.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    DiagnosticsSnapshot:
+      type: object
+      required:
+        - id
+        - generatedAt
+        - backendStatus
+        - rendererUrl
+        - llmStatus
+        - logDirectory
+        - diskUsageBytes
+        - activePreferences
+      properties:
+        id:
+          type: string
+          format: uuid
+        generatedAt:
+          type: string
+          format: date-time
+        backendStatus:
+          type: string
+          enum: [running, stopped, error]
+        backendMessage:
+          type: string
+        rendererUrl:
+          type: string
+          format: uri
+        llmStatus:
+          type: string
+          enum: [connected, unreachable, disabled]
+        llmEndpoint:
+          type: string
+        logDirectory:
+          type: string
+        snapshotCountLast30d:
+          type: integer
+          minimum: 0
+        diskUsageBytes:
+          type: integer
+          minimum: 0
+        warnings:
+          type: array
+          items:
+            type: string
+        activePreferences:
+          $ref: '#/components/schemas/AccessibilityPreference'
+    AccessibilityPreference:
+      type: object
+      required:
+        - highContrast
+        - reduceMotion
+        - updatedAt
+      properties:
+        highContrast:
+          type: boolean
+        reduceMotion:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      required:
+        - errorCode
+        - message
+      properties:
+        errorCode:
+          type: string
+        message:
+          type: string
+        retryAfterSeconds:
+          type: integer
+          minimum: 0

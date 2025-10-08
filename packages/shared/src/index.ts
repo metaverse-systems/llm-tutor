@@ -1,3 +1,6 @@
+export * from "./diagnostics/index.js";
+export * from "./diagnostics/factories.js";
+
 export interface ProjectSummary {
   name: string;
   description: string;

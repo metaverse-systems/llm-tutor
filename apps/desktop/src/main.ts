@@ -1,15 +1,37 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { fork } from "node:child_process";
-import type { ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import url from "node:url";
+import { DiagnosticsManager } from "./main/diagnostics";
+import {
+  registerDiagnosticsIpcHandlers,
+  type DiagnosticsIpcRegistration
+} from "./ipc/diagnostics";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const rendererDevServerUrl = process.env.ELECTRON_RENDERER_URL;
 
 let mainWindow: BrowserWindow | null = null;
-let backendProcess: ChildProcess | null = null;
+let diagnosticsManager: DiagnosticsManager | null = null;
+let diagnosticsIpc: DiagnosticsIpcRegistration | null = null;
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  process.exit(0);
+}
+
+app.on("second-instance", () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+    diagnosticsIpc?.emitInitialState();
+    return;
+  }
+
+  createWindow();
+});
 
 interface WindowOpenDetails {
   url: string;
@@ -19,6 +41,7 @@ function getResourcesPath(): string {
   if (app.isPackaged) {
     return (process as NodeJS.Process & { resourcesPath: string }).resourcesPath;
   }
+
   return path.resolve(__dirname, "..", "..");
 }
 
@@ -36,12 +59,18 @@ function resolveRendererHtml(): string {
   return url.pathToFileURL(localRenderer).toString();
 }
 
-function ensureAppDataFolder(): void {
-  const appData = app.getPath("userData");
-  const diagnosticsDir = path.join(appData, "diagnostics");
-  if (!existsSync(diagnosticsDir)) {
-    mkdirSync(diagnosticsDir, { recursive: true });
+function resolveBackendEntry(): string | null {
+  const devEntry = path.resolve(__dirname, "../../backend/dist/index.js");
+  if (!app.isPackaged && existsSync(devEntry)) {
+    return devEntry;
   }
+
+  const packagedEntry = path.join(getResourcesPath(), "backend", "index.js");
+  if (existsSync(packagedEntry)) {
+    return packagedEntry;
+  }
+
+  return null;
 }
 
 function createWindow(): void {
@@ -63,6 +92,7 @@ function createWindow(): void {
     if (isDev) {
       mainWindow?.webContents.openDevTools({ mode: "detach" });
     }
+    diagnosticsIpc?.emitInitialState();
   });
 
   mainWindow.on("closed", () => {
@@ -82,76 +112,32 @@ function createWindow(): void {
   });
 }
 
-function resolveBackendEntry(): string | null {
-  const devEntry = path.resolve(__dirname, "../../backend/dist/index.js");
-  if (!app.isPackaged && existsSync(devEntry)) {
-    return devEntry;
-  }
-
-  const packagedEntry = path.join(getResourcesPath(), "backend", "index.js");
-  if (existsSync(packagedEntry)) {
-    return packagedEntry;
-  }
-
-  return null;
-}
-
-function startBackend(): void {
-  const entry = resolveBackendEntry();
-  if (!entry) {
-    console.warn("Backend entry not found. Skipping backend boot.");
-    return;
-  }
-
-  backendProcess = fork(entry, [], {
-    stdio: "inherit",
-    env: {
-      ...process.env,
-      LLM_TUTOR_MODE: app.isPackaged ? "production" : "development"
-    }
-  });
-
-  backendProcess.on("exit", (code) => {
-    if (code !== 0) {
-      console.error(`Backend process exited with code ${code ?? "unknown"}`);
-      if (!app.isPackaged) {
-        void dialog.showMessageBox({
-          type: "warning",
-          title: "Backend exited",
-          message: "The local API process stopped unexpectedly. Check the terminal for details."
-        });
-      }
-    }
-  });
-}
-
-function stopBackend(): void {
-  if (backendProcess && !backendProcess.killed) {
-    backendProcess.removeAllListeners("exit");
-    backendProcess.kill();
-    backendProcess = null;
-  }
-}
-
-function registerDiagnosticsChannel(): void {
-  ipcMain.handle("diagnostics:snapshot", () => {
-    return {
-      isDev,
-      backendRunning: Boolean(backendProcess && !backendProcess.killed),
-      rendererUrl: resolveRendererHtml(),
-      appVersion: app.getVersion(),
-      lastUpdated: new Date().toISOString()
-    };
-  });
-}
-
 void app
   .whenReady()
-  .then(() => {
-    ensureAppDataFolder();
-    registerDiagnosticsChannel();
-    startBackend();
+  .then(async () => {
+    diagnosticsManager = new DiagnosticsManager({
+      resolveBackendEntry,
+      getLogger: () => console,
+      getMainWindow: () => mainWindow,
+      diagnosticsApiOrigin: process.env.DIAGNOSTICS_API_ORIGIN
+    });
+
+    diagnosticsIpc = registerDiagnosticsIpcHandlers({
+      ipcMain,
+      manager: diagnosticsManager,
+      getWebContents: () => mainWindow?.webContents ?? null
+    });
+
+    await diagnosticsManager.initialize();
     createWindow();
+
+    diagnosticsManager.on("backend-error", (payload) => {
+      console.warn("Diagnostics backend error", payload.message);
+    });
+
+    diagnosticsManager.on("retention-warning", (warning) => {
+      console.info("Diagnostics retention warning", warning);
+    });
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -172,9 +158,12 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
-  stopBackend();
+  void diagnosticsManager?.shutdown();
 });
 
 app.on("quit", () => {
-  stopBackend();
+  diagnosticsIpc?.dispose();
+  diagnosticsIpc = null;
+  void diagnosticsManager?.shutdown();
+  diagnosticsManager = null;
 });

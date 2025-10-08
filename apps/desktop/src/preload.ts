@@ -1,8 +1,12 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge } from "electron";
+import { createDiagnosticsBridge } from "./preload/diagnostics";
+
+const diagnostics = createDiagnosticsBridge();
 
 const api = {
-  ping: async (): Promise<string> => ipcRenderer.invoke("diagnostics:snapshot").then(() => "pong"),
-  diagnosticsSnapshot: (): Promise<unknown> => ipcRenderer.invoke("diagnostics:snapshot")
+	ping: async (): Promise<string> => "pong",
+	diagnostics,
+	diagnosticsSnapshot: (): Promise<unknown> => diagnostics.requestSummary()
 };
 
 type DesktopApi = typeof api;
