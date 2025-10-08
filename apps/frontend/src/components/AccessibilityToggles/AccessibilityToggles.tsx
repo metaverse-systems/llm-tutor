@@ -3,7 +3,6 @@ import React, { useMemo } from "react";
 interface ToggleState {
   highContrast: boolean;
   reduceMotion: boolean;
-  remoteProviders: boolean;
 }
 
 interface AccessibilityTogglesProps {
@@ -21,7 +20,7 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
   onChange,
   isPersisting = false
 }) => {
-  const { highContrast, reduceMotion, remoteProviders } = preferences;
+  const { highContrast, reduceMotion } = preferences;
 
   const switches = useMemo(
     () => [
@@ -33,8 +32,7 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
         onToggle: () =>
           onChange({
             highContrast: !highContrast,
-            reduceMotion,
-            remoteProviders
+            reduceMotion
           })
       },
       {
@@ -45,24 +43,11 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
         onToggle: () =>
           onChange({
             highContrast,
-            reduceMotion: !reduceMotion,
-            remoteProviders
-          })
-      },
-      {
-        id: "landing-accessibility-toggle-remote-providers",
-        label: "Remote providers",
-        value: remoteProviders,
-        description: "Share remote provider status within diagnostics exports and consent logs.",
-        onToggle: () =>
-          onChange({
-            highContrast,
-            reduceMotion,
-            remoteProviders: !remoteProviders
+            reduceMotion: !reduceMotion
           })
       }
     ],
-    [highContrast, reduceMotion, remoteProviders, onChange]
+    [highContrast, reduceMotion, onChange]
   );
 
   return (

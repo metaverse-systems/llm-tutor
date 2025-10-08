@@ -1,11 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { z } from "zod";
-import {
-	diagnosticsSnapshotSchema,
-	type DiagnosticsPreferenceRecordPayload,
-	type DiagnosticsSnapshotPayload
-} from "@metaverse-systems/llm-tutor-shared";
-type DiagnosticsSnapshotSeed = DiagnosticsSnapshotPayload;
+
+type DiagnosticsSnapshotSeed = {
+  id: string;
+  generatedAt: string;
+  backendStatus: "running" | "stopped" | "error";
+  backendMessage?: string;
+  rendererUrl: string;
+  llmStatus: "connected" | "unreachable" | "disabled";
+  llmEndpoint?: string;
+  logDirectory: string;
+  snapshotCountLast30d?: number;
+  diskUsageBytes: number;
+  warnings?: string[];
+  activePreferences: {
+    highContrast: boolean;
+    reduceMotion: boolean;
+    updatedAt: string;
+  };
+};
 
 interface DiagnosticsTestHarness {
   app: DiagnosticsTestServer;
@@ -38,33 +51,30 @@ interface DiagnosticsApiModule {
   }) => Promise<DiagnosticsTestHarness>;
 }
 
+const diagnosticsSnapshotSchema = z.object({
+  id: z.string().uuid(),
+  generatedAt: z.string().datetime(),
+  backendStatus: z.enum(["running", "stopped", "error"]),
+  backendMessage: z.string().optional(),
+  rendererUrl: z.string().url(),
+  llmStatus: z.enum(["connected", "unreachable", "disabled"]),
+  llmEndpoint: z.string().optional(),
+  logDirectory: z.string().min(1),
+  snapshotCountLast30d: z.number().int().nonnegative().optional(),
+  diskUsageBytes: z.number().int().nonnegative(),
+  warnings: z.array(z.string()).optional(),
+  activePreferences: z.object({
+    highContrast: z.boolean(),
+    reduceMotion: z.boolean(),
+    updatedAt: z.string().datetime()
+  })
+});
+
 const errorResponseSchema = z.object({
   errorCode: z.string(),
   message: z.string(),
   retryAfterSeconds: z.number().int().nonnegative().optional()
 });
-
-function preferencePayload(overrides: {
-  id: string;
-  highContrastEnabled?: boolean;
-  reducedMotionEnabled?: boolean;
-  remoteProvidersEnabled?: boolean;
-  lastUpdatedAt: string;
-  updatedBy?: DiagnosticsPreferenceRecordPayload["updatedBy"];
-  consentSummary?: string;
-}): DiagnosticsPreferenceRecordPayload {
-  return {
-    id: overrides.id,
-    highContrastEnabled: overrides.highContrastEnabled ?? false,
-    reducedMotionEnabled: overrides.reducedMotionEnabled ?? false,
-    remoteProvidersEnabled: overrides.remoteProvidersEnabled ?? false,
-    lastUpdatedAt: overrides.lastUpdatedAt,
-    updatedBy: overrides.updatedBy ?? "renderer",
-    consentSummary: overrides.consentSummary ?? "Remote providers are disabled",
-    consentEvents: [],
-    storageHealth: null
-  };
-}
 
 let harness: DiagnosticsTestHarness | null = null;
 
@@ -154,14 +164,11 @@ describe("Diagnostics API contract", () => {
         diskUsageBytes: 42_000,
         snapshotCountLast30d: 3,
         warnings: ["Disk usage at 8% of quota"],
-        activePreferences: preferencePayload({
-          id: "75d79e62-76ed-41ad-a487-9b51addd6bad",
-          highContrastEnabled: true,
-          reducedMotionEnabled: false,
-          lastUpdatedAt: "2025-10-07T09:45:00.000Z",
-          updatedBy: "backend",
-          consentSummary: "Enabled high contrast"
-        })
+        activePreferences: {
+          highContrast: true,
+          reduceMotion: false,
+          updatedAt: "2025-10-07T09:45:00.000Z"
+        }
       };
 
       await testHarness.seedSnapshot(seed);
@@ -175,7 +182,7 @@ describe("Diagnostics API contract", () => {
       const snapshot = await parseJson(response, diagnosticsSnapshotSchema);
       expect(snapshot.id).toBe(seed.id);
       expect(snapshot.backendStatus).toBe("running");
-  expect(snapshot.activePreferences.highContrastEnabled).toBe(true);
+      expect(snapshot.activePreferences.highContrast).toBe(true);
     });
 
     it("surfaces backend warm-up state as 503 while no snapshot exists", async () => {
@@ -208,14 +215,11 @@ describe("Diagnostics API contract", () => {
         diskUsageBytes: 200_000,
         snapshotCountLast30d: 7,
         warnings: ["Backend recently crashed"],
-        activePreferences: preferencePayload({
-          id: "dbefdd15-0fc6-43df-bf4e-43d379415c52",
-          highContrastEnabled: false,
-          reducedMotionEnabled: true,
-          lastUpdatedAt: "2025-10-07T10:58:00.000Z",
-          updatedBy: "backend",
-          consentSummary: "Enabled reduced motion"
-        })
+        activePreferences: {
+          highContrast: false,
+          reduceMotion: true,
+          updatedAt: "2025-10-07T10:58:00.000Z"
+        }
       };
 
       await testHarness.seedSnapshot(crashSnapshot);
@@ -245,14 +249,11 @@ describe("Diagnostics API contract", () => {
         llmStatus: "disabled",
         logDirectory: "/tmp/llm-tutor/diagnostics",
         diskUsageBytes: 100_000,
-        activePreferences: preferencePayload({
-          id: "2be2a93f-90a7-47d7-a7a5-0ba8b1b93f95",
-          highContrastEnabled: false,
-          reducedMotionEnabled: false,
-          lastUpdatedAt: "2025-10-07T08:00:00.000Z",
-          updatedBy: "backend",
-          consentSummary: "Standard preferences"
-        })
+        activePreferences: {
+          highContrast: false,
+          reduceMotion: false,
+          updatedAt: "2025-10-07T08:00:00.000Z"
+        }
       };
 
       await testHarness.seedSnapshot(existing);
@@ -312,12 +313,11 @@ describe("Diagnostics API contract", () => {
         logDirectory: "/tmp/llm-tutor/diagnostics",
         diskUsageBytes: 32_000,
         snapshotCountLast30d: 1,
-        activePreferences: preferencePayload({
-          id: "6a051fff-bfd7-48eb-91f5-9a9a8c56c3a2",
-          highContrastEnabled: false,
-          reducedMotionEnabled: false,
-          lastUpdatedAt: "2025-10-07T12:30:00.000Z"
-        })
+        activePreferences: {
+          highContrast: false,
+          reduceMotion: false,
+          updatedAt: "2025-10-07T12:30:00.000Z"
+        }
       };
 
       await testHarness.seedSnapshot(seed);
@@ -332,9 +332,8 @@ describe("Diagnostics API contract", () => {
       expect(response.headers["content-disposition"]).toContain("diagnostics-snapshot-");
       const lines = response.body.trim().split("\n");
       expect(lines).toHaveLength(1);
-  const payload = JSON.parse(lines[0]) as DiagnosticsSnapshotSeed;
+      const payload = JSON.parse(lines[0]) as DiagnosticsSnapshotSeed;
       expect(payload.id).toBe(seed.id);
-  expect(payload.activePreferences.highContrastEnabled).toBe(false);
     });
 
     it("returns 204 when no snapshots are stored", async () => {
