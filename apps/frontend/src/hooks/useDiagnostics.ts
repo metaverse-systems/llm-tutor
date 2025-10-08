@@ -191,8 +191,8 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
   const [bridge, setBridge] = useState<DiagnosticsBridge | null>(() => getBridge());
   const bridgeRef = useRef<DiagnosticsBridge | null>(bridge);
   const offlineUntilRef = useRef<number>(0);
-  const pollTimerRef = useRef<number | NodeJS.Timeout | null>(null);
-  const preferenceRefreshTimerRef = useRef<number | NodeJS.Timeout | null>(null);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const preferenceRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef<boolean>(true);
 
   const clearPreferenceRefreshTimer = useCallback(() => {
