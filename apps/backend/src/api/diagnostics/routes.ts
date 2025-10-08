@@ -85,14 +85,8 @@ export async function registerDiagnosticsRoutes(
       }
 
       const pendingSnapshot = await snapshotService.generateSnapshot();
-      const windowStart = retentionWindowStart(effectiveNow, retentionWindowDays);
-      const existingCount = await store.countSnapshotsSince(windowStart);
-      const snapshotForStorage: DiagnosticsSnapshot = {
-        ...pendingSnapshot,
-        snapshotCountLast30d: existingCount + 1
-      };
 
-      await store.save(snapshotForStorage);
+      await store.save(pendingSnapshot);
       refreshLimiter.recordSuccessfulRefresh(effectiveNow);
 
       return reply.code(202).send(serializeDiagnosticsSnapshot(snapshotForStorage));
