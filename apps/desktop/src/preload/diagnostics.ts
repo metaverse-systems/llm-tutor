@@ -18,6 +18,7 @@ export interface DiagnosticsStatePayload {
 	backend: BackendProcessState;
 	warnings: string[];
 	latestSnapshot: DiagnosticsSnapshotPayload | null | undefined;
+	processEvents: ProcessHealthEventPayload[];
 }
 
 type Listener<T> = (payload: T) => void;
