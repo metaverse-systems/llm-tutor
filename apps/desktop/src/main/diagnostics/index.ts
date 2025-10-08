@@ -183,7 +183,7 @@ export class DiagnosticsManager extends TypedEventEmitter {
 	private preferenceSyncTask: Promise<void> = Promise.resolve();
 	private preferenceDisposers: Array<() => void> = [];
 	private isShuttingDown = false;
-		private backendLockPath: string | null = null;
+	private backendLockPath: string | null = null;
 	private readonly handleVaultUpdated = (payload: DiagnosticsPreferenceRecordPayload) => {
 		this.latestPreferences = {
 			...payload,
