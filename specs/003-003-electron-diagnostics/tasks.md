@@ -36,9 +36,9 @@
 - [x] T024 Verify `.specify/templates` references unaffected; document any template adjustments needed for future automation features (optional). *(Depends on T019-T023)*
 
 ## Phase 3.5: Validation & Handoff
-- [ ] T025 Run full workspace test matrix (`npm run test --workspaces`, Playwright, accessibility suites) and archive outputs in repo under `docs/reports/` as specified. *(Depends on T017-T024)*
-- [ ] T026 Conduct accessibility smoke (keyboard-only walkthrough, high-contrast, reduced-motion) manually or via script to confirm learner-first guarantees remain. *(Depends on T015, T017)*
-- [ ] T027 Prepare change summary for release notes or future spec updates, referencing automation improvements and logs produced. *(Depends on T019-T026)*
+- [x] T025 Run full workspace test matrix (`npm run test --workspaces`, Playwright, accessibility suites) and archive outputs in repo under `docs/reports/` as specified. *(Depends on T017-T024)*
+- [x] T026 Conduct accessibility smoke (keyboard-only walkthrough, high-contrast, reduced-motion) manually or via script to confirm learner-first guarantees remain. *(Depends on T015, T017)*
+- [x] T027 Prepare change summary for release notes or future spec updates, referencing automation improvements and logs produced. *(Depends on T019-T026)*
 
 ## Dependencies
 - T002 → T008 (context updated before doc placeholders flagged)

@@ -139,13 +139,13 @@ Reference: CI-aligned diagnostics export flow documented in `docs/diagnostics.md
 _Date:_ 2025-10-09  
 _Operator:_ Automation via GitHub Copilot agent
 
-## Step 1 – Playwright diagnostics export
+## Step 1 – Workspace Playwright diagnostics export
 
 ```bash
-DEBUG_ELECTRON_LAUNCH=1 LLM_TUTOR_DIAGNOSTICS_LOG=1 NODE_OPTIONS=--import=tsx xvfb-run -a npx playwright test tests/e2e/diagnostics/export.spec.ts
+npm run test:e2e --workspaces
 ```
 
-Outcome: ✅ Completed in 92 s under xvfb. Launcher assigned remote debugging port `43100`; stderr includes `[diagnostics-export] remote-debugging-port` telemetry. Exported snapshot and JSONL log stored under `${app.getPath("userData")}/diagnostics/exports/`.
+Outcome: ✅ Two Chromium scenarios pass in 15 s. Launcher emits `[diagnostics-export] remote-debugging-port` telemetry and both export success/failure flows attach their JSONL logs under `docs/reports/playwright/`.
 
 ## Step 2 – Vitest across all workspaces
 
@@ -155,13 +155,21 @@ npm run test --workspaces
 
 Outcome: ✅ 31 tests passing (backend, desktop, frontend, shared). Desktop preload suite confirms expectations for empty payload objects.
 
-## Step 3 – Log verification
+## Step 3 – Accessibility smoke
 
-Reviewed the generated export log: contains `outcome: "success"`, matched snapshot path, and `accessibilityState` reflecting toggles enforced during automation (`highContrast: true`, `reduceMotion: true`).
+```bash
+npm run test:a11y --workspaces
+```
+
+Outcome: ✅ Six accessibility scenarios cover keyboard navigation, high contrast, reduced motion, remote provider consent, persistence, and storage fallback messaging. Reports stored in `docs/reports/playwright/`.
+
+## Step 4 – Log verification
+
+Reviewed the generated export log: contains `status: "success"`, matched snapshot path, and `accessibilityState` reflecting toggles enforced during automation (`highContrast: true`, `reduceMotion: true`, `remoteProviders: true`, `keyboardNavigationVerified: true`).
 
 ## Artifacts
 
-- Playwright HTML report and stderr capture archived in `docs/reports/playwright/automation-2025-10-09/`.
+- Playwright HTML report and stderr capture archived in `docs/reports/playwright/`.
 - Export JSONL log preserved alongside snapshots for reference.
 
 ## Follow-ups

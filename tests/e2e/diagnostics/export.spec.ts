@@ -366,11 +366,11 @@ async function waitForDiagnosticsBridge(window: Page, timeoutMs = 30_000) {
 }
 
 test.describe("Electron diagnostics export", () => {
-  test.beforeAll(async () => {
+  test.beforeEach(async () => {
     await startRendererPreview();
   });
 
-  test.afterAll(async () => {
+  test.afterEach(async () => {
     await stopRendererPreview();
     const getActiveHandles = (process as unknown as { _getActiveHandles?: () => unknown[] })._getActiveHandles;
     if (typeof getActiveHandles === "function") {
