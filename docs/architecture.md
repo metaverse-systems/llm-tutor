@@ -20,6 +20,7 @@ runtime architecture and highlights the responsibilities of each tier.
 | Area | Tooling | Status | Notes |
 |------|---------|--------|-------|
 | Workspace Tooling | Node.js 20.x, npm 10.8, TypeScript 5.5, ESLint, Prettier, Vitest, Playwright | ✅ Installed | Verified via `npm install` on 2025-10-07. |
+| Styling Pipeline | Tailwind CSS 3, PostCSS, Autoprefixer, Prettier Tailwind plugin, shared format scripts | ✅ Implemented | `npm run format:css`, `npm run tailwind:build`, and `npm run tailwind:watch` wired across workspaces; Prettier enforces CSS/SCSS conventions. |
 | Backend HTTP Layer | Fastify 4, Zod | ✅ Implemented | Fastify + Zod contracts wired into diagnostics API (`apps/backend`). |
 | Backend Storage Helpers | `electron-store` (shared usage) | ✅ Implemented | Diagnostics preference vault persists accessibility + consent state and surfaces storage health alerts. |
 | Accessibility Tooling | Playwright, axe-core | ⚠️ In Progress | Playwright accessibility flows run in CI; axe-core assertions scheduled for the next polish sprint. |
@@ -36,10 +37,14 @@ runtime architecture and highlights the responsibilities of each tier.
 3. **Curriculum Requests** – Renderer issues IPC/HTTP calls to backend endpoints. Backend
 	composes prompts, consults domain models from `packages/shared`, and requests inference
 	from the local LLM runtime.
-4. **Preference Sync** – Renderer preference changes travel through preload IPC to the main process vault, which persists them and notifies the backend via Fastify routes to refresh snapshots.
-5. **Persistence** – Backend writes learner records, quizzes, and embeddings to the local
+4. **Tailwind & Styling Build** – Shared Tailwind entry points in each workspace feed the
+	PostCSS pipeline. Generated utility bundles land in `.tailwind/` directories that Vite and
+	Electron import during dev/build. Prettier runs (`npm run format:css`) enforce deterministic
+	styling before changes ship.
+5. **Preference Sync** – Renderer preference changes travel through preload IPC to the main process vault, which persists them and notifies the backend via Fastify routes to refresh snapshots.
+6. **Persistence** – Backend writes learner records, quizzes, and embeddings to the local
 	relational database and vector store. Preference records and storage alerts persist to `diagnostics-preferences.json`; no network egress occurs unless the user enables an optional remote backend.
-6. **Feedback Loop** – Results return to the renderer, which updates UI state and pushes
+7. **Feedback Loop** – Results return to the renderer, which updates UI state and pushes
 	telemetry to the local audit log for transparency.
 
 ## 4. Packaging & Distribution

@@ -42,10 +42,10 @@
 - [x] T019 Wire the new formatter and Tailwind build steps into local quality gates by updating any dev tooling scripts (e.g., `npm run lint` pipelines or pre-commit hooks) so contributors experience the same enforcement locally. *(Root lint script now shells through `scripts/lint-all.cjs`, enforcing formatter + Tailwind runs unless `LINT_SKIP_ENFORCEMENT=true`.)*
 
 ## Phase 3.5: Documentation & Polish
-- [ ] T020 Update root `README.md` contributor workflow section to call out `npm run format:css` and Tailwind build/watch usage, including check mode guidance and accessibility considerations for utilities.
-- [ ] T021 Update frontend quickstart references in the main docs (`docs/architecture.md`, existing frontend quickstart) so Tailwind setup and formatter steps stay in sync.
-- [ ] T022 [P] Add CI troubleshooting documentation in `docs/testing-log.md` or relevant doc to explain resolving formatter or Tailwind build failures.
-- [ ] T023 [P] Evaluate whether fixtures created in T003–T004 should remain as regression tests; if retired, remove them and document the rationale in the commit.
+- [x] T020 Update root `README.md` contributor workflow section to call out `npm run format:css` and Tailwind build/watch usage, including check mode guidance and accessibility considerations for utilities.
+- [x] T021 Update frontend quickstart references in the main docs (`docs/architecture.md`, existing frontend quickstart) so Tailwind setup and formatter steps stay in sync.
+- [x] T022 [P] Add CI troubleshooting documentation in `docs/testing-log.md` or relevant doc to explain resolving formatter or Tailwind build failures.
+- [x] T023 [P] Evaluate whether fixtures created in T003–T004 should remain as regression tests; if retired, remove them and document the rationale in the commit.
 
 ## Dependencies
 - T001 precedes all other tasks (tooling availability).
