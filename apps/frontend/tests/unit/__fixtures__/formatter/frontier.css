@@ -1,0 +1,2 @@
+/* Intentionally misformatted fixture for formatter tests */
+.button{display:flex;flex-direction:column;gap:4px;margin:0 auto;padding:0.5rem 1rem;background:linear-gradient(135deg,#ff9a00,#ff165d);color:#123456;font-weight:bold;box-shadow:0 4px 12px rgba(17,17,17,0.35)}

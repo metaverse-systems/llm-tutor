@@ -1,13 +1,15 @@
 import {
-	DiagnosticsPreferenceRecord,
-	DiagnosticsPreferenceRecordPayload,
-	DiagnosticsPreferenceUpdate,
-	StorageHealthAlertPayload,
 	createStorageFailureAlert,
 	parseDiagnosticsPreferenceRecord,
 	serializeDiagnosticsPreferenceRecord,
 	serializeStorageHealthAlert,
 	updateDiagnosticsPreferenceRecord
+} from "@metaverse-systems/llm-tutor-shared";
+import type {
+	DiagnosticsPreferenceRecord,
+	DiagnosticsPreferenceRecordPayload,
+	DiagnosticsPreferenceUpdate,
+	StorageHealthAlertPayload
 } from "@metaverse-systems/llm-tutor-shared";
 
 export interface DiagnosticsPreferenceUpdateRequest
@@ -71,11 +73,11 @@ export function createInMemoryDiagnosticsPreferenceAdapter(
 	};
 
 	return {
-		async load() {
+		load(): Promise<DiagnosticsPreferenceRecordPayload> {
 			ensureAvailable();
-			return serializeDiagnosticsPreferenceRecord(record);
+			return Promise.resolve(serializeDiagnosticsPreferenceRecord(record));
 		},
-		async update(payload) {
+		update(payload): Promise<DiagnosticsPreferenceMutationResult> {
 			ensureAvailable();
 			const currentIso = record.lastUpdatedAt.toISOString();
 			if (payload.expectedLastUpdatedAt) {
@@ -111,20 +113,23 @@ export function createInMemoryDiagnosticsPreferenceAdapter(
 
 			record = normalizeRecord(next);
 
-			return {
+			return Promise.resolve({
 				record: serializeDiagnosticsPreferenceRecord(record),
 				storageHealth: record.storageHealth
 					? serializeStorageHealthAlert(record.storageHealth)
 					: null
-			};
+			});
 		},
-		async getStorageHealth() {
-			return record.storageHealth ? serializeStorageHealthAlert(record.storageHealth) : null;
+		getStorageHealth(): Promise<StorageHealthAlertPayload | null> {
+			return Promise.resolve(
+				record.storageHealth ? serializeStorageHealthAlert(record.storageHealth) : null
+			);
 		},
-		async seed(payload) {
+		seed(payload): Promise<void> {
 			record = normalizeRecord(parseDiagnosticsPreferenceRecord(payload));
+			return Promise.resolve();
 		},
-		async simulateUnavailable() {
+		simulateUnavailable(): Promise<void> {
 			failureMode = "unavailable";
 			record = normalizeRecord({
 				...record,
@@ -133,13 +138,15 @@ export function createInMemoryDiagnosticsPreferenceAdapter(
 					"Preferences vault is temporarily unavailable"
 				)
 			});
+			return Promise.resolve();
 		},
-		async restoreAvailability() {
+		restoreAvailability(): Promise<void> {
 			failureMode = "ok";
 			record = normalizeRecord({
 				...record,
 				storageHealth: null
 			});
+			return Promise.resolve();
 		}
 	};
 }

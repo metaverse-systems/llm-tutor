@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Electron renderer Tailwind entry point.
+  Generates utilities for future desktop-specific views while staying offline.
+*/

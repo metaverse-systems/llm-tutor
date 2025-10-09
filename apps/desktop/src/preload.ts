@@ -1,10 +1,11 @@
 import { contextBridge } from "electron";
+
 import { createDiagnosticsBridge } from "./preload/diagnostics";
 
 const diagnostics = createDiagnosticsBridge();
 
 const api = {
-	ping: async (): Promise<string> => "pong",
+	ping: (): Promise<string> => Promise.resolve("pong"),
 	diagnostics,
 	diagnosticsSnapshot: (): Promise<unknown> => diagnostics.requestSummary()
 };
@@ -12,9 +13,9 @@ const api = {
 type DesktopApi = typeof api;
 
 declare global {
-  interface Window {
-    llmTutor?: DesktopApi;
-  }
+	interface Window {
+		llmTutor?: DesktopApi;
+	}
 }
 
 contextBridge.exposeInMainWorld("llmTutor", api);

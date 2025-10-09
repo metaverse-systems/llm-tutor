@@ -3,7 +3,10 @@ import { describe, it, expect } from "vitest";
 interface DiagnosticsSchemasModule {
   diagnosticsSnapshotSchema?: {
     parse: (input: unknown) => unknown;
-    safeParse: (input: unknown) => { success: boolean; error?: { issues: Array<{ path: (string | number)[] }> } };
+    safeParse: (input: unknown) => {
+      success: boolean;
+      error?: { issues: readonly { path: (string | number)[] }[] };
+    };
   };
   diagnosticsPreferenceRecordSchema?: {
     safeParse: (input: unknown) => { success: boolean };

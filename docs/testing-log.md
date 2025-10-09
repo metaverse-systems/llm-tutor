@@ -71,10 +71,57 @@ Outcome: ✅ Playwright now delegates to the Electron launcher, which guarantees
 - Renderer hook unit coverage: ✅
 - Desktop preload IPC coverage: ✅
 
+## CI Troubleshooting – Formatter & Tailwind
+
+CI now runs the shared formatting and Tailwind build workflows after linting. Use the
+following steps when a pipeline fails:
+
+### Formatter check (`npm run format:css -- --check`)
+
+1. Reproduce locally from the repo root:
+
+	```bash
+	npm run format:css -- --check
+	```
+
+2. If the command reports changed files, apply the fixes automatically:
+
+	```bash
+	npm run format:css
+	```
+
+3. Re-run the check to confirm it passes. When targeting a single workspace, append
+	`--workspace <package>`.
+4. Commit the formatted files. Generated `.tailwind` artifacts remain ignored, so only source
+	files should change.
+
+### Tailwind build (`npm run tailwind:build`)
+
+1. Run the build locally with verbose logging:
+
+	```bash
+	npm run tailwind:build -- --ci
+	```
+
+2. Inspect stderr for missing config errors. Ensure each workspace has its Tailwind entry
+	file (e.g., `src/styles/tailwind.css`) and that new components import Tailwind layers.
+3. If the failure stems from PostCSS plugins, reinstall dependencies via `npm install` and
+	retry.
+4. For workspace-specific issues, invoke `npm run tailwind:build --workspace <package>` to
+	isolate the failing bundle.
+5. Once fixed, regenerate any documentation that references the build output (e.g., Playwright
+	reports) before re-running CI.
+
 ## Follow-ups
 
 1. ~~Resolve Playwright/Electron compatibility so the export smoke test can run without manual intervention.~~ Addressed 2025-10-09 via launcher port negotiation and documentation updates.
 2. Eliminate double backend boot in the desktop dev harness (consider gating the backend watcher when Electron spawns its managed instance).
+
+### Fixture Retention Decision (2025-10-09)
+
+- The misformatted CSS/SCSS fixtures introduced for formatter tests (`apps/frontend/tests/unit/__fixtures__/formatter/frontier.css` and
+	`frontier.scss`) remain in place. They provide regression coverage for `apps/frontend/tests/unit/formatter.spec.ts`, which exercises the
+	shared formatter scripts. Future cleanup should only occur if an alternative fixture strategy replaces these tests.
 
 Reference: automation workflow, port handling, and export log guidance now captured in `docs/diagnostics.md`.
 

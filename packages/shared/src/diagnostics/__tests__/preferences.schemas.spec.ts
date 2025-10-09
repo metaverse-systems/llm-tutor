@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
+import { consentEventLogSchema, parseConsentEventLog } from "../consent-event";
 import {
 	diagnosticsPreferenceRecordSchema,
 	parseDiagnosticsPreferenceRecord
 } from "../preference-record";
-import { consentEventLogSchema, parseConsentEventLog } from "../consent-event";
-import { storageHealthAlertSchema, parseStorageHealthAlert } from "../storage-health";
+import { parseStorageHealthAlert, storageHealthAlertSchema } from "../storage-health";
 
 describe("diagnostics preference schemas", () => {
 	const baseConsentEvent = {

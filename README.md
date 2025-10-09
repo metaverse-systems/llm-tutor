@@ -57,6 +57,42 @@ cd llm-tutor
 npm install
 ```
 
+### Styling & Tailwind Workflow
+
+The monorepo standardizes CSS/SCSS formatting and Tailwind generation across all
+workspaces. Run these commands from the repository root unless otherwise noted:
+
+- Format styles (CSS, SCSS, Tailwind layer files) in every workspace:
+
+  ```bash
+  npm run format:css
+  ```
+
+- Check formatting without writing changes (used by CI):
+
+  ```bash
+  npm run format:css -- --check
+  ```
+
+- Build Tailwind artifacts for every workspace (frontend, desktop renderer,
+  backend docs, shared package):
+
+  ```bash
+  npm run tailwind:build
+  ```
+
+- Watch Tailwind inputs for live rebuilds while developing a renderer or web
+  view:
+
+  ```bash
+  npm run tailwind:watch -- --workspace @metaverse-systems/llm-tutor-frontend
+  ```
+
+Individual workspaces expose identical scripts, so you can target a single
+package via `npm run <script> --workspace <package-name>`. Generated `.tailwind`
+artifacts are ignored by Git and excluded from Prettier. See
+`docs/frontend-quickstart.md` for renderer-specific workflows and troubleshooting.
+
 ### Desktop shell (Electron)
 
 Run the desktop experience alongside the backend and frontend dev servers:

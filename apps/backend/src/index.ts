@@ -1,4 +1,5 @@
 import { describeProject } from "@metaverse-systems/llm-tutor-shared";
+
 import { createDiagnosticsApp, type DiagnosticsAppOptions } from "./api/diagnostics/index.js";
 import { createLlmProbe } from "./services/diagnostics/index.js";
 

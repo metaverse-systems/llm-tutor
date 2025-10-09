@@ -1,13 +1,14 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { z } from "zod";
 import {
 	consentEventLogSchema,
 	type DiagnosticsPreferenceRecordPayload
 } from "@metaverse-systems/llm-tutor-shared";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { z } from "zod";
+
 import {
-	type DiagnosticsPreferenceAdapter,
 	PreferenceConcurrencyError,
-	PreferenceVaultUnavailableError
+	PreferenceVaultUnavailableError,
+	type DiagnosticsPreferenceAdapter
 } from "../../../infra/preferences/index.js";
 
 const preferenceUpdateSchema = z.object({
@@ -25,7 +26,7 @@ export interface DiagnosticsPreferenceRoutesOptions {
 	refreshSnapshot?: () => Promise<void>;
 }
 
-export async function registerDiagnosticsPreferenceRoutes(
+export function registerDiagnosticsPreferenceRoutes(
 	app: FastifyInstance,
 	options: DiagnosticsPreferenceRoutesOptions
 ): Promise<void> {
@@ -92,4 +93,5 @@ export async function registerDiagnosticsPreferenceRoutes(
 		}
 	);
 
+	return Promise.resolve();
 }
