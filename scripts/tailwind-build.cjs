@@ -8,11 +8,13 @@
 
 const { spawnSync } = require("node:child_process");
 
+const sharedWorkspace = "@metaverse-systems/llm-tutor-shared";
+
 const workspaces = [
   "@metaverse-systems/llm-tutor-frontend",
   "@metaverse-systems/llm-tutor-desktop",
   "@metaverse-systems/llm-tutor-backend",
-  "@metaverse-systems/llm-tutor-shared"
+  sharedWorkspace
 ];
 
 const forwardedArgs = process.argv.slice(2).filter((arg) => arg !== "--");
@@ -28,6 +30,22 @@ function run(command, args) {
     process.exit(result.status ?? 1);
   }
 }
+
+// Ensure shared theme assets are generated before consumer Tailwind builds run.
+run("npm", [
+  "run",
+  "--workspace",
+  sharedWorkspace,
+  "build"
+]);
+
+run("npm", [
+  "run",
+  "--workspace",
+  sharedWorkspace,
+  "--if-present",
+  "build:tokens"
+]);
 
 for (const workspace of workspaces) {
   const args = [
