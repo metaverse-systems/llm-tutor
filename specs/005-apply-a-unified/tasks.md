@@ -31,10 +31,10 @@
 
 ## Phase 3.2: Tests First (TDD)
 **CRITICAL: These specs must be written and observed failing before any implementation in Phase 3.3.**
-- [ ] T003 Create contract test `packages/shared/tests/unit/theme.tokens.contract.test.ts` asserting every semantic token includes a high-contrast variant and matches the Zod schema.
-- [ ] T004 [P] Add snapshot test `packages/shared/tests/unit/theme.css.spec.ts` verifying generated CSS variables for standard vs. `data-theme="contrast"` states.
-- [ ] T005 [P] Author Playwright accessibility test `apps/frontend/tests/accessibility/high-contrast.theme.spec.ts` to toggle the web UI into high-contrast mode and pass axe checks.
-- [ ] T006 [P] Author Playwright/Electron test `apps/desktop/tests/main/high-contrast.theme.spec.ts` ensuring the diagnostics window loads theme assets, syncs preferences, and passes axe.
+- [x] T003 Create contract test `packages/shared/tests/unit/theme.tokens.contract.test.ts` asserting every semantic token includes a high-contrast variant and matches the Zod schema. *(New Vitest contract suite imports the forthcoming token schema; current run fails because `src/styles/tokens` is not implemented yet.)*
+- [x] T004 [P] Add snapshot test `packages/shared/tests/unit/theme.css.spec.ts` verifying generated CSS variables for standard vs. `data-theme="contrast"` states. *(Snapshot harness targets the planned generator output; Vitest currently errors because `generateThemeAssets` is missing.)*
+- [x] T005 [P] Author Playwright accessibility test `apps/frontend/tests/accessibility/high-contrast.theme.spec.ts` to toggle the web UI into high-contrast mode and pass axe checks. *(Playwright run now errors on missing `@axe-core/playwright` and the body lacks `data-theme="contrast"`, keeping the test red.)*
+- [x] T006 [P] Author Playwright/Electron test `apps/desktop/tests/main/high-contrast.theme.spec.ts` ensuring the diagnostics window loads theme assets, syncs preferences, and passes axe. *(Desktop spec imports a temporary harness that throws until theme assets and axe integration exist, leaving the suite failing as expected.)*
 
 ## Phase 3.3: Core Implementation (run after Phase 3.2 tests are red)
 - [ ] T007 Implement token catalogue & Zod schema per `data-model.md` in `packages/shared/src/styles/tokens.ts`, covering standard and high-contrast values plus metadata.
