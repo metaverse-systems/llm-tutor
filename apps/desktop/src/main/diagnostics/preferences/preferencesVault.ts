@@ -1,6 +1,3 @@
-import { EventEmitter } from "node:events";
-import type Store from "electron-store";
-import type { Options as ElectronStoreOptions } from "electron-store";
 import type {
 	DiagnosticsPreferenceRecord,
 	DiagnosticsPreferenceRecordPayload,
@@ -16,6 +13,9 @@ import {
 	updateDiagnosticsPreferenceRecord,
 	withStorageHealth
 } from "@metaverse-systems/llm-tutor-shared";
+import ElectronStore from "electron-store";
+import { EventEmitter } from "node:events";
+import { inspect } from "node:util";
 
 type PreferencesVaultEvent = "updated" | "storage-health";
 
@@ -24,7 +24,9 @@ interface PreferencesVaultEvents {
 	"storage-health": (payload: DiagnosticsPreferenceRecordPayload) => void;
 }
 
-type PreferenceStorePayload = { record?: DiagnosticsPreferenceRecordPayload };
+interface PreferenceStorePayload {
+	record?: DiagnosticsPreferenceRecordPayload;
+}
 
 interface PreferencesVaultStore {
 	get():
@@ -58,38 +60,11 @@ class TypedEventEmitter extends EventEmitter {
 	}
 }
 
-type ElectronStoreCtor = new (
-	options?: ElectronStoreOptions<PreferenceStorePayload>
-) => Store<PreferenceStorePayload>;
-
-let cachedElectronStore: ElectronStoreCtor | null = null;
-
-function loadElectronStore(): ElectronStoreCtor {
-	if (cachedElectronStore) {
-		return cachedElectronStore;
-	}
-
-	// eslint-disable-next-line @typescript-eslint/no-var-requires
-	const required: unknown = require("electron-store");
-	const resolved =
-		typeof required === "function"
-			? (required as ElectronStoreCtor)
-			: (required as { default?: ElectronStoreCtor })?.default;
-
-	if (typeof resolved !== "function") {
-		throw new Error("electron-store module is unavailable");
-	}
-
-	cachedElectronStore = resolved;
-	return cachedElectronStore;
-}
-
 class ElectronPreferenceStore implements PreferencesVaultStore {
-	private readonly store: Store<PreferenceStorePayload>;
+	private readonly store: ElectronStore<PreferenceStorePayload>;
 
 	constructor() {
-		const StoreCtor = loadElectronStore();
-		this.store = new StoreCtor({
+		this.store = new ElectronStore<PreferenceStorePayload>({
 			name: "diagnostics-preferences"
 		});
 	}
@@ -107,6 +82,26 @@ class ElectronPreferenceStore implements PreferencesVaultStore {
 		};
 		store.set("record", value);
 	}
+}
+
+function formatUnknownError(error: unknown, fallback: string): string {
+	if (typeof error === "string") {
+		return error.trim() || fallback;
+	}
+
+	if (error instanceof Error) {
+		return error.message || fallback;
+	}
+
+	if (error === null || error === undefined) {
+		return fallback;
+	}
+
+	if (typeof error === "number" || typeof error === "boolean" || typeof error === "bigint") {
+		return `${error}`;
+	}
+
+	return inspect(error, { depth: 1 }) ?? fallback;
 }
 
 export class PreferencesVault {
@@ -245,7 +240,7 @@ export class PreferencesVault {
 		error: unknown
 	): DiagnosticsPreferenceRecord {
 		const reason = inferStorageFailureReason(error);
-		const message = error instanceof Error ? error.message : String(error ?? "Unknown error");
+		const message = formatUnknownError(error, "Unknown error");
 		const alert = createStorageFailureAlert(
 			reason,
 			`Failed to persist diagnostics preferences: ${message}`
@@ -286,7 +281,7 @@ export class PreferencesVaultConcurrencyError extends Error {
 }
 
 function inferStorageFailureReason(error: unknown): StorageHealthAlert["reason"] {
-	const message = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+	const message = formatUnknownError(error, "").toLowerCase();
 	if (message.includes("permission") || message.includes("eacces")) {
 		return "permission-denied";
 	}

@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+
 import {
 	appendConsentEvent,
 	consentEventLogSchema,
 	CONSENT_EVENT_WINDOW,
 	normalizeConsentEvents,
-	parseConsentEventLog,
 	serializeConsentEventLog,
 	type ConsentEventLog,
 	type ConsentEventLogPayload
@@ -120,7 +120,7 @@ function isStorageHealthAlert(
 export function createDiagnosticsPreferenceRecord(
 	overrides: Partial<Omit<DiagnosticsPreferenceRecord, "lastUpdatedAt" | "consentEvents">> & {
 		lastUpdatedAt?: Date;
-		consentEvents?: ReadonlyArray<ConsentEventLog | ConsentEventLogPayload>;
+		consentEvents?: readonly (ConsentEventLog | ConsentEventLogPayload)[];
 	} = {}
 ): DiagnosticsPreferenceRecord {
 	return {

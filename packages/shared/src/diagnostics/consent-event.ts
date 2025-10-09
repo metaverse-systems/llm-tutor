@@ -55,7 +55,7 @@ export function serializeConsentEventLog(event: ConsentEventLog): ConsentEventLo
 }
 
 export function normalizeConsentEvents(
-	events: ReadonlyArray<ConsentEventLog | ConsentEventLogPayload>
+	events: readonly (ConsentEventLog | ConsentEventLogPayload)[]
 ): ConsentEventLog[] {
 	return events
 		.map((event) => {
@@ -69,7 +69,7 @@ export function normalizeConsentEvents(
 }
 
 export function appendConsentEvent(
-	events: ReadonlyArray<ConsentEventLog | ConsentEventLogPayload>,
+	events: readonly (ConsentEventLog | ConsentEventLogPayload)[],
 	additional: ConsentEventLog | ConsentEventLogPayload
 ): ConsentEventLog[] {
 	const normalized = normalizeConsentEvents([...events, additional]);

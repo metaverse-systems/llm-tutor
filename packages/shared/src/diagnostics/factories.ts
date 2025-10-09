@@ -1,30 +1,29 @@
 import { randomUUID } from "node:crypto";
+
 import {
-  DiagnosticsSnapshot,
-  DiagnosticsSnapshotPayload,
-  ProcessHealthEvent,
-  ProcessHealthEventPayload,
-  DiagnosticsPreferenceRecord,
-  DiagnosticsPreferenceRecordPayload,
-  serializeDiagnosticsSnapshot,
-  serializeDiagnosticsPreferenceRecord,
-  createDiagnosticsPreferenceRecord,
-  updateDiagnosticsPreferenceRecord,
-  type DiagnosticsPreferenceUpdate
-} from "./index.js";
-import {
-  ConsentEventLog,
-  ConsentEventLogPayload,
-  serializeConsentEventLog
+  serializeConsentEventLog,
+  type ConsentEventLog,
+  type ConsentEventLogPayload
 } from "./consent-event.js";
 import {
-  StorageHealthAlert,
-  StorageHealthAlertPayload,
-  serializeStorageHealthAlert
+  createDiagnosticsPreferenceRecord,
+  serializeDiagnosticsSnapshot,
+  updateDiagnosticsPreferenceRecord,
+  type DiagnosticsPreferenceRecord,
+  type DiagnosticsPreferenceUpdate,
+  type DiagnosticsSnapshot,
+  type DiagnosticsSnapshotPayload,
+  type ProcessHealthEvent,
+  type ProcessHealthEventPayload
+} from "./index.js";
+import {
+  serializeStorageHealthAlert,
+  type StorageHealthAlert,
+  type StorageHealthAlertPayload
 } from "./storage-health.js";
 
 export type DiagnosticsPreferenceRecordOverrides = Partial<DiagnosticsPreferenceRecord> & {
-  consentEvents?: Array<ConsentEventLog | ConsentEventLogPayload>;
+	consentEvents?: (ConsentEventLog | ConsentEventLogPayload)[];
 };
 
 export function buildDiagnosticsPreferenceRecord(
