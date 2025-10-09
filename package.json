@@ -10,9 +10,10 @@
     "packages/*"
   ],
   "scripts": {
+    "pretest": "npm run build --workspace @metaverse-systems/llm-tutor-shared",
     "dev:desktop": "npm run dev --workspace @metaverse-systems/llm-tutor-desktop",
-  "build": "npm run build --workspaces",
-  "lint": "node ./scripts/lint-all.cjs",
+    "build": "npm run build --workspaces",
+    "lint": "node ./scripts/lint-all.cjs",
     "test": "npm run test --workspaces",
     "test:e2e": "npm run test:e2e --workspaces",
     "test:a11y": "npm run test:a11y --workspaces",
