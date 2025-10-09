@@ -5,6 +5,11 @@
 **Status**: Draft  
 **Input**: User description: "Apply a unified Tailwind-driven visual theme across the LLM Tutor frontend and desktop renderer. Introduce a shared design token palette (brand colors, typography, spacing, elevation) and update existing React views to use the refined Tailwind classes. Ensure supporting stylesheets and Tailwind config reflect the new theme, add documentation and quickstart guidance for theming conventions, and extend lint/CI checks to cover any new styling assets."
 
+## Clarifications
+
+### Session 2025-10-09
+- Q: How should high-contrast mode map onto the unified design token palette? → A: Provide dedicated high-contrast variants for each token in the library.
+
 ## Execution Flow (main)
 ```
 1. Parse user description from Input
@@ -86,6 +91,7 @@ A maintainer responsible for the learner experience wants every surface of LLM T
 - **FR-001**: The platform MUST define a shared set of visual design tokens (color palette, typography scale, spacing, elevation, motion rules) that apply equally to the learner-facing web UI and desktop renderer.
 - **FR-002**: All existing learner-visible views MUST adopt the shared tokens and standardized utility classes so that brand identity, spacing, and typography remain consistent regardless of host surface.
 - **FR-003**: Accessibility modes (high contrast, reduced motion, keyboard-only use) MUST be preserved or improved by the new theme, with explicit validation steps documented.
+- **FR-003a**: High-contrast mode MUST use dedicated token variants defined alongside every core color, typography, spacing, and elevation token so contributors cannot omit accessible alternatives.
 - **FR-004**: Contributor documentation and quickstart guides MUST explain how to apply, extend, and test the unified theme, including accessibility expectations and examples.
 - **FR-005**: Continuous integration MUST enforce checks that catch deviations from the shared theme, including formatting or lint steps that cover new styling assets.
 - **FR-006**: Supporting configuration files and style entry points MUST reference the shared design tokens so that future components inherit the unified theme by default.
