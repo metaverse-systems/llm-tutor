@@ -13,7 +13,7 @@ This document captures the preliminary schema definitions that will guide the di
 | `timestamp` | ISO 8601 string | When the export automation completed (success or failure). |
 | `status` | Enum (`"success"  `"failure"`) | Captures the final outcome of the run. |
 | `exportPath` | string | Absolute path under `app.getPath("userData")/diagnostics/exports`. |
-| `accessibilityState` | object | Snapshot of keyboard, high-contrast, and reduced-motion toggles. |
+| `accessibilityState` | object | Snapshot of keyboard, high-contrast, and reduced-motion toggles. Fields may be omitted when values are not yet captured (e.g., keyboard verification pending). |
 | `messages` | array<string> | Human-readable log lines surfaced during automation. |
 | `storageAlerts` | array<string> | Warnings about filesystem permissions or disk availability. |
 

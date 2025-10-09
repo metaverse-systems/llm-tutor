@@ -1,16 +1,8 @@
-import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
-import path from "node:path";
-import { fork, type ChildProcess } from "node:child_process";
-import { EventEmitter } from "node:events";
-import { app, dialog, shell } from "electron";
-import net from "node:net";
-import type { BrowserWindow } from "electron";
 import type {
+	DiagnosticsPreferenceRecordPayload,
 	DiagnosticsSnapshotPayload,
 	ProcessHealthEvent,
 	ProcessHealthEventPayload,
-	DiagnosticsPreferenceRecordPayload,
 	StorageHealthAlertPayload,
 	ConsentEventLog,
 	ConsentEventLogPayload
@@ -20,6 +12,14 @@ import {
 	parseConsentEventLog,
 	serializeConsentEventLog
 } from "@metaverse-systems/llm-tutor-shared";
+import { app, dialog, shell, type BrowserWindow } from "electron";
+import { fork, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import net from "node:net";
+import path from "node:path";
+
 import {
 	PreferencesVault,
 	type PreferencesVaultOptions,
@@ -181,7 +181,7 @@ export class DiagnosticsManager extends TypedEventEmitter {
 	private latestPreferences: DiagnosticsPreferenceRecordPayload | null = null;
 	private latestStorageHealth: StorageHealthAlertPayload | null = null;
 	private preferenceSyncTask: Promise<void> = Promise.resolve();
-	private preferenceDisposers: Array<() => void> = [];
+	private preferenceDisposers: (() => void)[] = [];
 	private isShuttingDown = false;
 	private backendLockPath: string | null = null;
 	private readonly handleVaultUpdated = (payload: DiagnosticsPreferenceRecordPayload) => {
@@ -245,7 +245,7 @@ export class DiagnosticsManager extends TypedEventEmitter {
 		} catch (error) {
 			this.options.getLogger?.().warn?.("Pending diagnostics preference sync did not complete", error);
 		}
-		await this.stopBackendProcess();
+		this.stopBackendProcess();
 	}
 
 	getDiagnosticsDirectory(): string {
@@ -698,7 +698,7 @@ export class DiagnosticsManager extends TypedEventEmitter {
 		}
 	}
 
-	private async stopBackendProcess(): Promise<void> {
+	private stopBackendProcess(): void {
 		if (!this.backendProcess) {
 			return;
 		}
@@ -901,7 +901,7 @@ export class DiagnosticsManager extends TypedEventEmitter {
 			return null;
 		}
 
-		const match = disposition.match(/filename\*?=(?:UTF-8''|\")?([^";]+)/i);
+		const match = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
 		if (!match) {
 			return null;
 		}

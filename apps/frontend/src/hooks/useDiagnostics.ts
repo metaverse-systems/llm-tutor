@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DiagnosticsSnapshotPayload,
   ProcessHealthEventPayload,
   DiagnosticsPreferenceRecordPayload,
-  StorageHealthAlertPayload
+  StorageHealthAlertPayload,
+  DiagnosticsExportRequestPayload
 } from "@metaverse-systems/llm-tutor-shared";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 declare global {
   interface Window {
@@ -17,6 +18,11 @@ declare global {
         remoteProviders: boolean;
       } | null;
     };
+    __diagnosticsAutomation?: {
+      setKeyboardNavigationVerified?: (value: boolean) => void;
+      getAccessibilityState?: () => Record<string, unknown>;
+      resetAccessibilityVerification?: () => void;
+    };
   }
 }
 
@@ -26,6 +32,13 @@ const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const DEFAULT_OFFLINE_RETRY_MS = 15_000;
 const MAX_PROCESS_EVENTS = 25;
 const DEFAULT_PREFERENCE_REFRESH_DEBOUNCE_MS = 750;
+
+interface AutomationAccessibilityState {
+  highContrastEnabled?: boolean;
+  reducedMotionEnabled?: boolean;
+  remoteProvidersEnabled?: boolean;
+  keyboardNavigationVerified?: boolean;
+}
 
 interface BackendProcessStatePayload {
   status: "stopped" | "starting" | "running" | "error";
@@ -86,7 +99,7 @@ interface DiagnosticsBridge {
   requestSummary(): Promise<DiagnosticsSnapshotPayload | null>;
   refreshSnapshot(): Promise<DiagnosticsRefreshResultPayload>;
   openLogDirectory(): Promise<boolean>;
-  exportSnapshot(): Promise<DiagnosticsExportResultPayload>;
+  exportSnapshot(payload?: DiagnosticsExportRequestPayload): Promise<DiagnosticsExportResultPayload>;
   updatePreferences?(payload: DiagnosticsPreferenceUpdatePayload): Promise<DiagnosticsPreferenceUpdateResult>;
   onBackendStateChanged?(listener: (state: BackendProcessStatePayload) => void): () => void;
   onProcessEvent?(listener: (event: ProcessHealthEventPayload) => void): () => void;
@@ -225,17 +238,17 @@ function readPersistedPreferences(): DiagnosticsPreferenceRecordPayload | null {
 
     const storageHealth = parsed.storageHealth && typeof parsed.storageHealth === "object"
       ? {
-          status: (parsed.storageHealth as StorageHealthAlertPayload).status ?? "unavailable",
-          detectedAt: ensureString((parsed.storageHealth as StorageHealthAlertPayload).detectedAt, new Date().toISOString()),
-          reason: (parsed.storageHealth as StorageHealthAlertPayload).reason ?? "unknown",
-          message: ensureString((parsed.storageHealth as StorageHealthAlertPayload).message, "Preference storage unavailable"),
+          status: parsed.storageHealth.status ?? "unavailable",
+          detectedAt: ensureString(parsed.storageHealth.detectedAt, new Date().toISOString()),
+          reason: parsed.storageHealth.reason ?? "unknown",
+          message: ensureString(parsed.storageHealth.message, "Preference storage unavailable"),
           recommendedAction: ensureString(
-            (parsed.storageHealth as StorageHealthAlertPayload).recommendedAction,
+            parsed.storageHealth.recommendedAction,
             "Check browser storage permissions and retry in the desktop app."
           ),
           retryAvailableAt:
-            typeof (parsed.storageHealth as StorageHealthAlertPayload).retryAvailableAt === "string"
-              ? (parsed.storageHealth as StorageHealthAlertPayload).retryAvailableAt
+            typeof parsed.storageHealth.retryAvailableAt === "string"
+              ? parsed.storageHealth.retryAvailableAt
               : null
         }
       : null;
@@ -308,10 +321,12 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const preferenceRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef<boolean>(true);
+  const automationAccessibilityRef = useRef<AutomationAccessibilityState>({});
+  const lastAccessibilitySignatureRef = useRef<string | null>(null);
 
   const clearPreferenceRefreshTimer = useCallback(() => {
     if (preferenceRefreshTimerRef.current !== null) {
-      clearTimeout(preferenceRefreshTimerRef.current as NodeJS.Timeout);
+      clearTimeout(preferenceRefreshTimerRef.current);
       preferenceRefreshTimerRef.current = null;
     }
   }, []);
@@ -343,6 +358,57 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
       clearPreferenceRefreshTimer();
     };
   }, [clearPreferenceRefreshTimer]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const automation = window.__diagnosticsAutomation ?? {};
+    automation.getAccessibilityState = () => ({ ...automationAccessibilityRef.current });
+    automation.setKeyboardNavigationVerified = (value: boolean) => {
+      automationAccessibilityRef.current.keyboardNavigationVerified = value;
+    };
+    automation.resetAccessibilityVerification = () => {
+      delete automationAccessibilityRef.current.keyboardNavigationVerified;
+    };
+    window.__diagnosticsAutomation = automation;
+
+    return () => {
+      if (window.__diagnosticsAutomation === automation) {
+        delete automation.getAccessibilityState;
+        delete automation.setKeyboardNavigationVerified;
+        delete automation.resetAccessibilityVerification;
+        if (Object.keys(automation).length === 0) {
+          delete window.__diagnosticsAutomation;
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const active = state.preferences ?? state.snapshot?.activePreferences ?? null;
+
+    if (active) {
+      automationAccessibilityRef.current.highContrastEnabled = active.highContrastEnabled;
+      automationAccessibilityRef.current.reducedMotionEnabled = active.reducedMotionEnabled;
+      automationAccessibilityRef.current.remoteProvidersEnabled = active.remoteProvidersEnabled;
+    } else {
+      delete automationAccessibilityRef.current.highContrastEnabled;
+      delete automationAccessibilityRef.current.reducedMotionEnabled;
+      delete automationAccessibilityRef.current.remoteProvidersEnabled;
+    }
+
+    const signature = active
+      ? `${Number(active.highContrastEnabled)}-${Number(active.reducedMotionEnabled)}-${Number(active.remoteProvidersEnabled)}`
+      : "none";
+
+    if (signature !== lastAccessibilitySignatureRef.current) {
+      lastAccessibilitySignatureRef.current = signature;
+      delete automationAccessibilityRef.current.keyboardNavigationVerified;
+      window.__diagnosticsAutomation?.resetAccessibilityVerification?.();
+    }
+  }, [state.preferences, state.snapshot?.activePreferences]);
 
   useEffect(() => {
     bridgeRef.current = bridge;
@@ -520,7 +586,7 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
   }, [handleBridgeFailure]);
 
   useEffect(() => {
-    loadInitialState();
+    void loadInitialState();
   }, [loadInitialState, bridge]);
 
   useEffect(() => {
@@ -529,7 +595,7 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
       return;
     }
 
-    const disposers: Array<() => void> = [];
+  const disposers: (() => void)[] = [];
 
     if (typeof api.onBackendStateChanged === "function") {
       disposers.push(
@@ -650,17 +716,19 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
   }, [clearPreferenceRefreshTimer, pollSummary]);
 
   useEffect(() => {
-    pollSummary();
+    void pollSummary();
     if (!bridge) {
       return;
     }
     if (typeof window === "undefined") {
       return;
     }
-    pollTimerRef.current = setInterval(pollSummary, pollIntervalMs);
+    pollTimerRef.current = setInterval(() => {
+      void pollSummary();
+    }, pollIntervalMs);
     return () => {
       if (pollTimerRef.current !== null) {
-        clearInterval(pollTimerRef.current as NodeJS.Timeout);
+        clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
       }
     };
@@ -747,7 +815,16 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
     if (!api) {
       return { success: false };
     }
+
+    const accessibilityState = (() => {
+      const current = { ...automationAccessibilityRef.current };
+      return Object.keys(current).length > 0 ? current : undefined;
+    })();
+
     try {
+      if (accessibilityState) {
+        return await api.exportSnapshot({ accessibilityState });
+      }
       return await api.exportSnapshot();
     } catch (error) {
       handleBridgeFailure(error);
@@ -757,9 +834,7 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
 
   const updatePreferences = useCallback(
     async (input: PreferenceUpdateInput): Promise<DiagnosticsPreferenceRecordPayload | null> => {
-      const api = bridgeRef.current;
-
-  console.log("Diagnostics::updatePreferences invoked", input);
+    const api = bridgeRef.current;
 
       const baseline = clonePreferenceRecord(
         state.preferences ?? state.snapshot?.activePreferences ?? null
@@ -802,7 +877,7 @@ export function useDiagnostics(options: UseDiagnosticsOptions = {}): UseDiagnost
       if (!api || typeof api.updatePreferences !== "function") {
         console.log("Diagnostics::updatePreferences fallback", {
           hasBridge: Boolean(api),
-          hasUpdate: Boolean(api?.updatePreferences)
+          hasUpdate: typeof api?.updatePreferences === "function"
         });
         console.log("Diagnostics::optimisticRecord", optimisticRecord);
         writePersistedPreferences(optimisticRecord);

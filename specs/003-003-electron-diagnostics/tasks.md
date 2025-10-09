@@ -16,14 +16,14 @@
 - [x] T008 Produce failing documentation validation placeholder (e.g., lint or markdown check) ensuring docs mention CI command path; can be simple TODO comment flagged in `docs/testing-log.md`. *(Depends on T003)*
 
 ## Phase 3.3: Core Implementation
-- [ ] T009 [P] Enhance `tests/e2e/tools/electron-launcher.cjs` to guarantee Electron receives an available remote-debugging port across platforms; include logging hooks for export verification. *(Depends on T004, T006)*
-- [ ] T010 [P] Update Playwright export test harness to wait for snapshot readiness with resilient polling/backoff, surface timeout diagnostics, and respect offline environment variables. *(Depends on T004)*
-- [ ] T011 [P] Integrate new launcher into workspace scripts (`package.json` commands, helper scripts) ensuring CI and local runs share the same entry point. *(Depends on T009)*
-- [ ] T012 [P] Implement export verification logging utility per `data-model.md`, capturing outcome, timestamps, accessibility state, and storage alerts. *(Depends on T004, T006)*
-- [ ] T013 [P] Wire log utility into Playwright scenario so each run records summary for diagnostics transparency. *(Depends on T010, T012)*
-- [ ] T014 Harden save-dialog handling in export test (mock directory selection, permission errors) with user-facing messaging assertions. *(Depends on T004, T010)*
-- [ ] T015 Ensure accessibility toggles persist through automation by syncing renderer state checks with backend snapshot updates. *(Depends on T005, T010)*
-- [ ] T016 Update any supporting TypeScript modules (backend/desktop/frontend) required for new log fields or automation hooks, keeping offline guarantees intact. *(Depends on T012, T013, T015)*
+- [x] T009 [P] Enhance `tests/e2e/tools/electron-launcher.cjs` to guarantee Electron receives an available remote-debugging port across platforms; include logging hooks for export verification. *(Depends on T004, T006)*
+- [x] T010 [P] Update Playwright export test harness to wait for snapshot readiness with resilient polling/backoff, surface timeout diagnostics, and respect offline environment variables. *(Depends on T004)*
+- [x] T011 [P] Integrate new launcher into workspace scripts (`package.json` commands, helper scripts) ensuring CI and local runs share the same entry point. *(Depends on T009)*
+- [x] T012 [P] Implement export verification logging utility per `data-model.md`, capturing outcome, timestamps, accessibility state, and storage alerts. *(Depends on T004, T006)*
+- [x] T013 [P] Wire log utility into Playwright scenario so each run records summary for diagnostics transparency. *(Depends on T010, T012)*
+- [x] T014 Harden save-dialog handling in export test (mock directory selection, permission errors) with user-facing messaging assertions. *(Depends on T004, T010)*
+- [x] T015 Ensure accessibility toggles persist through automation by syncing renderer state checks with backend snapshot updates. *(Depends on T005, T010)*
+- [x] T016 Update any supporting TypeScript modules (backend/desktop/frontend) required for new log fields or automation hooks, keeping offline guarantees intact. *(Depends on T012, T013, T015)*
 
 ## Phase 3.4: Integration & Polish
 - [ ] T017 [P] Run Playwright suite locally (Linux via xvfb if needed) to confirm new automation passes; capture logs for validation report. *(Depends on T009-T016)*

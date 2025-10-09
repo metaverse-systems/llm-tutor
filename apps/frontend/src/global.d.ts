@@ -2,7 +2,8 @@ import type {
   DiagnosticsSnapshotPayload,
   ProcessHealthEventPayload,
   DiagnosticsPreferenceRecordPayload,
-  StorageHealthAlertPayload
+  StorageHealthAlertPayload,
+  DiagnosticsExportRequestPayload
 } from "@metaverse-systems/llm-tutor-shared";
 
 export {}; // Ensures this file is treated as a module
@@ -38,6 +39,7 @@ interface DiagnosticsRefreshResult {
 interface DiagnosticsExportResult {
   success: boolean;
   filename?: string;
+  logPath?: string;
 }
 
 interface DiagnosticsPreloadApi {
@@ -46,7 +48,7 @@ interface DiagnosticsPreloadApi {
   requestSummary(): Promise<DiagnosticsSnapshotPayload | null>;
   refreshSnapshot(): Promise<DiagnosticsRefreshResult>;
   openLogDirectory(): Promise<boolean>;
-  exportSnapshot(): Promise<DiagnosticsExportResult>;
+  exportSnapshot(payload?: DiagnosticsExportRequestPayload): Promise<DiagnosticsExportResult>;
   updatePreferences(payload: DiagnosticsPreferenceUpdatePayload): Promise<DiagnosticsPreferenceRecordPayload>;
   onBackendStateChanged(listener: (state: SerializableBackendProcessState) => void): () => void;
   onProcessEvent(listener: (event: ProcessHealthEventPayload) => void): () => void;

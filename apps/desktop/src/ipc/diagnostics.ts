@@ -1,16 +1,19 @@
-import type { IpcMain, WebContents } from "electron";
 import type {
 	DiagnosticsPreferenceRecordPayload,
 	DiagnosticsSnapshotPayload,
 	ProcessHealthEventPayload,
 	StorageHealthAlertPayload
 } from "@metaverse-systems/llm-tutor-shared";
+// eslint-disable-next-line import/no-extraneous-dependencies -- Workspace package consumed at runtime
 import { createProcessHealthEventPayload } from "@metaverse-systems/llm-tutor-shared";
-import type { BackendProcessState, DiagnosticsManager, DiagnosticsRefreshResult } from "../main/diagnostics";
-import type { PreferencesVaultUpdate } from "../main/diagnostics/preferences/preferencesVault";
-import { exportDiagnosticsSnapshot } from "../main/diagnostics/export";
+import type { IpcMain, WebContents } from "electron";
+
 import { DIAGNOSTICS_CHANNELS } from "./channels";
 import type { DiagnosticsChannels } from "./channels";
+import type { BackendProcessState, DiagnosticsManager, DiagnosticsRefreshResult } from "../main/diagnostics";
+import { exportDiagnosticsSnapshot } from "../main/diagnostics/export";
+import type { PreferencesVaultUpdate } from "../main/diagnostics/preferences/preferencesVault";
+import type { AccessibilityStateLog } from "../main/logging/exportLog";
 
 export { DIAGNOSTICS_CHANNELS };
 export type { DiagnosticsChannels };
@@ -29,7 +32,7 @@ export interface DiagnosticsStatePayload {
 	storageHealth: StorageHealthAlertPayload | null;
 }
 
-export interface DiagnosticsRefreshResponse extends DiagnosticsRefreshResult {}
+export type DiagnosticsRefreshResponse = DiagnosticsRefreshResult;
 
 export interface RegisterDiagnosticsIpcHandlersOptions {
 	ipcMain: IpcMain;
@@ -109,12 +112,44 @@ function normalizePreferencesUpdatePayload(input: unknown): PreferencesVaultUpda
 	return payload;
 }
 
+function normalizeAccessibilityState(payload: unknown): AccessibilityStateLog | undefined {
+	if (!payload || typeof payload !== "object") {
+		return undefined;
+	}
+
+	const candidate = payload as { accessibilityState?: unknown };
+	const rawState = Object.prototype.hasOwnProperty.call(candidate, "accessibilityState")
+		? candidate.accessibilityState
+		: payload;
+
+	if (!rawState || typeof rawState !== "object") {
+		return undefined;
+	}
+
+	const source = rawState as Record<string, unknown>;
+	const result: AccessibilityStateLog = {};
+
+	const applyBoolean = <K extends keyof AccessibilityStateLog>(key: K, sourceKey: string) => {
+		const value = source[sourceKey];
+		if (typeof value === "boolean") {
+			result[key] = value;
+		}
+	};
+
+	applyBoolean("highContrastEnabled", "highContrastEnabled");
+	applyBoolean("reducedMotionEnabled", "reducedMotionEnabled");
+	applyBoolean("remoteProvidersEnabled", "remoteProvidersEnabled");
+	applyBoolean("keyboardNavigationVerified", "keyboardNavigationVerified");
+
+	return Object.keys(result).length > 0 ? result : undefined;
+}
+
 export function registerDiagnosticsIpcHandlers(
 	options: RegisterDiagnosticsIpcHandlersOptions
 ): DiagnosticsIpcRegistration {
 	const { ipcMain, manager, getWebContents } = options;
 
-	ipcMain.handle(DIAGNOSTICS_CHANNELS.getState, async (): Promise<DiagnosticsStatePayload> => {
+	ipcMain.handle(DIAGNOSTICS_CHANNELS.getState, (): DiagnosticsStatePayload => {
 		const state = manager.getState();
 		return {
 			backend: serializeBackendState(state.backend),
@@ -125,17 +160,19 @@ export function registerDiagnosticsIpcHandlers(
 			storageHealth: state.storageHealth ?? null
 		};
 	});
-	ipcMain.handle(DIAGNOSTICS_CHANNELS.getProcessEvents, async () => manager.getProcessEventPayloads());
-	ipcMain.handle(DIAGNOSTICS_CHANNELS.getSummary, async () => manager.fetchLatestSnapshot());
-	ipcMain.handle(DIAGNOSTICS_CHANNELS.refresh, async () => manager.refreshSnapshot());
-	ipcMain.handle(DIAGNOSTICS_CHANNELS.openLogDirectory, async () => manager.openDiagnosticsDirectory());
-	ipcMain.handle(DIAGNOSTICS_CHANNELS.exportSnapshot, async () =>
-		exportDiagnosticsSnapshot({
+	ipcMain.handle(DIAGNOSTICS_CHANNELS.getProcessEvents, () => manager.getProcessEventPayloads());
+	ipcMain.handle(DIAGNOSTICS_CHANNELS.getSummary, () => manager.fetchLatestSnapshot());
+	ipcMain.handle(DIAGNOSTICS_CHANNELS.refresh, () => manager.refreshSnapshot());
+	ipcMain.handle(DIAGNOSTICS_CHANNELS.openLogDirectory, () => manager.openDiagnosticsDirectory());
+	ipcMain.handle(DIAGNOSTICS_CHANNELS.exportSnapshot, (_event, rawPayload: unknown) => {
+		const normalizedAccessibilityState = normalizeAccessibilityState(rawPayload);
+		return exportDiagnosticsSnapshot({
 			manager,
-			webContents: getWebContents()
-		})
-	);
-	ipcMain.handle(DIAGNOSTICS_CHANNELS.preferencesUpdate, async (_event, payload) => {
+			webContents: getWebContents(),
+			accessibilityState: normalizedAccessibilityState
+		});
+	});
+	ipcMain.handle(DIAGNOSTICS_CHANNELS.preferencesUpdate, (_event, payload) => {
 		const normalized = normalizePreferencesUpdatePayload(payload);
 		return manager.updatePreferences(normalized);
 	});

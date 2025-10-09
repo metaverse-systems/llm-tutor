@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiagnosticsPreferenceRecordPayload } from "@metaverse-systems/llm-tutor-shared";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { DiagnosticsPanel } from "../../components/DiagnosticsPanel/DiagnosticsPanel";
 import { AccessibilityToggles } from "../../components/AccessibilityToggles/AccessibilityToggles";
+import { DiagnosticsPanel } from "../../components/DiagnosticsPanel/DiagnosticsPanel";
 import { useDiagnostics } from "../../hooks/useDiagnostics";
 
 type ToastTone = "info" | "success" | "warning" | "error";
@@ -185,7 +185,6 @@ export const LandingPage: React.FC = () => {
       const summary = next.remoteProviders ? "Remote providers enabled" : "Remote providers are disabled";
 
       setPreviewPreferences(next);
-      console.log("LandingPage::handleToggleChange", next);
 
       try {
         if (typeof window !== "undefined") {
@@ -292,7 +291,7 @@ export const LandingPage: React.FC = () => {
 
       {diagnostics.isOffline ? (
         <div className="landing__alert" role="alert">
-          Diagnostics service is offline. We'll retry automatically.
+          Diagnostics service is offline. We&rsquo;ll retry automatically.
           {diagnostics.error ? ` (${diagnostics.error})` : ""}
         </div>
       ) : null}

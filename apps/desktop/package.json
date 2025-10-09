@@ -19,9 +19,11 @@
     "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest run",
     "test:a11y": "echo 'No desktop accessibility tests; run frontend suite instead.'",
+    "diagnostics:export": "node ./scripts/export-diagnostics.cjs",
     "package": "npm run build && electron-builder"
   },
   "dependencies": {
+    "@metaverse-systems/llm-tutor-shared": "file:../../packages/shared",
     "electron-store": "^9.0.0",
     "electron-updater": "^6.3.9"
   },
