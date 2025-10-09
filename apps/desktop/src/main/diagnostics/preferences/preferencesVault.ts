@@ -1,23 +1,52 @@
-import type {
-	DiagnosticsPreferenceRecord,
-	DiagnosticsPreferenceRecordPayload,
-	DiagnosticsPreferenceUpdate,
-	StorageHealthAlert,
-	StorageHealthAlertPayload
-} from "@metaverse-systems/llm-tutor-shared";
 import {
 	createDiagnosticsPreferenceRecord,
 	createStorageFailureAlert,
 	parseDiagnosticsPreferenceRecord,
 	serializeDiagnosticsPreferenceRecord,
 	updateDiagnosticsPreferenceRecord,
-	withStorageHealth
+	withStorageHealth,
+	type DiagnosticsPreferenceRecord,
+	type DiagnosticsPreferenceRecordPayload,
+	type DiagnosticsPreferenceUpdate,
+	type StorageHealthAlert,
+	type StorageHealthAlertPayload
 } from "@metaverse-systems/llm-tutor-shared";
-import ElectronStore from "electron-store";
+import type ElectronStore from "electron-store";
+import type { Options as ElectronStoreOptions } from "electron-store";
 import { EventEmitter } from "node:events";
 import { inspect } from "node:util";
 
 type PreferencesVaultEvent = "updated" | "storage-health";
+
+let cachedElectronStoreCtor: ElectronStoreConstructor | null = null;
+let pendingElectronStoreCtor: Promise<ElectronStoreConstructor> | null = null;
+
+async function resolveElectronStore(): Promise<ElectronStoreConstructor> {
+	if (cachedElectronStoreCtor) {
+		return cachedElectronStoreCtor;
+	}
+
+	if (!pendingElectronStoreCtor) {
+		pendingElectronStoreCtor = import("electron-store").then((module: unknown) => {
+			const candidate =
+				typeof module === "function"
+					? module
+					: typeof (module as { default?: unknown }).default === "function"
+						? (module as { default: unknown }).default
+						: undefined;
+
+			if (typeof candidate !== "function") {
+				throw new Error("electron-store module is unavailable");
+			}
+
+			const ctor = candidate as ElectronStoreConstructor;
+			cachedElectronStoreCtor = ctor;
+			return ctor;
+		});
+	}
+
+	return pendingElectronStoreCtor;
+}
 
 interface PreferencesVaultEvents {
 	updated: (payload: DiagnosticsPreferenceRecordPayload) => void;
@@ -35,6 +64,10 @@ interface PreferencesVaultStore {
 		| Promise<DiagnosticsPreferenceRecordPayload | undefined>;
 	set(value: DiagnosticsPreferenceRecordPayload): void | Promise<void>;
 }
+
+type ElectronStoreConstructor = new (
+	options?: ElectronStoreOptions<PreferenceStorePayload>
+) => ElectronStore<PreferenceStorePayload>;
 
 export interface PreferencesVaultUpdate extends Omit<DiagnosticsPreferenceUpdate, "updatedBy"> {
 	updatedBy: DiagnosticsPreferenceUpdate["updatedBy"];
@@ -61,26 +94,41 @@ class TypedEventEmitter extends EventEmitter {
 }
 
 class ElectronPreferenceStore implements PreferencesVaultStore {
-	private readonly store: ElectronStore<PreferenceStorePayload>;
+	private store: ElectronStore<PreferenceStorePayload> | null = null;
+	private storePromise: Promise<ElectronStore<PreferenceStorePayload>> | null = null;
 
-	constructor() {
-		this.store = new ElectronStore<PreferenceStorePayload>({
-			name: "diagnostics-preferences"
-		});
+	private async ensureStore(): Promise<ElectronStore<PreferenceStorePayload>> {
+		if (this.store) {
+			return this.store;
+		}
+
+		if (this.storePromise === null) {
+			this.storePromise = resolveElectronStore().then((StoreCtor: ElectronStoreConstructor) => {
+				const instance = new StoreCtor({
+					name: "diagnostics-preferences"
+				});
+				this.store = instance;
+				return instance;
+			});
+		}
+
+		return this.storePromise;
 	}
 
-	get(): DiagnosticsPreferenceRecordPayload | undefined {
-		const store = this.store as unknown as {
+	async get(): Promise<DiagnosticsPreferenceRecordPayload | undefined> {
+		const store = await this.ensureStore();
+		const accessor = store as unknown as {
 			get(key: string): DiagnosticsPreferenceRecordPayload | undefined;
 		};
-		return store.get("record");
+		return accessor.get("record");
 	}
 
-	set(value: DiagnosticsPreferenceRecordPayload): void {
-		const store = this.store as unknown as {
+	async set(value: DiagnosticsPreferenceRecordPayload): Promise<void> {
+		const store = await this.ensureStore();
+		const accessor = store as unknown as {
 			set(key: string, input: DiagnosticsPreferenceRecordPayload): void;
 		};
-		store.set("record", value);
+		accessor.set("record", value);
 	}
 }
 
