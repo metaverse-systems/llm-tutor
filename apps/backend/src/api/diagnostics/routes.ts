@@ -1,18 +1,19 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
-  DiagnosticsSnapshot,
   serializeDiagnosticsSnapshot,
-  type DiagnosticsPreferenceRecordPayload
+  type DiagnosticsPreferenceRecordPayload,
+  type DiagnosticsSnapshot
 } from "@metaverse-systems/llm-tutor-shared";
-import type {
-  DiagnosticsSnapshotService,
-  DiagnosticsSnapshotRepository
-} from "../../services/diagnostics/index.js";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+
+import { registerDiagnosticsPreferenceRoutes } from "./preferences/routes.js";
 import { createDiagnosticsExport } from "../../infra/logging/index.js";
 import {
-	type DiagnosticsPreferenceAdapter
+  type DiagnosticsPreferenceAdapter
 } from "../../infra/preferences/index.js";
-import { registerDiagnosticsPreferenceRoutes } from "./preferences/routes.js";
+import type {
+  DiagnosticsSnapshotRepository,
+  DiagnosticsSnapshotService
+} from "../../services/diagnostics/index.js";
 
 export type BackendLifecycleState = "ready" | "warming" | "error";
 
@@ -45,7 +46,7 @@ export async function registerDiagnosticsRoutes(
   app: FastifyInstance,
   options: DiagnosticsRoutesOptions
 ): Promise<void> {
-  const { store, snapshotService, refreshLimiter, getBackendLifecycleState, now, retentionWindowDays } = options;
+  const { store, snapshotService, refreshLimiter, getBackendLifecycleState, now } = options;
 
   await registerDiagnosticsPreferenceRoutes(app, {
     adapter: options.preferences.adapter,

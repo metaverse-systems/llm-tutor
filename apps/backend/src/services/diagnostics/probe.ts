@@ -1,4 +1,5 @@
 import { URL } from "node:url";
+
 import type { LlmProbeResult } from "./snapshot.service.js";
 
 export interface LlmProbeOptions {
@@ -20,8 +21,8 @@ export function createLlmProbe(options: LlmProbeOptions = {}): () => Promise<Llm
 	const fetchImpl = options.fetchImpl ?? fetch;
 
 	if (!endpoint) {
-		return async () => ({
-			status: "disabled"
+		return () => Promise.resolve({
+			status: "disabled" as const
 		});
 	}
 

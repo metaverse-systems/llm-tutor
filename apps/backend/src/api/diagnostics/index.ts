@@ -1,24 +1,19 @@
-import Fastify from "fastify";
-import type { FastifyInstance } from "fastify";
 import {
-	DiagnosticsPreferenceRecord,
-	DiagnosticsPreferenceRecordPayload,
-	DiagnosticsSnapshot,
-	DiagnosticsSnapshotPayload,
 	createDiagnosticsPreferenceRecord,
 	parseDiagnosticsPreferenceRecord,
 	parseDiagnosticsSnapshot,
 	serializeDiagnosticsPreferenceRecord,
 	serializeDiagnosticsSnapshot
 } from "@metaverse-systems/llm-tutor-shared";
-import {
-	BackendHealthState,
-	DiagnosticsSnapshotRepository,
-	DiagnosticsSnapshotService,
-	DiagnosticsSnapshotServiceOptions,
-	MutableDiagnosticsStorageMetricsCollector,
-	createMutableDiagnosticsStorageMetricsCollector
-} from "../../services/diagnostics/index.js";
+import type {
+	DiagnosticsPreferenceRecord,
+	DiagnosticsPreferenceRecordPayload,
+	DiagnosticsSnapshot,
+	DiagnosticsSnapshotPayload
+} from "@metaverse-systems/llm-tutor-shared";
+import Fastify from "fastify";
+import type { FastifyInstance } from "fastify";
+
 import {
 	registerDiagnosticsRoutes,
 	type BackendLifecycleState,
@@ -30,6 +25,13 @@ import {
 	createInMemoryDiagnosticsPreferenceAdapter,
 	type DiagnosticsPreferenceAdapter
 } from "../../infra/preferences/index.js";
+import {
+	createMutableDiagnosticsStorageMetricsCollector,
+	type BackendHealthState,
+	type DiagnosticsSnapshotServiceOptions,
+	type MutableDiagnosticsStorageMetricsCollector,
+	DiagnosticsSnapshotService
+} from "../../services/diagnostics/index.js";
 
 const DEFAULT_STORAGE_DIR = "/tmp/llm-tutor/diagnostics";
 
@@ -53,9 +55,9 @@ class VirtualClock {
 class InMemoryDiagnosticsSnapshotStore implements DiagnosticsSnapshotStore {
 	private snapshots: DiagnosticsSnapshot[] = [];
 
-	async listSnapshots(): Promise<DiagnosticsSnapshot[]> {
-		return [...this.snapshots].sort(
-			(a, b) => a.generatedAt.getTime() - b.generatedAt.getTime()
+	listSnapshots(): Promise<DiagnosticsSnapshot[]> {
+		return Promise.resolve(
+			[...this.snapshots].sort((a, b) => a.generatedAt.getTime() - b.generatedAt.getTime())
 		);
 	}
 
@@ -64,14 +66,16 @@ class InMemoryDiagnosticsSnapshotStore implements DiagnosticsSnapshotStore {
 		return ordered.at(-1) ?? null;
 	}
 
-	async save(snapshot: DiagnosticsSnapshot): Promise<void> {
+	save(snapshot: DiagnosticsSnapshot): Promise<void> {
 		const filtered = this.snapshots.filter((existing) => existing.id !== snapshot.id);
 		filtered.push(snapshot);
 		this.snapshots = filtered.sort((a, b) => a.generatedAt.getTime() - b.generatedAt.getTime());
+		return Promise.resolve();
 	}
 
-	async clear(): Promise<void> {
+	clear(): Promise<void> {
 		this.snapshots = [];
+		return Promise.resolve();
 	}
 
 	async countSnapshotsSince(date: Date): Promise<number> {
@@ -160,11 +164,11 @@ class SimpleRefreshRateLimiter implements RefreshRateLimiter {
 	}
 }
 
-type LegacyDiagnosticsPreferenceSeed = {
+interface LegacyDiagnosticsPreferenceSeed {
 	highContrast: boolean;
 	reduceMotion: boolean;
 	updatedAt: string;
-};
+}
 
 type LegacyDiagnosticsSnapshotSeed = Omit<DiagnosticsSnapshotPayload, "activePreferences"> & {
 	activePreferences: LegacyDiagnosticsPreferenceSeed;
@@ -237,8 +241,8 @@ function createSnapshotService(
 		rendererUrlProvider: overrides.rendererUrlProvider ?? (() => "http://localhost:5173"),
 		backendStateProvider: overrides.backendStateProvider ?? (() => backendLifecycle.asHealthState()),
 		preferenceRecordLoader:
-			overrides.preferenceRecordLoader ?? (async () => preferences.get()),
-		llmProbe: overrides.llmProbe ?? (async () => ({ status: "disabled" })),
+			overrides.preferenceRecordLoader ?? (() => Promise.resolve(preferences.get())),
+		llmProbe: overrides.llmProbe ?? (() => Promise.resolve({ status: "disabled" })),
 		retentionWindowDays: overrides.retentionWindowDays ?? 30,
 		now: overrides.now ?? (() => clock.now())
 	};
@@ -338,8 +342,9 @@ export async function createDiagnosticsTestHarness(
 			metricsCollector.setWarnings([]);
 			refreshLimiter.reset();
 		},
-		setBackendState: async (state: BackendLifecycleState, message?: string) => {
+		setBackendState: (state: BackendLifecycleState, message?: string): Promise<void> => {
 			backendLifecycle.set(state, message);
+			return Promise.resolve();
 		},
 		setRefreshCooldown: (seconds: number) => {
 			refreshLimiter.setCooldown(seconds);

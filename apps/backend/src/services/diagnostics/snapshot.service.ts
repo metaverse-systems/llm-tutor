@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
-import {
+import type {
   DiagnosticsPreferenceRecord,
   DiagnosticsSnapshot
 } from "@metaverse-systems/llm-tutor-shared";
+import { randomUUID } from "node:crypto";
 
 const DEFAULT_RETENTION_WINDOW_DAYS = 30;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -56,7 +56,7 @@ export class DiagnosticsSnapshotService {
     const now = this.options.now?.() ?? new Date();
     const rendererUrl = await Promise.resolve(this.options.rendererUrlProvider());
     const backend = this.options.backendStateProvider();
-  const preferences = await this.options.preferenceRecordLoader();
+    const preferences = await this.options.preferenceRecordLoader();
     const llm = await this.options.llmProbe();
     const diskUsageBytes = await this.metricsCollector.getDiskUsageBytes();
     const existingSnapshots = await this.repository.listSnapshots();
@@ -95,8 +95,8 @@ export class DiagnosticsSnapshotService {
       // NOTE: snapshotCountLast30d should only be computed here.
       snapshotCountLast30d: countLastWindow,
       diskUsageBytes,
-    warnings: Array.from(combinedWarnings),
-    activePreferences: preferences
+      warnings: Array.from(combinedWarnings),
+      activePreferences: preferences
     };
 
     if (snapshot.warnings.length === 0) {
@@ -114,11 +114,11 @@ export function createMutableDiagnosticsStorageMetricsCollector(
   let warnings = initialState.warnings ? [...initialState.warnings] : [];
 
   return {
-    async getDiskUsageBytes() {
-      return diskUsageBytes;
+    getDiskUsageBytes(): Promise<number> {
+      return Promise.resolve(diskUsageBytes);
     },
-    async getWarnings() {
-      return [...warnings];
+    getWarnings(): Promise<string[]> {
+      return Promise.resolve([...warnings]);
     },
     setDiskUsageBytes(bytes: number) {
       diskUsageBytes = Math.max(0, bytes);
