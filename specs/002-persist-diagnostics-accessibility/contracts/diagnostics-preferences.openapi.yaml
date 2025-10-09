@@ -1,0 +1,206 @@
+openapi: 3.1.0
+info:
+  title: Diagnostics Preferences API
+  version: 0.1.0
+  description: >-
+    Local-only endpoints used by the Electron main process to load and persist
+    diagnostics accessibility and remote-provider preferences.
+servers:
+  - url: http://127.0.0.1:4319/internal
+    description: Electron-managed Fastify instance (offline only)
+paths:
+  /diagnostics/preferences:
+    get:
+      summary: Retrieve the current diagnostics preference record
+      tags: [Diagnostics]
+      operationId: getDiagnosticsPreferences
+      responses:
+        '200':
+          description: Current persisted preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticsPreferenceRecord'
+        '503':
+          description: Preference vault unavailable; defaults applied for session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageHealthResponse'
+    put:
+      summary: Persist diagnostics preferences
+      tags: [Diagnostics]
+      operationId: updateDiagnosticsPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosticsPreferenceUpdate'
+      responses:
+        '200':
+          description: Preferences saved and broadcast
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticsPreferenceRecord'
+        '400':
+          description: Validation failed (invalid toggle combination)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Stale update detected; caller must refresh
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Preference vault unavailable; session-only mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageHealthResponse'
+components:
+  schemas:
+    DiagnosticsPreferenceRecord:
+      type: object
+      required:
+        - id
+        - highContrastEnabled
+        - reducedMotionEnabled
+        - remoteProvidersEnabled
+        - lastUpdatedAt
+        - updatedBy
+        - consentSummary
+        - consentEvents
+      properties:
+        id:
+          type: string
+          format: uuid
+        highContrastEnabled:
+          type: boolean
+        reducedMotionEnabled:
+          type: boolean
+        remoteProvidersEnabled:
+          type: boolean
+        lastUpdatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          enum: [renderer, backend, main]
+        consentSummary:
+          type: string
+          maxLength: 240
+        consentEvents:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/ConsentEventLog'
+        storageHealth:
+          oneOf:
+            - $ref: '#/components/schemas/StorageHealthAlert'
+            - type: 'null'
+    DiagnosticsPreferenceUpdate:
+      type: object
+      required:
+        - highContrastEnabled
+        - reducedMotionEnabled
+        - remoteProvidersEnabled
+        - consentSummary
+      properties:
+        highContrastEnabled:
+          type: boolean
+        reducedMotionEnabled:
+          type: boolean
+        remoteProvidersEnabled:
+          type: boolean
+        consentSummary:
+          type: string
+          maxLength: 240
+        expectedLastUpdatedAt:
+          type: string
+          format: date-time
+          description: Optional optimistic concurrency token
+    ConsentEventLog:
+      type: object
+      required:
+        - eventId
+        - occurredAt
+        - actor
+        - previousState
+        - nextState
+        - noticeVersion
+        - channel
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        actor:
+          type: string
+          enum: [learner, maintainer]
+        previousState:
+          type: string
+          enum: [disabled, enabled]
+        nextState:
+          type: string
+          enum: [disabled, enabled]
+        noticeVersion:
+          type: string
+        channel:
+          type: string
+          enum: [ui-toggle, config-migration]
+    StorageHealthAlert:
+      type: object
+      required:
+        - status
+        - detectedAt
+        - reason
+        - message
+        - recommendedAction
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, unavailable]
+        detectedAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          enum: [permission-denied, disk-full, corrupted, unknown]
+        message:
+          type: string
+          maxLength: 240
+        recommendedAction:
+          type: string
+        retryAvailableAt:
+          type: string
+          format: date-time
+          nullable: true
+    StorageHealthResponse:
+      type: object
+      required:
+        - status
+        - storageHealth
+      properties:
+        status:
+          type: string
+          enum: [session-only]
+        storageHealth:
+          $ref: '#/components/schemas/StorageHealthAlert'
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+          maxLength: 240

@@ -1,7 +1,9 @@
 import { ipcRenderer, type IpcRendererEvent } from "electron";
 import type {
+	DiagnosticsPreferenceRecordPayload,
 	DiagnosticsSnapshotPayload,
-	ProcessHealthEventPayload
+	ProcessHealthEventPayload,
+	StorageHealthAlertPayload
 } from "@metaverse-systems/llm-tutor-shared";
 import type {
 	BackendProcessState,
@@ -19,6 +21,8 @@ export interface DiagnosticsStatePayload {
 	warnings: string[];
 	latestSnapshot: DiagnosticsSnapshotPayload | null | undefined;
 	processEvents: ProcessHealthEventPayload[];
+	preferences: DiagnosticsPreferenceRecordPayload | null;
+	storageHealth: StorageHealthAlertPayload | null;
 }
 
 type Listener<T> = (payload: T) => void;
@@ -38,10 +42,24 @@ export interface DiagnosticsRendererBridge {
 	refreshSnapshot(): Promise<DiagnosticsRefreshResult>;
 	openLogDirectory(): Promise<boolean>;
 	exportSnapshot(): Promise<DiagnosticsExportResult>;
+	updatePreferences(
+		payload: DiagnosticsPreferenceUpdateRequest
+	): Promise<DiagnosticsPreferenceRecordPayload>;
 	onBackendStateChanged(listener: Listener<BackendProcessState>): () => void;
 	onProcessEvent(listener: Listener<ProcessHealthEventPayload>): () => void;
 	onRetentionWarning(listener: Listener<string>): () => void;
 	onSnapshotUpdated(listener: Listener<DiagnosticsSnapshotPayload | null>): () => void;
+	onPreferencesUpdated(listener: Listener<DiagnosticsPreferenceRecordPayload>): () => void;
+	onStorageHealthChanged(listener: Listener<StorageHealthAlertPayload | null>): () => void;
+}
+
+export interface DiagnosticsPreferenceUpdateRequest {
+	highContrastEnabled: boolean;
+	reducedMotionEnabled: boolean;
+	remoteProvidersEnabled: boolean;
+	consentSummary: string;
+	expectedLastUpdatedAt?: string;
+	consentEvent?: unknown;
 }
 
 export function createDiagnosticsBridge(): DiagnosticsRendererBridge {
@@ -64,6 +82,12 @@ export function createDiagnosticsBridge(): DiagnosticsRendererBridge {
 		exportSnapshot() {
 			return ipcRenderer.invoke(DIAGNOSTICS_CHANNELS.exportSnapshot) as Promise<DiagnosticsExportResult>;
 		},
+		updatePreferences(payload) {
+			return ipcRenderer.invoke(DIAGNOSTICS_CHANNELS.preferencesUpdate, {
+				...payload,
+				updatedBy: "renderer"
+			}) as Promise<DiagnosticsPreferenceRecordPayload>;
+		},
 		onBackendStateChanged(listener) {
 			return subscribe(DIAGNOSTICS_CHANNELS.backendStateChanged, listener);
 		},
@@ -75,6 +99,12 @@ export function createDiagnosticsBridge(): DiagnosticsRendererBridge {
 		},
 		onSnapshotUpdated(listener) {
 			return subscribe(DIAGNOSTICS_CHANNELS.snapshotUpdated, listener);
+		},
+		onPreferencesUpdated(listener) {
+			return subscribe(DIAGNOSTICS_CHANNELS.preferencesUpdated, listener);
+		},
+		onStorageHealthChanged(listener) {
+			return subscribe(DIAGNOSTICS_CHANNELS.preferencesStorageHealth, listener);
 		}
 	};
 }

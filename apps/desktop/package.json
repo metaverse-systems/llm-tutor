@@ -11,15 +11,18 @@
   "scripts": {
     "build": "tsup",
     "build:watch": "tsup --watch",
-    "dev": "concurrently -k -n FRONTEND,BACKEND,BUNDLER,ELECTRON \"npm:dev:frontend\" \"npm:dev:backend\" \"npm run build:watch\" \"npm run start:electron\"",
+  "dev": "cross-env LLM_TUTOR_DEV_BACKEND_LOCK=.llm-tutor-dev-backend.lock concurrently -k -n FRONTEND,BACKEND,BUNDLER,ELECTRON \"npm:dev:frontend\" \"node ./scripts/run-dev-backend.cjs\" \"npm run build:watch\" \"npm run start:electron\"",
     "dev:frontend": "npm run dev --workspace @metaverse-systems/llm-tutor-frontend",
-    "dev:backend": "npm run dev --workspace @metaverse-systems/llm-tutor-backend",
+  "dev:backend": "npm run dev --workspace @metaverse-systems/llm-tutor-backend",
+  "prestart:electron": "node ./scripts/ensure-dev-backend-lock.cjs",
     "start:electron": "wait-on tcp:5173 && nodemon --watch dist --exec \"cross-env ELECTRON_RENDERER_URL=http://localhost:5173 ELECTRON_DISABLE_SECURITY_WARNINGS=true electron .\"",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest run",
+    "test:a11y": "echo 'No desktop accessibility tests; run frontend suite instead.'",
     "package": "npm run build && electron-builder"
   },
   "dependencies": {
+    "electron-store": "^9.0.0",
     "electron-updater": "^6.3.9"
   },
   "devDependencies": {

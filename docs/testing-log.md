@@ -75,3 +75,55 @@ Outcome: ⚠️ Playwright’s `_electron.launch` failed because Electron 38 rej
 
 1. Resolve Playwright/Electron compatibility so the export smoke test can run without manual intervention.
 2. Eliminate double backend boot in the desktop dev harness (consider gating the backend watcher when Electron spawns its managed instance).
+
+---
+
+# Persistence Vault Regression Sweep
+
+_Date:_ 2025-10-08  
+_Operator:_ Automation via GitHub Copilot agent
+
+## Step 1 – Vitest across all workspaces
+
+```bash
+npm run test --workspaces
+```
+
+Outcome: ✅ Backend, desktop, frontend, and shared Vitest suites all passed (31 tests total). Contract and integration coverage confirm the new preference endpoints.
+
+## Step 2 – Rebuild frontend bundle for preview server
+
+```bash
+npm run build --workspace @metaverse-systems/llm-tutor-frontend
+```
+
+Outcome: ✅ Vite emitted a fresh production bundle so the preview server reflects the storage-alert markup change needed by Playwright.
+
+## Step 3 – Accessibility + persistence regression
+
+```bash
+cd apps/frontend
+npx playwright test tests/accessibility/diagnostics.spec.ts tests/accessibility/diagnostics-persistence.spec.ts
+```
+
+Outcome: ✅ All six scenarios (three accessibility, three persistence) passed after refining the storage-failure locators. Latest HTML report stored under `docs/reports/playwright/`.
+
+## Step 4 – Desktop harness smoke
+
+```bash
+timeout 15 npm run dev --workspace @metaverse-systems/llm-tutor-desktop
+```
+
+Outcome: ⚠️ Lock-guard confirmed—only the managed backend instance booted—but Electron exited with `ERR_MODULE_NOT_FOUND` while resolving `packages/shared/dist/diagnostics/preference-record`. Although `dist/diagnostics/preference-record.js` exists, Node’s ESM resolver rejects the extension-less import emitted by TypeScript. Requires follow-up before the harness can complete unattended.
+
+## Additional notes
+
+- Rebuilt shared diagnostics package via `npx tsc -p packages/shared/tsconfig.build.json` prior to the smoke test to refresh emitted artifacts.
+- Playwright persistence failure simulation now renders both toast and panel alerts; debug traces attached in the Playwright HTML report.
+- Update 2025-10-08: Follow-up #1 below resolved by adding explicit `.js` extensions to shared diagnostics module imports.
+- Update 2025-10-08: Follow-up #2 below resolved by adding workspace-level `test:a11y` placeholder scripts and pointing the frontend command at `playwright.config.ts`.
+
+## Follow-ups
+
+1. ~~Adjust shared package emit (or Electron bundler config) so runtime imports include `.js` extensions, unblocking the desktop smoke harness.~~ Resolved 2025-10-08 by adding explicit `.js` extensions to shared diagnostics modules.
+2. ~~Restore workspace-level `test:a11y` script or update the root helper to skip packages without that command.~~ Resolved 2025-10-08 by adding placeholder scripts and aligning the frontend Playwright command.

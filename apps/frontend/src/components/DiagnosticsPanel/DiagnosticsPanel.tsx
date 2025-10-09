@@ -1,5 +1,9 @@
 import React, { useMemo } from "react";
-import type { DiagnosticsSnapshotPayload } from "@metaverse-systems/llm-tutor-shared";
+import type {
+  DiagnosticsSnapshotPayload,
+  DiagnosticsPreferenceRecordPayload,
+  StorageHealthAlertPayload
+} from "@metaverse-systems/llm-tutor-shared";
 
 interface BackendProcessStatePayload {
   status: "stopped" | "starting" | "running" | "error";
@@ -16,6 +20,8 @@ interface DiagnosticsPanelProps {
   warnings: string[];
   isLoading: boolean;
   disableAnimations?: boolean;
+  preferences?: DiagnosticsPreferenceRecordPayload | null;
+  storageHealth?: StorageHealthAlertPayload | null;
 }
 
 interface StatusDescriptor {
@@ -69,6 +75,41 @@ function formatTimestamp(iso: string | null | undefined): string {
   }
 }
 
+function describeUpdatedBy(updatedBy: DiagnosticsPreferenceRecordPayload["updatedBy"] | null | undefined): string {
+  switch (updatedBy) {
+    case "renderer":
+      return "Updated from this screen";
+    case "backend":
+      return "Updated by diagnostics backend";
+    case "main":
+      return "Updated by desktop shell";
+    default:
+      return "Last change origin unknown";
+  }
+}
+
+function describeConsentEvent(event: DiagnosticsPreferenceRecordPayload["consentEvents"][number]): string {
+  const direction = event.nextState === "enabled" ? "Enabled" : "Disabled";
+  const actor = event.actor === "learner" ? "Learner" : "Maintainer";
+  const when = formatTimestamp(event.occurredAt);
+  return `${direction} remote providers • ${actor} • ${when}`;
+}
+
+function formatStorageReason(reason: StorageHealthAlertPayload["reason"] | null | undefined): string {
+  switch (reason) {
+    case "permission-denied":
+      return "Storage permission denied";
+    case "disk-full":
+      return "Disk appears full";
+    case "corrupted":
+      return "Storage corrupted";
+    case "unknown":
+      return "Storage degraded";
+    default:
+      return "Storage warning";
+  }
+}
+
 function combineWarnings(snapshot: DiagnosticsSnapshotPayload | null, warnings: string[]): string[] {
   const aggregated = new Set<string>();
   if (snapshot?.warnings) {
@@ -102,7 +143,9 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
   backend,
   warnings,
   isLoading,
-  disableAnimations = false
+  disableAnimations = false,
+  preferences,
+  storageHealth
 }) => {
   const backendStatus = backend?.status ?? snapshot?.backendStatus ?? "stopped";
   const backendDescriptor = BACKEND_STATUS_LABELS[backendStatus];
@@ -115,11 +158,36 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
   const logDirectory = snapshot?.logDirectory ?? "Local diagnostics directory unavailable";
   const snapshotCount = snapshot?.snapshotCountLast30d ?? 0;
 
-  const preferenceSummary = snapshot?.activePreferences
-    ? `${snapshot.activePreferences.highContrast ? "High contrast" : "Standard contrast"}, ${
-        snapshot.activePreferences.reduceMotion ? "Reduced motion" : "Full motion"
+  const effectivePreferences: DiagnosticsPreferenceRecordPayload | null =
+    preferences ?? snapshot?.activePreferences ?? null;
+
+  const preferenceSummary = effectivePreferences
+    ? `${effectivePreferences.highContrastEnabled ? "High contrast" : "Standard contrast"}, ${
+        effectivePreferences.reducedMotionEnabled ? "Reduced motion" : "Full motion"
       }`
     : "Using defaults";
+
+  const consentSummary = effectivePreferences?.consentSummary ?? "Remote providers are disabled";
+  const remoteProvidersEnabled = effectivePreferences?.remoteProvidersEnabled ?? false;
+
+  const storageAlert: StorageHealthAlertPayload | null = storageHealth ?? effectivePreferences?.storageHealth ?? null;
+  const showStorageAlert = storageAlert && storageAlert.status !== "ok";
+
+  const preferenceUpdatedAtLabel = effectivePreferences?.lastUpdatedAt
+    ? formatTimestamp(effectivePreferences.lastUpdatedAt)
+    : "No saved changes yet";
+  const preferenceUpdatedByLabel = describeUpdatedBy(effectivePreferences?.updatedBy);
+
+  const consentHistory = useMemo(() => {
+    if (!effectivePreferences?.consentEvents?.length) {
+      return [];
+    }
+    return effectivePreferences.consentEvents
+      .filter(event => typeof event.occurredAt === "string" && !isNaN(Date.parse(event.occurredAt)))
+      .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
+      .slice(0, 3)
+      .map((event) => ({ id: event.eventId, label: describeConsentEvent(event) }));
+  }, [effectivePreferences]);
 
   const combinedWarnings = useMemo(() => combineWarnings(snapshot, warnings), [snapshot, warnings]);
 
@@ -172,6 +240,25 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
         <article role="listitem" className="diagnostics-panel__card">
           <h3 className="diagnostics-panel__card-title">Accessibility sync</h3>
           <p className="diagnostics-panel__status diagnostics-panel__status--neutral">{preferenceSummary}</p>
+          <p className="diagnostics-panel__card-meta">
+            Remote providers: {remoteProvidersEnabled ? "Enabled" : "Disabled"}
+          </p>
+          <p
+            className="diagnostics-panel__card-meta"
+            data-testid="diagnostics-consent-summary"
+            aria-live="polite"
+          >
+            {consentSummary}
+          </p>
+          <p className="diagnostics-panel__card-meta">{preferenceUpdatedAtLabel}</p>
+          <p className="diagnostics-panel__card-meta">{preferenceUpdatedByLabel}</p>
+          {consentHistory.length > 0 ? (
+            <ul className="diagnostics-panel__card-list" aria-label="Recent consent changes">
+              {consentHistory.map((event) => (
+                <li key={event.id}>{event.label}</li>
+              ))}
+            </ul>
+          ) : null}
         </article>
       </div>
 
@@ -180,6 +267,30 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
           <span className="diagnostics-panel__pulse-dot" />
           <span className="diagnostics-panel__pulse-ring" />
         </div>
+      ) : null}
+
+      {showStorageAlert ? (
+        <aside
+          className="diagnostics-panel__storage-alert"
+          role="alert"
+          aria-live="assertive"
+          data-testid="diagnostics-storage-panel-alert"
+        >
+          <h3 className="diagnostics-panel__card-title">Preference storage issue</h3>
+          <p>{storageAlert?.message}</p>
+          <p className="diagnostics-panel__card-meta">
+            {formatStorageReason(storageAlert?.reason)} • Detected {formatTimestamp(storageAlert?.detectedAt ?? null)}
+          </p>
+          {storageAlert?.recommendedAction ? <p>{storageAlert.recommendedAction}</p> : null}
+          {storageAlert?.retryAvailableAt ? (
+            <p className="diagnostics-panel__card-meta">
+              Retry available {formatTimestamp(storageAlert.retryAvailableAt)}
+            </p>
+          ) : null}
+          <p>
+            These settings will apply for this session only until storage is restored. Recent changes may not persist.
+          </p>
+        </aside>
       ) : null}
 
       <section className="diagnostics-panel__warnings" aria-live="polite" aria-label="Diagnostics warnings">

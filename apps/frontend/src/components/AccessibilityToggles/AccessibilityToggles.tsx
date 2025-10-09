@@ -1,13 +1,14 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 
 interface ToggleState {
   highContrast: boolean;
   reduceMotion: boolean;
+  remoteProviders: boolean;
 }
 
 interface AccessibilityTogglesProps {
   preferences: ToggleState;
-  onChange: (next: ToggleState) => void | Promise<void>;
+  onChange: (updater: (previous: ToggleState) => ToggleState) => void | Promise<void>;
   isPersisting?: boolean;
 }
 
@@ -20,7 +21,18 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
   onChange,
   isPersisting = false
 }) => {
-  const { highContrast, reduceMotion } = preferences;
+  const { highContrast, reduceMotion, remoteProviders } = preferences;
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, toggleAction: () => void | Promise<void>) => {
+      console.log("AccessibilityToggles::handleKeyDown", event.key);
+      if (event.key === " " || event.key === "Space" || event.key === "Enter") {
+        event.preventDefault();
+        void toggleAction();
+      }
+    },
+    []
+  );
 
   const switches = useMemo(
     () => [
@@ -29,25 +41,39 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
         label: "High contrast",
         value: highContrast,
         description: "Increase contrast for text and key interface elements.",
-        onToggle: () =>
-          onChange({
-            highContrast: !highContrast,
-            reduceMotion
-          })
+        onToggle: () => {
+          return onChange((previous) => ({
+            ...previous,
+            highContrast: !previous.highContrast
+          }));
+        }
       },
       {
         id: "landing-accessibility-toggle-reduce-motion",
         label: "Reduce motion",
         value: reduceMotion,
         description: "Disable animations that may trigger motion sensitivity.",
-        onToggle: () =>
-          onChange({
-            highContrast,
-            reduceMotion: !reduceMotion
-          })
+        onToggle: () => {
+          return onChange((previous) => ({
+            ...previous,
+            reduceMotion: !previous.reduceMotion
+          }));
+        }
+      },
+      {
+        id: "landing-accessibility-toggle-remote-providers",
+        label: "Remote providers",
+        value: remoteProviders,
+        description: "Share remote provider status within diagnostics exports and consent logs.",
+        onToggle: () => {
+          return onChange((previous) => ({
+            ...previous,
+            remoteProviders: !previous.remoteProviders
+          }));
+        }
       }
     ],
-    [highContrast, reduceMotion, onChange]
+    [highContrast, reduceMotion, remoteProviders, onChange]
   );
 
   return (
@@ -74,6 +100,7 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
               toggle.value ? "on" : "off"
             }`}
             onClick={() => void toggle.onToggle()}
+            onKeyDown={(event) => handleKeyDown(event, toggle.onToggle)}
             disabled={isPersisting}
           >
             <span className="accessibility-toggles__switch-label">{toggle.label}</span>
