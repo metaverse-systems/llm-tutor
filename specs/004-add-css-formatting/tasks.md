@@ -1,0 +1,76 @@
+# Tasks: Monorepo CSS/SCSS Formatting Workflow with Tailwind
+
+**Input**: Design documents from `/specs/004-add-css-formatting/`
+**Prerequisites**: `plan.md`, `research.md`, `data-model.md`, `quickstart.md`
+
+## Execution Flow (main)
+```
+1. Load plan, research, data-model, quickstart
+2. Confirm shared formatting + Tailwind policy decisions and workspace scope
+3. Generate tasks: setup → tests → core commands → integration → polish
+4. Apply rules: tests before implementation, mark [P] for independent files
+5. Number tasks sequentially (T001, T002, ...)
+6. Provide dependency and parallel guidance
+7. Return ordered list ready for Task agent execution
+```
+
+## Phase 3.1: Setup & Validation
+- [x] T001 Ensure repository dependencies are installed and up to date (`npm install`) so Prettier, Tailwind, and PostCSS packages resolve correctly during subsequent steps. *(Completed via `npm install` on 2025-10-09; lockfile unchanged and audit clean.)*
+- [x] T002 Audit existing scripting surface in root `package.json` and each workspace `package.json` (backend, frontend, desktop, shared) to document current format/lint/tailwind-related commands before introducing new scripts. *(Existing scripts recorded in plan notes: root lacks `format:css`/Tailwind entries; workspaces expose lint/test but no formatting or Tailwind scripts yet.)*
+
+## Phase 3.2: Tests First (Formatter & Tailwind Verification)
+- [ ] T003 [P] Author a no-op CSS fixture in `apps/frontend/tests/unit/__fixtures__/formatter/frontier.css` demonstrating intentional mis-formatting to validate future formatter commands.
+- [ ] T004 [P] Add a similar SCSS fixture in `apps/frontend/tests/unit/__fixtures__/formatter/frontier.scss` for SCSS coverage.
+- [ ] T005 Create a Vitest sanity check in `apps/frontend/tests/unit/formatter.spec.ts` that asserts running the formatter rewrites both fixtures (use `execa` to invoke the local script and compare file contents).
+- [ ] T006 Add a Tailwind smoke test in `apps/frontend/tests/unit/tailwind-build.spec.ts` that spawns `npm run tailwind:build --workspace @metaverse-systems/llm-tutor-frontend` and expects failure until configs/scripts exist, capturing stderr for future debugging.
+
+## Phase 3.3: Core Implementation
+- [ ] T007 Add devDependencies to root `package.json` for `tailwindcss`, `postcss`, `autoprefixer`, and `prettier-plugin-tailwindcss`; regenerate the lockfile.
+- [ ] T008 Create root-level Tailwind config `tailwind.config.ts` and PostCSS config `postcss.config.cjs` aligned with research decisions (content globs, theme extensions, plugins).
+- [ ] T009 Create root-level Prettier configuration `prettier.config.cjs` capturing shared CSS/SCSS rules, enabling `prettier-plugin-tailwindcss`, and exporting overrides for `.css`, `.scss`, and Tailwind layer files.
+- [ ] T010 Update root `package.json` scripts to add `format:css` (delegating to workspaces via `npm run format:css --workspaces --if-present`) and include a root fallback for any top-level styles.
+- [ ] T011 Add `format:css`, `tailwind:build`, and `tailwind:watch` scripts to `apps/frontend/package.json`, wiring them to Vite/PostCSS as appropriate and creating `src/styles/tailwind.css` with base/import layers.
+- [ ] T012 Add equivalent scripts and entry files to `apps/desktop/package.json` (pointing to Electron renderer styles directory) and ensure build steps integrate with Vite config.
+- [ ] T013 Add formatting and Tailwind build scripts to `apps/backend/package.json` (scoped to any shared styles or documentation assets) even if currently minimal, keeping globs future-proof.
+- [ ] T014 Add scripts to `packages/shared/package.json` for shared component styles and create Tailwind entry file if components consume utilities.
+- [ ] T015 Introduce shared `.prettierignore` (if missing) or update existing ignore lists to exclude generated Tailwind artifacts (`**/tailwind.generated.css`, `**/dist/**`).
+- [ ] T016 Implement root npm script alias `format` (if present) to chain existing formatting with the new CSS formatter, ensuring workflows remain one-command for contributors.
+- [ ] T017 Update workspace build pipelines (e.g., `apps/frontend/vite.config.ts`, Electron bundler) to reference Tailwind entry files so utilities compile automatically during dev/build.
+
+## Phase 3.4: Integration & CI
+- [ ] T018 Update CI workflow (e.g., `.github/workflows/ci.yml`) to run `npm run format:css -- --check` after linting and execute `npm run tailwind:build -- --ci` (or equivalent) to confirm configs compile in headless environments.
+- [ ] T019 Wire the new formatter and Tailwind build steps into local quality gates by updating any dev tooling scripts (e.g., `npm run lint` pipelines or pre-commit hooks) so contributors experience the same enforcement locally.
+
+## Phase 3.5: Documentation & Polish
+- [ ] T020 Update root `README.md` contributor workflow section to call out `npm run format:css` and Tailwind build/watch usage, including check mode guidance and accessibility considerations for utilities.
+- [ ] T021 Update frontend quickstart references in the main docs (`docs/architecture.md`, existing frontend quickstart) so Tailwind setup and formatter steps stay in sync.
+- [ ] T022 [P] Add CI troubleshooting documentation in `docs/testing-log.md` or relevant doc to explain resolving formatter or Tailwind build failures.
+- [ ] T023 [P] Evaluate whether fixtures created in T003–T004 should remain as regression tests; if retired, remove them and document the rationale in the commit.
+
+## Dependencies
+- T001 precedes all other tasks (tooling availability).
+- T002 informs updates to scripts (T010–T017, T020).
+- T003–T006 must exist before modifying scripts/configurations (T007–T017) to follow TDD principles.
+- T007 enables Tailwind config creation (T008) and Prettier plugin setup (T009).
+- T009 must precede workspace script additions (T011–T014) since they rely on the shared config.
+- T017 depends on Tailwind configs and entry files being in place (T008, T011–T014).
+- T018 depends on completion of T007–T017.
+- Documentation tasks (T020–T023) depend on implementation tasks to avoid stale guidance.
+
+## Parallel Execution Guidance
+```
+# After T003–T006 are complete and failing, run workspace script additions together:
+Task: "T011 Add format:css and Tailwind scripts to apps/frontend/package.json ..."
+Task: "T012 Add equivalent scripts to apps/desktop/package.json ..."
+Task: "T013 Add formatting and Tailwind build scripts to apps/backend/package.json ..."
+Task: "T014 Add scripts to packages/shared/package.json ..."
+
+# For polish phase:
+Task: "T022 [P] Add CI troubleshooting documentation ..."
+Task: "T023 [P] Evaluate fixture retention ..."
+```
+
+## Notes
+- Maintain Prettier cache usage (`--cache`) in workspace scripts for performance.
+- Keep formatter and Tailwind commands deterministic; avoid environment-dependent globs or network fetches.
+- Ensure CI failure messages remain accessible (clear instructions on running the formatter and Tailwind build locally).
