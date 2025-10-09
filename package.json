@@ -15,7 +15,8 @@
     "lint": "npm run lint --workspaces",
     "test": "npm run test --workspaces",
     "test:e2e": "npm run test:e2e --workspaces",
-    "test:a11y": "npm run test:a11y --workspaces"
+    "test:a11y": "npm run test:a11y --workspaces",
+    "diagnostics:export": "node apps/desktop/scripts/export-diagnostics.cjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.8.1",

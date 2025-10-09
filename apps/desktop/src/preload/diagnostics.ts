@@ -1,19 +1,22 @@
-import { ipcRenderer, type IpcRendererEvent } from "electron";
 import type {
 	DiagnosticsPreferenceRecordPayload,
 	DiagnosticsSnapshotPayload,
 	ProcessHealthEventPayload,
-	StorageHealthAlertPayload
+	StorageHealthAlertPayload,
+	DiagnosticsExportRequestPayload
 } from "@metaverse-systems/llm-tutor-shared";
+import { ipcRenderer, type IpcRendererEvent } from "electron";
+
+import { DIAGNOSTICS_CHANNELS } from "../ipc/channels";
 import type {
 	BackendProcessState,
 	DiagnosticsRefreshResult
 } from "../main/diagnostics";
-import { DIAGNOSTICS_CHANNELS } from "../ipc/channels";
 
 export interface DiagnosticsExportResult {
 	success: boolean;
 	filename?: string;
+	logPath?: string;
 }
 
 export interface DiagnosticsStatePayload {
@@ -41,7 +44,7 @@ export interface DiagnosticsRendererBridge {
 	requestSummary(): Promise<DiagnosticsSnapshotPayload | null>;
 	refreshSnapshot(): Promise<DiagnosticsRefreshResult>;
 	openLogDirectory(): Promise<boolean>;
-	exportSnapshot(): Promise<DiagnosticsExportResult>;
+	exportSnapshot(payload?: DiagnosticsExportRequestPayload): Promise<DiagnosticsExportResult>;
 	updatePreferences(
 		payload: DiagnosticsPreferenceUpdateRequest
 	): Promise<DiagnosticsPreferenceRecordPayload>;
@@ -79,8 +82,11 @@ export function createDiagnosticsBridge(): DiagnosticsRendererBridge {
 		async openLogDirectory() {
 			return ipcRenderer.invoke(DIAGNOSTICS_CHANNELS.openLogDirectory) as Promise<boolean>;
 		},
-		exportSnapshot() {
-			return ipcRenderer.invoke(DIAGNOSTICS_CHANNELS.exportSnapshot) as Promise<DiagnosticsExportResult>;
+		exportSnapshot(payload) {
+			return ipcRenderer.invoke(
+				DIAGNOSTICS_CHANNELS.exportSnapshot,
+				payload ?? {}
+			) as Promise<DiagnosticsExportResult>;
 		},
 		updatePreferences(payload) {
 			return ipcRenderer.invoke(DIAGNOSTICS_CHANNELS.preferencesUpdate, {

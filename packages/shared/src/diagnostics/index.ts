@@ -1,10 +1,10 @@
 import { z } from "zod";
+
 import {
 	diagnosticsPreferenceRecordSchema,
 	parseDiagnosticsPreferenceRecord,
 	serializeDiagnosticsPreferenceRecord,
-	type DiagnosticsPreferenceRecord,
-	type DiagnosticsPreferenceRecordPayload
+	type DiagnosticsPreferenceRecord
 } from "./preference-record.js";
 
 export const processHealthEventSchema = z.object({
@@ -106,3 +106,4 @@ export function serializeDiagnosticsSnapshot(snapshot: DiagnosticsSnapshot): Dia
 export * from "./preference-record.js";
 export * from "./consent-event.js";
 export * from "./storage-health.js";
+export * from "./export-log.js";

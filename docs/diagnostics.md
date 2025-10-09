@@ -26,6 +26,36 @@ This runbook explains how to validate, operate, and troubleshoot the diagnostics
 6. **Validate export**
    - Trigger “Export snapshot”, save the JSONL archive, and confirm it contains the last generated snapshot with preference records and any storage health alerts.
 
+## Automation Workflow
+
+### Playwright export harness
+
+- Run the diagnostics export suite headlessly via `xvfb-run -a npx playwright test tests/e2e/diagnostics/export.spec.ts`.
+- Set `NODE_OPTIONS=--import=tsx` so Playwright can load the TypeScript launcher utilities without precompiling.
+- Enable `LLM_TUTOR_DIAGNOSTICS_LOG=1` during investigations to mirror export instrumentation to stderr; logs are prefixed with `[diagnostics-export]`.
+- When debugging launcher arguments, add `DEBUG_ELECTRON_LAUNCH=1` to print the normalised Electron CLI payload.
+
+### Remote debugging port resolution
+
+- The launcher (`tests/e2e/tools/electron-launcher.cjs`) inspects the supplied `--remote-debugging-port` flag and guarantees a concrete value before spawning Electron.
+- Provide a fixed port via `LLM_TUTOR_REMOTE_DEBUG_PORT=<port>` for reproducible captures (e.g., when proxying DevTools through a tunnel). Otherwise the launcher allocates an ephemeral port and exports it as `ELECTRON_REMOTE_DEBUGGING_PORT` for downstream tooling.
+- Ports are retried up to three times to dodge collisions; allocation failures bubble a clear “Failed to allocate remote debugging port” error before Playwright starts the scenario.
+- All remote-debug negotiations emit `remote-debugging-port` telemetry when `LLM_TUTOR_DIAGNOSTICS_LOG=1`, making it easy to confirm the active port without attaching DevTools.
+
+### Export log capture
+
+- Every export run prepares a JSONL log alongside the snapshot archive. By default logs live in `${app.getPath("userData")}/diagnostics/exports`, but if the user saves to `/path/to/run`, both the snapshot and log land there.
+- Filenames follow `diagnostics-snapshot-export-<timestamp>.log.jsonl` (UTC, punctuation stripped) and include structured payloads for `outcome`, `snapshotPath`, `accessibilityState`, and failure metadata.
+- Use the Playwright helper `ensureSnapshotAvailable` to wait for the log file; the scenario fails fast with a clear error if the log is missing after the configured timeout.
+- Keep the log directory private (mode `0700`) so the export pipeline retains learner-specific context without leaking between system users.
+
+### Troubleshooting automation
+
+- **Port still zero**: ensure no other launcher injected `--remote-debugging-port=0` after ours; purge cached Playwright traces and re-run with `DEBUG_ELECTRON_LAUNCH=1` to inspect the final args.
+- **No export log written**: verify the destination directory is writable and that `apps/desktop/src/main/logging/exportLog.ts` can create files with mode `0600`. Re-run with `LLM_TUTOR_DIAGNOSTICS_LOG=1` to capture the failure reason.
+- **Electron never exits under xvfb**: pass `timeout --preserve-status 180s` when running the suite to guarantee shutdown and review the logged `closeElectronApp` diagnostics.
+- **Unexpected accessibility state**: confirm the renderer toggles were applied by inspecting the JSONL log’s `accessibilityState` values; the Playwright helper syncs toggles before exporting, so mismatches usually indicate a renderer crash.
+
 ## Operational Checks
 
 | Scenario | Action | Expected Result |

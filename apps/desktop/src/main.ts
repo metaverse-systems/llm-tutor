@@ -2,11 +2,12 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import url from "node:url";
-import { DiagnosticsManager } from "./main/diagnostics";
+
 import {
   registerDiagnosticsIpcHandlers,
   type DiagnosticsIpcRegistration
 } from "./ipc/diagnostics";
+import { DiagnosticsManager } from "./main/diagnostics";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const rendererDevServerUrl = process.env.ELECTRON_RENDERER_URL;
