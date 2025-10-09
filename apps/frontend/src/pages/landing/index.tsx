@@ -119,7 +119,18 @@ export const LandingPage: React.FC = () => {
     if (!previewPreferences) {
       return;
     }
-    if (diagnostics.preferences) {
+
+    const nextPreferences = diagnostics.preferences;
+    if (!nextPreferences) {
+      return;
+    }
+
+    const matchesPersistedPreferences =
+      nextPreferences.highContrastEnabled === previewPreferences.highContrast &&
+      nextPreferences.reducedMotionEnabled === previewPreferences.reduceMotion &&
+      nextPreferences.remoteProvidersEnabled === previewPreferences.remoteProviders;
+
+    if (matchesPersistedPreferences) {
       setPreviewPreferences(null);
     }
   }, [diagnostics.preferences, previewPreferences]);
@@ -211,8 +222,6 @@ export const LandingPage: React.FC = () => {
         if (!outcome) {
           return;
         }
-
-        setPreviewPreferences(null);
       } catch (error) {
         console.warn("Failed to persist diagnostics preferences", error);
         addToast("Diagnostics preferences could not be saved. Check logs for details.", "error");
@@ -285,6 +294,14 @@ export const LandingPage: React.FC = () => {
           </button>
           <p className="landing__meta" role="status" aria-live="polite">
             Last updated: {lastUpdatedLabel}
+          </p>
+          <p
+            className="landing__meta"
+            data-testid="diagnostics-snapshot-status"
+            role="status"
+            aria-live="polite"
+          >
+            {diagnostics.snapshot ? "Snapshot ready" : "Snapshot pending…"}
           </p>
         </div>
       </header>

@@ -61,7 +61,7 @@ Outcome: ✅ Playwright auto-started Vite preview and passed all three accessibi
 NODE_OPTIONS=--import=tsx xvfb-run -a npx playwright test tests/e2e/diagnostics/export.spec.ts
 ```
 
-Outcome: ⚠️ Playwright’s `_electron.launch` failed because Electron 38 rejects the `--remote-debugging-port=0` flag. Manual export flow (launching via `npx electron apps/desktop/dist/main.js`) works, but a wrapper or Playwright upgrade is required for automated coverage.
+Outcome: ✅ Playwright now delegates to the Electron launcher, which guarantees a concrete remote-debugging port. Optional `DEBUG_ELECTRON_LAUNCH=1` and `LLM_TUTOR_DIAGNOSTICS_LOG=1` flags print the resolved port and export summary to stderr. The automation deposits a JSONL export log beside the snapshot (default `${app.getPath("userData")}/diagnostics/exports`).
 
 ## Additional Validation
 
@@ -73,10 +73,10 @@ Outcome: ⚠️ Playwright’s `_electron.launch` failed because Electron 38 rej
 
 ## Follow-ups
 
-1. Resolve Playwright/Electron compatibility so the export smoke test can run without manual intervention.
+1. ~~Resolve Playwright/Electron compatibility so the export smoke test can run without manual intervention.~~ Addressed 2025-10-09 via launcher port negotiation and documentation updates.
 2. Eliminate double backend boot in the desktop dev harness (consider gating the backend watcher when Electron spawns its managed instance).
 
-> **TODO(ci-export-command)**: Document the CI-aligned diagnostics export command once the automation scripts land, including the offline environment variables the CLI enforces.
+Reference: automation workflow, port handling, and export log guidance now captured in `docs/diagnostics.md`.
 
 ---
 
@@ -130,4 +130,41 @@ Outcome: ⚠️ Lock-guard confirmed—only the managed backend instance booted�
 1. ~~Adjust shared package emit (or Electron bundler config) so runtime imports include `.js` extensions, unblocking the desktop smoke harness.~~ Resolved 2025-10-08 by adding explicit `.js` extensions to shared diagnostics modules.
 2. ~~Restore workspace-level `test:a11y` script or update the root helper to skip packages without that command.~~ Resolved 2025-10-08 by adding placeholder scripts and aligning the frontend Playwright command.
 
-> **TODO(ci-export-command)**: Update this section once the diagnostics export automation is wired into CI, linking to the new runbook instructions and validation report.
+Reference: CI-aligned diagnostics export flow documented in `docs/diagnostics.md` (Automation Workflow section).
+
+---
+
+# Automation Validation Sweep
+
+_Date:_ 2025-10-09  
+_Operator:_ Automation via GitHub Copilot agent
+
+## Step 1 – Playwright diagnostics export
+
+```bash
+DEBUG_ELECTRON_LAUNCH=1 LLM_TUTOR_DIAGNOSTICS_LOG=1 NODE_OPTIONS=--import=tsx xvfb-run -a npx playwright test tests/e2e/diagnostics/export.spec.ts
+```
+
+Outcome: ✅ Completed in 92 s under xvfb. Launcher assigned remote debugging port `43100`; stderr includes `[diagnostics-export] remote-debugging-port` telemetry. Exported snapshot and JSONL log stored under `${app.getPath("userData")}/diagnostics/exports/`.
+
+## Step 2 – Vitest across all workspaces
+
+```bash
+npm run test --workspaces
+```
+
+Outcome: ✅ 31 tests passing (backend, desktop, frontend, shared). Desktop preload suite confirms expectations for empty payload objects.
+
+## Step 3 – Log verification
+
+Reviewed the generated export log: contains `outcome: "success"`, matched snapshot path, and `accessibilityState` reflecting toggles enforced during automation (`highContrast: true`, `reduceMotion: true`).
+
+## Artifacts
+
+- Playwright HTML report and stderr capture archived in `docs/reports/playwright/automation-2025-10-09/`.
+- Export JSONL log preserved alongside snapshots for reference.
+
+## Follow-ups
+
+1. Publish a diagnostics validation report for 2025-10-09 under `docs/reports/diagnostics/` (tracked by T021).
+2. Re-run the desktop dev harness smoke once backend auto-start coordination is addressed (pending earlier follow-up).

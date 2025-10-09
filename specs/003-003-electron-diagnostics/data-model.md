@@ -3,19 +3,28 @@
 _Last updated: 2025-10-09_
 
 ## Overview
-This document captures the preliminary schema definitions that will guide the diagnostics export automation. Fields and structures should align with decisions in `plan.md` and `research.md`, and will be finalized after test scaffolding (T004–T008).
+This document captures the finalized schema definitions backing the diagnostics export automation. Fields align with decisions in `plan.md`, `research.md`, and the shared TypeScript schemas in `packages/shared/src/diagnostics/export-log.ts`.
 
 ## Entities
 
 ### ExportVerificationLog
 | Field | Type | Notes |
 | --- | --- | --- |
-| `timestamp` | ISO 8601 string | When the export automation completed (success or failure). |
-| `status` | Enum (`"success"  `"failure"`) | Captures the final outcome of the run. |
-| `exportPath` | string | Absolute path under `app.getPath("userData")/diagnostics/exports`. |
-| `accessibilityState` | object | Snapshot of keyboard, high-contrast, and reduced-motion toggles. Fields may be omitted when values are not yet captured (e.g., keyboard verification pending). |
-| `messages` | array<string> | Human-readable log lines surfaced during automation. |
-| `storageAlerts` | array<string> | Warnings about filesystem permissions or disk availability. |
+| `timestamp` | ISO 8601 string (optional) | When the export automation completed. Populated automatically if missing. |
+| `status` | Enum (`"success"`, `"failure"`) | Final outcome of the run. |
+| `exportPath` | string (optional) | Absolute path to the saved snapshot (default `app.getPath("userData")/diagnostics/exports`). |
+| `snapshotId` | string (optional) | Identifier aligned with backend snapshot naming. |
+| `accessibilityState` | `AccessibilityStateLog` (optional) | Snapshot of toggle states enforced during automation. |
+| `messages` | array<string> (optional) | Human-readable log lines surfaced during automation. |
+| `storageAlerts` | array<string> (optional) | Filesystem or quota warnings encountered during export. |
+
+### AccessibilityStateLog
+| Field | Type | Notes |
+| --- | --- | --- |
+| `highContrastEnabled` | boolean (optional) | Indicates high contrast palette was active during export. |
+| `reducedMotionEnabled` | boolean (optional) | Indicates motion reductions were enforced. |
+| `remoteProvidersEnabled` | boolean (optional) | Reflects remote LLM provider opt-in state. |
+| `keyboardNavigationVerified` | boolean (optional) | Confirms Playwright exercised keyboard navigation before export. |
 
 ### DiagnosticsExportSnapshot
 | Field | Type | Notes |
@@ -27,8 +36,8 @@ This document captures the preliminary schema definitions that will guide the di
 
 ## Relationships
 - Each `ExportVerificationLog` references the `DiagnosticsExportSnapshot` created in the same run via `snapshotId`.
-- Logs and snapshots are stored side-by-side under the diagnostics exports directory with restrictive permissions (`0o700`).
+-- Logs and snapshots are stored side-by-side under the diagnostics exports directory with restrictive permissions (`0o700`).
+- Accessibility state fields map directly to the JSONL log (`diagnostics-snapshot-export-*.log.jsonl`) documented in `docs/diagnostics.md`.
 
 ## Outstanding Questions
-- Define the precise shape of `accessibilityState` once Playwright assertions (T005, T015) are locked.
-- Confirm whether additional retention metadata is needed for compliance before implementation (T012, T016).
+None. Schemas match the shipped implementation and shared library exports.

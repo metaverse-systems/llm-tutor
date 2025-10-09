@@ -26,14 +26,14 @@
 - [x] T016 Update any supporting TypeScript modules (backend/desktop/frontend) required for new log fields or automation hooks, keeping offline guarantees intact. *(Depends on T012, T013, T015)*
 
 ## Phase 3.4: Integration & Polish
-- [ ] T017 [P] Run Playwright suite locally (Linux via xvfb if needed) to confirm new automation passes; capture logs for validation report. *(Depends on T009-T016)*
-- [ ] T018 [P] Execute Vitest suites across workspaces to ensure launcher/util changes compile and tests pass. *(Depends on T009, T012, T016)*
-- [ ] T019 [P] Update `docs/diagnostics.md` with new automation workflow, including port resolution explanation, export log locations, and troubleshooting guidance. *(Depends on T010-T016)*
-- [ ] T020 [P] Refresh `docs/testing-log.md` with latest regression results and note the resolved remote-debugging issue. *(Depends on T017, T018, T019)*
-- [ ] T021 [P] Add entry to `docs/reports/diagnostics/` summarizing validation sweep for the new automation (date-stamped markdown). *(Depends on T017, T018)*
-- [ ] T022 Update `specs/003-003-electron-diagnostics/quickstart.md` to describe the CI-aligned command sequence and accessibility verification steps. *(Depends on T010-T016)*
-- [ ] T023 Ensure `research.md` and `data-model.md` are finalized with decisions and schemas, cross-linking to implementation artifacts. *(Depends on T012, T016)*
-- [ ] T024 Verify `.specify/templates` references unaffected; document any template adjustments needed for future automation features (optional). *(Depends on T019-T023)*
+- [x] T017 [P] Run Playwright suite locally (Linux via xvfb if needed) to confirm new automation passes; capture logs for validation report. *(Depends on T009-T016)*
+- [x] T018 [P] Execute Vitest suites across workspaces to ensure launcher/util changes compile and tests pass. *(Depends on T009, T012, T016)*
+- [x] T019 [P] Update `docs/diagnostics.md` with new automation workflow, including port resolution explanation, export log locations, and troubleshooting guidance. *(Depends on T010-T016)*
+- [x] T020 [P] Refresh `docs/testing-log.md` with latest regression results and note the resolved remote-debugging issue. *(Depends on T017, T018, T019)*
+- [x] T021 [P] Add entry to `docs/reports/diagnostics/` summarizing validation sweep for the new automation (date-stamped markdown). *(Depends on T017, T018)*
+- [x] T022 Update `specs/003-003-electron-diagnostics/quickstart.md` to describe the CI-aligned command sequence and accessibility verification steps. *(Depends on T010-T016)*
+- [x] T023 Ensure `research.md` and `data-model.md` are finalized with decisions and schemas, cross-linking to implementation artifacts. *(Depends on T012, T016)*
+- [x] T024 Verify `.specify/templates` references unaffected; document any template adjustments needed for future automation features (optional). *(Depends on T019-T023)*
 
 ## Phase 3.5: Validation & Handoff
 - [ ] T025 Run full workspace test matrix (`npm run test --workspaces`, Playwright, accessibility suites) and archive outputs in repo under `docs/reports/` as specified. *(Depends on T017-T024)*

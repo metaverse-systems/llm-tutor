@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import type { DiagnosticsExportLogEntry } from "@metaverse-systems/llm-tutor-shared";
-import { _electron as electron } from "playwright";
+import { _electron as electron, type ElectronApplication } from "playwright";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -111,6 +111,56 @@ async function launchDesktopApp(exportDir: string, options: { exportMode?: "perm
   return app;
 }
 
+async function closeElectronApp(app: ElectronApplication | null | undefined) {
+  if (!app) {
+    return;
+  }
+
+  const child = app.process();
+  let timeoutHandle: NodeJS.Timeout | null = null;
+  const closePromise = app.close().catch((error) => {
+    console.warn("Electron application close failed", error);
+  });
+
+  const timeoutMs = 10_000;
+  const timeoutPromise = new Promise<void>((resolve) => {
+    timeoutHandle = setTimeout(() => {
+      timeoutHandle = null;
+      if (!child.killed) {
+        try {
+          child.kill("SIGKILL");
+        } catch (error) {
+          console.warn("Failed to force kill Electron process", error);
+        }
+      }
+      resolve();
+    }, timeoutMs);
+  });
+
+  await Promise.race([closePromise, timeoutPromise]);
+
+  if (timeoutHandle) {
+    clearTimeout(timeoutHandle);
+    timeoutHandle = null;
+  }
+
+  await Promise.race([closePromise, new Promise<void>((resolve) => setTimeout(resolve, 1_000))]);
+
+  if (child.exitCode === null) {
+    const exitPromise = new Promise<void>((resolve) => {
+      const finalize = () => {
+        child.removeListener("exit", finalize);
+        child.removeListener("close", finalize);
+        resolve();
+      };
+      child.once("exit", finalize);
+      child.once("close", finalize);
+    });
+
+    await Promise.race([exitPromise, new Promise<void>((resolve) => setTimeout(resolve, 5_000))]);
+  }
+}
+
 async function ensureDirectory(location: string) {
   await fs.mkdir(location, { recursive: true });
 }
@@ -138,12 +188,16 @@ async function waitForDownloadedFile(directory: string, timeoutMs = 15_000) {
   throw new Error(`Diagnostics export was not saved to ${directory} within ${timeoutMs}ms`);
 }
 
+function isExportLogFilename(filename: string): boolean {
+  return filename.includes("-export") && filename.endsWith(".log.jsonl");
+}
+
 async function waitForExportLog(directory: string, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
     const entries = await fs.readdir(directory);
-    const logEntry = entries.find((entry) => entry.endsWith("-export.log.jsonl"));
+    const logEntry = entries.find((entry) => isExportLogFilename(entry));
     if (logEntry) {
       const fullPath = path.join(directory, logEntry);
       try {
@@ -164,10 +218,8 @@ async function waitForExportLog(directory: string, timeoutMs = 15_000) {
 
 async function collectExportArtifacts(directory: string) {
   const entries = await fs.readdir(directory);
-  const snapshotEntry = entries.find(
-    (entry) => entry.endsWith(".jsonl") && !entry.endsWith("-export.log.jsonl")
-  );
-  const logEntry = entries.find((entry) => entry.endsWith("-export.log.jsonl"));
+  const snapshotEntry = entries.find((entry) => entry.endsWith(".jsonl") && !isExportLogFilename(entry));
+  const logEntry = entries.find((entry) => isExportLogFilename(entry));
 
   const snapshotPath = snapshotEntry ? path.join(directory, snapshotEntry) : null;
   const logPath = logEntry ? path.join(directory, logEntry) : null;
@@ -186,6 +238,11 @@ async function enableAccessibilityToggle(window: Page, testId: string) {
   await expect(toggle).toBeVisible();
   await toggle.focus();
   await expect(toggle).toBeFocused();
+  const currentState = await toggle.getAttribute("aria-checked");
+  if (currentState === "true") {
+    return;
+  }
+
   await window.keyboard.press("Space");
   await expect(toggle).toHaveAttribute("aria-checked", "true");
 }
@@ -315,6 +372,19 @@ test.describe("Electron diagnostics export", () => {
 
   test.afterAll(async () => {
     await stopRendererPreview();
+    const getActiveHandles = (process as unknown as { _getActiveHandles?: () => unknown[] })._getActiveHandles;
+    if (typeof getActiveHandles === "function") {
+      const handles = getActiveHandles();
+      for (const handle of handles) {
+        if (handle && typeof (handle as { unref?: () => void }).unref === "function") {
+          try {
+            (handle as { unref: () => void }).unref();
+          } catch (error) {
+            console.warn("Failed to unref handle", error);
+          }
+        }
+      }
+    }
   });
 
   test("saves a JSONL snapshot when export is triggered", async ({}, testInfo) => {
@@ -327,9 +397,16 @@ test.describe("Electron diagnostics export", () => {
 
     try {
       const spawnArgs = electronApp.process().spawnargs;
-      const remoteDebugArg = spawnArgs.find((arg) => arg.startsWith("--remote-debugging-port="));
+      const remoteDebugArg = spawnArgs.find((arg) => arg.startsWith("--remote-debugging-port"));
       expect(remoteDebugArg, "launcher must provide a remote debugging port argument").toBeDefined();
-      const resolvedPort = Number.parseInt(remoteDebugArg!.split("=")[1] ?? "0", 10);
+
+      const resolvedPortEnv = await electronApp.evaluate(() => {
+        const port = process.env.ELECTRON_REMOTE_DEBUGGING_PORT;
+        return typeof port === "string" ? port : null;
+      });
+
+      expect(resolvedPortEnv, "launcher should expose remote debugging port via env").not.toBeNull();
+      const resolvedPort = Number.parseInt(resolvedPortEnv ?? "0", 10);
       expect(resolvedPort, "remote debugging port should be a positive integer").toBeGreaterThan(0);
       expect(resolvedPort, "remote debugging port should be dynamically assigned").not.toBe(9222);
 
@@ -415,7 +492,7 @@ test.describe("Electron diagnostics export", () => {
         contentType: "application/json"
       });
     } finally {
-      await electronApp.close();
+      await closeElectronApp(electronApp);
     }
   });
 
@@ -494,7 +571,7 @@ test.describe("Electron diagnostics export", () => {
         contentType: "application/json"
       });
     } finally {
-      await electronApp.close();
+      await closeElectronApp(electronApp);
     }
   });
 });

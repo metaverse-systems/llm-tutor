@@ -25,7 +25,7 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>, toggleAction: () => void | Promise<void>) => {
-      if (event.key === " " || event.key === "Space" || event.key === "Enter") {
+      if (event.key === " " || event.key === "Space" || event.key === "Spacebar" || event.key === "Enter") {
         event.preventDefault();
         void toggleAction();
       }

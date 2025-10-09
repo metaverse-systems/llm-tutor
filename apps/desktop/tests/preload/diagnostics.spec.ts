@@ -67,7 +67,7 @@ describe("createDiagnosticsBridge", () => {
     expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(3, DIAGNOSTICS_CHANNELS.getSummary);
     expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(4, DIAGNOSTICS_CHANNELS.refresh);
     expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(5, DIAGNOSTICS_CHANNELS.openLogDirectory);
-    expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(6, DIAGNOSTICS_CHANNELS.exportSnapshot);
+  expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(6, DIAGNOSTICS_CHANNELS.exportSnapshot, {});
     expect(ipcRenderer.invoke).toHaveBeenNthCalledWith(7, DIAGNOSTICS_CHANNELS.preferencesUpdate, {
       highContrastEnabled: true,
       reducedMotionEnabled: false,
