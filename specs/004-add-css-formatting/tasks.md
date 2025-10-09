@@ -19,10 +19,10 @@
 - [x] T002 Audit existing scripting surface in root `package.json` and each workspace `package.json` (backend, frontend, desktop, shared) to document current format/lint/tailwind-related commands before introducing new scripts. *(Existing scripts recorded in plan notes: root lacks `format:css`/Tailwind entries; workspaces expose lint/test but no formatting or Tailwind scripts yet.)*
 
 ## Phase 3.2: Tests First (Formatter & Tailwind Verification)
-- [ ] T003 [P] Author a no-op CSS fixture in `apps/frontend/tests/unit/__fixtures__/formatter/frontier.css` demonstrating intentional mis-formatting to validate future formatter commands.
-- [ ] T004 [P] Add a similar SCSS fixture in `apps/frontend/tests/unit/__fixtures__/formatter/frontier.scss` for SCSS coverage.
-- [ ] T005 Create a Vitest sanity check in `apps/frontend/tests/unit/formatter.spec.ts` that asserts running the formatter rewrites both fixtures (use `execa` to invoke the local script and compare file contents).
-- [ ] T006 Add a Tailwind smoke test in `apps/frontend/tests/unit/tailwind-build.spec.ts` that spawns `npm run tailwind:build --workspace @metaverse-systems/llm-tutor-frontend` and expects failure until configs/scripts exist, capturing stderr for future debugging.
+\- [x] T003 [P] Author a no-op CSS fixture in `apps/frontend/tests/unit/__fixtures__/formatter/frontier.css` demonstrating intentional mis-formatting to validate future formatter commands. *(Added gradient-heavy `.button` rule with compressed spacing to highlight formatter rewrites.)*
+\- [x] T004 [P] Add a similar SCSS fixture in `apps/frontend/tests/unit/__fixtures__/formatter/frontier.scss` for SCSS coverage. *(Created nested `.hero`/`.cta-button` structure with variables and intentionally collapsed declarations.)*
+\- [x] T005 Create a Vitest sanity check in `apps/frontend/tests/unit/formatter.spec.ts` that asserts running the formatter rewrites both fixtures (use `execa` to invoke the local script and compare file contents). *(New test copies fixtures to a temp dir, runs `npm run format:css --workspace @metaverse-systems/llm-tutor-frontend -- <files>`, and compares results to Prettier-formatted expectations.)*
+\- [x] T006 Add a Tailwind smoke test in `apps/frontend/tests/unit/tailwind-build.spec.ts` that spawns `npm run tailwind:build --workspace @metaverse-systems/llm-tutor-frontend` and expects failure until configs/scripts exist, capturing stderr for future debugging. *(New test invokes the workspace Tailwind build script via `execa` and expects a zero exit code—currently red because the script has not been created yet.)*
 
 ## Phase 3.3: Core Implementation
 - [ ] T007 Add devDependencies to root `package.json` for `tailwindcss`, `postcss`, `autoprefixer`, and `prettier-plugin-tailwindcss`; regenerate the lockfile.
