@@ -197,22 +197,63 @@ test.describe("Electron diagnostics export", () => {
     await ensureDirectory(exportDir);
 
     const electronApp = await launchDesktopApp(exportDir);
+    const spawnArgs = electronApp.process().spawnargs;
+    const remoteDebugArg = spawnArgs.find((arg) => arg.startsWith("--remote-debugging-port="));
+    expect(remoteDebugArg, "launcher must provide a remote debugging port argument").toBeDefined();
+    const resolvedPort = Number.parseInt(remoteDebugArg!.split("=")[1] ?? "0", 10);
+    expect(resolvedPort, "remote debugging port should be a positive integer").toBeGreaterThan(0);
+    expect(resolvedPort, "remote debugging port should be dynamically assigned").not.toBe(9222);
+
     const window = await electronApp.firstWindow();
     await window.waitForLoadState("domcontentloaded");
     await window.waitForSelector('[data-testid="landing-diagnostics-cta"]');
 
     await waitForDiagnosticsBridge(window);
     await ensureSnapshotAvailable(window);
-    await window.getByTestId("landing-diagnostics-cta").click();
+    const snapshotStatus = window.getByTestId("diagnostics-snapshot-status");
+    await expect(snapshotStatus).toHaveText(/snapshot ready/i);
+
+    const highContrastToggle = window.getByTestId("diagnostics-high-contrast-toggle");
+    await expect(highContrastToggle).toBeVisible();
+    await highContrastToggle.focus();
+    await expect(highContrastToggle).toBeFocused();
+    await window.keyboard.press("Space");
+    await expect(highContrastToggle).toHaveAttribute("data-active", "true");
+
+    const reducedMotionToggle = window.getByTestId("diagnostics-reduced-motion-toggle");
+    await expect(reducedMotionToggle).toBeVisible();
+    await reducedMotionToggle.focus();
+    await expect(reducedMotionToggle).toBeFocused();
+    await window.keyboard.press("Space");
+    await expect(reducedMotionToggle).toHaveAttribute("data-active", "true");
+
+    const landingCta = window.getByTestId("landing-diagnostics-cta");
+    await expect(landingCta).toBeVisible();
+    await landingCta.focus();
+    await expect(landingCta).toBeFocused();
+    await window.keyboard.press("Enter");
     await window.waitForSelector('[data-testid="diagnostics-export-button"]');
 
-    await window.getByTestId("diagnostics-export-button").click();
+    const exportButton = window.getByTestId("diagnostics-export-button");
+    await expect(exportButton).toBeVisible();
+    await exportButton.focus();
+    await expect(exportButton).toBeFocused();
+    await window.keyboard.press("Enter");
+
     const downloadedFile = await waitForDownloadedFile(exportDir);
     const filename = path.basename(downloadedFile);
     expect(filename).toMatch(/diagnostics-snapshot-\d{4}-\d{2}-\d{2}T\d{2}\d{2}\d{2}Z\.jsonl/);
 
     const fileContents = await fs.readFile(downloadedFile, "utf-8");
     expect(fileContents.trim()).not.toHaveLength(0);
+
+    const exportArtifacts = await fs.readdir(exportDir);
+    const logFile = exportArtifacts.find((entry) => entry.endsWith("-export.log.jsonl"));
+    expect(logFile, "export log JSONL should be written alongside snapshot").toBeDefined();
+    const logContents = await fs.readFile(path.join(exportDir, logFile!), "utf-8");
+    expect(logContents).toContain('"status":"success"');
+    expect(logContents).toMatch(/"exportPath":".+\.jsonl"/);
+    expect(logContents).toMatch(/"accessibilityState"\s*:\s*\{/);
 
     await electronApp.close();
   });

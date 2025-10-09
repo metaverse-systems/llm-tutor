@@ -76,6 +76,8 @@ Outcome: ⚠️ Playwright’s `_electron.launch` failed because Electron 38 rej
 1. Resolve Playwright/Electron compatibility so the export smoke test can run without manual intervention.
 2. Eliminate double backend boot in the desktop dev harness (consider gating the backend watcher when Electron spawns its managed instance).
 
+> **TODO(ci-export-command)**: Document the CI-aligned diagnostics export command once the automation scripts land, including the offline environment variables the CLI enforces.
+
 ---
 
 # Persistence Vault Regression Sweep
@@ -127,3 +129,5 @@ Outcome: ⚠️ Lock-guard confirmed—only the managed backend instance booted�
 
 1. ~~Adjust shared package emit (or Electron bundler config) so runtime imports include `.js` extensions, unblocking the desktop smoke harness.~~ Resolved 2025-10-08 by adding explicit `.js` extensions to shared diagnostics modules.
 2. ~~Restore workspace-level `test:a11y` script or update the root helper to skip packages without that command.~~ Resolved 2025-10-08 by adding placeholder scripts and aligning the frontend Playwright command.
+
+> **TODO(ci-export-command)**: Update this section once the diagnostics export automation is wired into CI, linking to the new runbook instructions and validation report.
