@@ -11,7 +11,10 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "vitest run",
     "test:e2e": "echo 'No backend-specific e2e tests yet'",
-    "test:a11y": "echo 'Accessibility tests run from frontend workspace'"
+    "test:a11y": "echo 'Accessibility tests run from frontend workspace'",
+    "format:css": "node ../../scripts/format-css-workspace.cjs src",
+    "tailwind:build": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/backend.css --minify",
+    "tailwind:watch": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/backend.css --watch"
   },
   "dependencies": {
     "fastify": "^4.26.2",

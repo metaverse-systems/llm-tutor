@@ -10,7 +10,10 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "vitest run",
     "test:e2e": "NODE_OPTIONS=\"--require=./tests/setup/reset-expect.cjs --import=tsx\" playwright test --config playwright.e2e.config.ts",
-    "test:a11y": "NODE_OPTIONS=\"--require=./tests/setup/reset-expect.cjs --import=tsx\" playwright test tests/accessibility --config playwright.config.ts"
+    "test:a11y": "NODE_OPTIONS=\"--require=./tests/setup/reset-expect.cjs --import=tsx\" playwright test tests/accessibility --config playwright.config.ts",
+    "format:css": "node ../../scripts/format-css-workspace.cjs src tests",
+    "tailwind:build": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/frontend.css --minify",
+    "tailwind:watch": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/frontend.css --watch"
   },
   "dependencies": {
     "react": "^18.3.1",

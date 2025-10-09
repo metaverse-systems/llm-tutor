@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Shared package Tailwind entry.
+  Ensures shared UI primitives inherit the global utility palette.
+*/

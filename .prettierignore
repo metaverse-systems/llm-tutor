@@ -1,0 +1,6 @@
+node_modules/
+**/dist/
+**/.tailwind/
+**/tailwind.generated.css
+apps/frontend/tests/unit/__fixtures__/formatter/*
+coverage/

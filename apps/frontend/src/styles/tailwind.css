@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Frontend Tailwind entry point.
+  Imported by src/index.tsx so Vite picks up shared utilities during dev/build.
+*/

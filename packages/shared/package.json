@@ -10,7 +10,10 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "vitest run",
     "test:e2e": "echo 'Shared package exposes no e2e targets.'",
-    "test:a11y": "echo 'Shared package has no accessibility surface.'"
+    "test:a11y": "echo 'Shared package has no accessibility surface.'",
+    "format:css": "node ../../scripts/format-css-workspace.cjs src",
+    "tailwind:build": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --minify",
+    "tailwind:watch": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --watch"
   },
   "dependencies": {
     "zod": "^3.23.8"

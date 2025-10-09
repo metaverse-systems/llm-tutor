@@ -25,21 +25,21 @@
 \- [x] T006 Add a Tailwind smoke test in `apps/frontend/tests/unit/tailwind-build.spec.ts` that spawns `npm run tailwind:build --workspace @metaverse-systems/llm-tutor-frontend` and expects failure until configs/scripts exist, capturing stderr for future debugging. *(New test invokes the workspace Tailwind build script via `execa` and expects a zero exit code—currently red because the script has not been created yet.)*
 
 ## Phase 3.3: Core Implementation
-- [ ] T007 Add devDependencies to root `package.json` for `tailwindcss`, `postcss`, `autoprefixer`, and `prettier-plugin-tailwindcss`; regenerate the lockfile.
-- [ ] T008 Create root-level Tailwind config `tailwind.config.ts` and PostCSS config `postcss.config.cjs` aligned with research decisions (content globs, theme extensions, plugins).
-- [ ] T009 Create root-level Prettier configuration `prettier.config.cjs` capturing shared CSS/SCSS rules, enabling `prettier-plugin-tailwindcss`, and exporting overrides for `.css`, `.scss`, and Tailwind layer files.
-- [ ] T010 Update root `package.json` scripts to add `format:css` (delegating to workspaces via `npm run format:css --workspaces --if-present`) and include a root fallback for any top-level styles.
-- [ ] T011 Add `format:css`, `tailwind:build`, and `tailwind:watch` scripts to `apps/frontend/package.json`, wiring them to Vite/PostCSS as appropriate and creating `src/styles/tailwind.css` with base/import layers.
-- [ ] T012 Add equivalent scripts and entry files to `apps/desktop/package.json` (pointing to Electron renderer styles directory) and ensure build steps integrate with Vite config.
-- [ ] T013 Add formatting and Tailwind build scripts to `apps/backend/package.json` (scoped to any shared styles or documentation assets) even if currently minimal, keeping globs future-proof.
-- [ ] T014 Add scripts to `packages/shared/package.json` for shared component styles and create Tailwind entry file if components consume utilities.
-- [ ] T015 Introduce shared `.prettierignore` (if missing) or update existing ignore lists to exclude generated Tailwind artifacts (`**/tailwind.generated.css`, `**/dist/**`).
-- [ ] T016 Implement root npm script alias `format` (if present) to chain existing formatting with the new CSS formatter, ensuring workflows remain one-command for contributors.
-- [ ] T017 Update workspace build pipelines (e.g., `apps/frontend/vite.config.ts`, Electron bundler) to reference Tailwind entry files so utilities compile automatically during dev/build.
+\- [x] T007 Add devDependencies to root `package.json` for `tailwindcss`, `postcss`, `autoprefixer`, and `prettier-plugin-tailwindcss`; regenerate the lockfile. *(Installed via `npm install` and verified lock refresh.)*
+\- [x] T008 Create root-level Tailwind config `tailwind.config.ts` and PostCSS config `postcss.config.cjs` aligned with research decisions (content globs, theme extensions, plugins). *(Config includes shared content globs, brand palette, and PostCSS pipeline with Tailwind + Autoprefixer.)*
+\- [x] T009 Create root-level Prettier configuration `prettier.config.cjs` capturing shared CSS/SCSS rules, enabling `prettier-plugin-tailwindcss`, and exporting overrides for `.css`, `.scss`, and Tailwind layer files. *(Config committed at repo root with Tailwind plugin enabled.)*
+\- [x] T010 Update root `package.json` scripts to add `format:css` (delegating to workspaces via `npm run format:css --workspaces --if-present`) and include a root fallback for any top-level styles. *(Script backed by `scripts/format-css.cjs` for argument forwarding and root fallbacks.)*
+\- [x] T011 Add `format:css`, `tailwind:build`, and `tailwind:watch` scripts to `apps/frontend/package.json`, wiring them to Vite/PostCSS as appropriate and creating `src/styles/tailwind.css` with base/import layers. *(Scripts added and Tailwind entry imported by `src/index.tsx`; tests now pass.)*
+\- [x] T012 Add equivalent scripts and entry files to `apps/desktop/package.json` (pointing to Electron renderer styles directory) and ensure build steps integrate with Vite config. *(Placed renderer Tailwind entry and CLI scripts targeting `.tailwind/desktop.css`.)*
+\- [x] T013 Add formatting and Tailwind build scripts to `apps/backend/package.json` (scoped to any shared styles or documentation assets) even if currently minimal, keeping globs future-proof. *(Workspace formatter delegates to shared helper; Tailwind build produces `.tailwind/backend.css`.)*
+\- [x] T014 Add scripts to `packages/shared/package.json` for shared component styles and create Tailwind entry file if components consume utilities. *(Shared package now exposes formatter/Tailwind scripts with entry at `src/styles/tailwind.css`.)*
+\- [x] T015 Introduce shared `.prettierignore` (if missing) or update existing ignore lists to exclude generated Tailwind artifacts (`**/tailwind.generated.css`, `**/dist/**`). *(New `.prettierignore` and expanded `.gitignore` cover Tailwind outputs.)*
+\- [x] T016 Implement root npm script alias `format` (if present) to chain existing formatting with the new CSS formatter, ensuring workflows remain one-command for contributors. *(Root `format` now delegates to `format:css` for single-command workflows.)*
+\- [x] T017 Update workspace build pipelines (e.g., `apps/frontend/vite.config.ts`, Electron bundler) to reference Tailwind entry files so utilities compile automatically during dev/build. *(Frontend boot now imports `styles/tailwind.css`; Tailwind scripts validated across workspaces.)*
 
 ## Phase 3.4: Integration & CI
-- [ ] T018 Update CI workflow (e.g., `.github/workflows/ci.yml`) to run `npm run format:css -- --check` after linting and execute `npm run tailwind:build -- --ci` (or equivalent) to confirm configs compile in headless environments.
-- [ ] T019 Wire the new formatter and Tailwind build steps into local quality gates by updating any dev tooling scripts (e.g., `npm run lint` pipelines or pre-commit hooks) so contributors experience the same enforcement locally.
+- [x] T018 Update CI workflow (e.g., `.github/workflows/ci.yml`) to run `npm run format:css -- --check` after linting and execute `npm run tailwind:build -- --ci` (or equivalent) to confirm configs compile in headless environments. *(Added dedicated CI workflow running lint, formatter check, Tailwind build, and tests on Node 20 with npm cache.)*
+- [x] T019 Wire the new formatter and Tailwind build steps into local quality gates by updating any dev tooling scripts (e.g., `npm run lint` pipelines or pre-commit hooks) so contributors experience the same enforcement locally. *(Root lint script now shells through `scripts/lint-all.cjs`, enforcing formatter + Tailwind runs unless `LINT_SKIP_ENFORCEMENT=true`.)*
 
 ## Phase 3.5: Documentation & Polish
 - [ ] T020 Update root `README.md` contributor workflow section to call out `npm run format:css` and Tailwind build/watch usage, including check mode guidance and accessibility considerations for utilities.

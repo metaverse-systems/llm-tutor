@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Backend Tailwind entry file.
+  Use when rendering documentation or emails that rely on the shared utility set.
+*/

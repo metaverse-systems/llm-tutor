@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Options as PrettierOptions } from 'prettier';
 import { mkdtemp, readFile, rm, cp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -14,10 +15,23 @@ const cssFixture = resolve(fixturesDir, 'frontier.css');
 const scssFixture = resolve(fixturesDir, 'frontier.scss');
 
 let workDir: string;
+let prettierConfig: PrettierOptions | null = null;
+
+async function loadPrettierConfig(): Promise<prettier.Options> {
+  if (prettierConfig) {
+    return prettierConfig;
+  }
+
+  const module = await import(resolve(repoRoot, 'prettier.config.cjs'));
+  const config = (module.default ?? module) as PrettierOptions;
+  prettierConfig = config;
+  return config;
+}
 
 async function formatWithPrettier(sourcePath: string, targetPath: string) {
   const contents = await readFile(sourcePath, 'utf8');
-  const formatted = await prettier.format(contents, { filepath: targetPath });
+  const config = await loadPrettierConfig();
+  const formatted = await prettier.format(contents, { ...config, filepath: targetPath });
   await cp(sourcePath, targetPath);
   return formatted;
 }

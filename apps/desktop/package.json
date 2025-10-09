@@ -21,6 +21,9 @@
   "test:e2e": "echo 'Desktop shell defers to frontend Playwright suite.'",
     "test:a11y": "echo 'No desktop accessibility tests; run frontend suite instead.'",
     "diagnostics:export": "node ./scripts/export-diagnostics.cjs",
+    "format:css": "node ../../scripts/format-css-workspace.cjs src",
+    "tailwind:build": "tailwindcss -c ../../tailwind.config.ts -i ./src/renderer/styles/tailwind.css -o ./.tailwind/desktop.css --minify",
+    "tailwind:watch": "tailwindcss -c ../../tailwind.config.ts -i ./src/renderer/styles/tailwind.css -o ./.tailwind/desktop.css --watch",
     "package": "npm run build && electron-builder"
   },
   "dependencies": {

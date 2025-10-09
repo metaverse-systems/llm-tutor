@@ -8,6 +8,10 @@ pnpm-debug.log*
 
 # Build outputs
 dist/
+**/dist/
+.tailwind/
+**/.tailwind/
+**/tailwind.generated.css
 .eslintcache
 coverage/
 
