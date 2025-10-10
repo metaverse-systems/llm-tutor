@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
+import { spawn } from "node:child_process";
 
 import type { Page } from "@playwright/test";
 import {
@@ -18,8 +19,11 @@ export interface DiagnosticsWindowHandle {
 
 const rendererServerRegistry = new WeakMap<ElectronApplication, http.Server>();
 
+let buildArtifactsPromise: Promise<void> | null = null;
+
 export async function launchDiagnosticsWindow(): Promise<DiagnosticsWindowHandle> {
   const workspace = await prepareHarnessWorkspace();
+  await ensureBuildArtifacts(workspace);
   const rendererServer = await startRendererServer(workspace.desktopRoot);
 
   let app: ElectronApplication | null = null;
@@ -93,6 +97,7 @@ export async function closeDiagnosticsApp(app: ElectronApplication | null | unde
 
 interface HarnessWorkspace {
   desktopRoot: string;
+  projectRoot: string;
   configRoot: string;
   primaryUserDataDir: string;
   allUserDataDirs: readonly string[];
@@ -101,6 +106,7 @@ interface HarnessWorkspace {
 
 async function prepareHarnessWorkspace(): Promise<HarnessWorkspace> {
   const desktopRoot = path.resolve(__dirname, "..", "..");
+  const projectRoot = path.resolve(desktopRoot, "..", "..");
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "llm-tutor-desktop-tests-"));
   const configRoot = path.join(tempRoot, "config");
   await fs.mkdir(configRoot, { recursive: true });
@@ -121,11 +127,72 @@ async function prepareHarnessWorkspace(): Promise<HarnessWorkspace> {
 
   return {
     desktopRoot,
+    projectRoot,
     configRoot,
     primaryUserDataDir,
     allUserDataDirs: userDataDirs,
     backendLockPath
   };
+}
+
+async function ensureBuildArtifacts(workspace: HarnessWorkspace): Promise<void> {
+  if (!buildArtifactsPromise) {
+    buildArtifactsPromise = (async () => {
+      await ensureFrontendDist(workspace);
+      await ensureDesktopDist(workspace);
+    })();
+  }
+
+  await buildArtifactsPromise;
+}
+
+async function ensureFrontendDist(workspace: HarnessWorkspace): Promise<void> {
+  const frontendDist = path.resolve(workspace.desktopRoot, "../frontend/dist/index.html");
+  if (await pathExists(frontendDist)) {
+    return;
+  }
+
+  await runWorkspaceCommand("@metaverse-systems/llm-tutor-frontend", "build", workspace.projectRoot);
+}
+
+async function ensureDesktopDist(workspace: HarnessWorkspace): Promise<void> {
+  const desktopDist = path.join(workspace.desktopRoot, "dist", "main.js");
+  if (await pathExists(desktopDist)) {
+    return;
+  }
+
+  await runWorkspaceCommand("@metaverse-systems/llm-tutor-desktop", "build", workspace.projectRoot);
+}
+
+async function pathExists(target: string): Promise<boolean> {
+  try {
+    await fs.access(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function runWorkspaceCommand(workspaceName: string, script: string, projectRoot: string): Promise<void> {
+  await runCommand("npm", ["run", "--workspace", workspaceName, script], projectRoot);
+}
+
+async function runCommand(command: string, args: readonly string[], cwd: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd,
+      stdio: "inherit"
+    });
+
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`${command} ${args.join(" ")} exited with code ${code}`));
+      }
+    });
+  });
 }
 
 async function seedPreferences(userDataDir: string): Promise<void> {
