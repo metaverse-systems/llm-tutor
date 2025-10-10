@@ -30,7 +30,13 @@ export async function launchDiagnosticsWindow(): Promise<DiagnosticsWindowHandle
 
   try {
     app = await electron.launch({
-    args: [workspace.desktopRoot],
+    args: [
+      workspace.desktopRoot,
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu"
+    ],
     cwd: workspace.desktopRoot,
     env: {
       ...process.env,
@@ -41,7 +47,8 @@ export async function launchDiagnosticsWindow(): Promise<DiagnosticsWindowHandle
       XDG_CONFIG_HOME: workspace.configRoot,
       APPDATA: workspace.configRoot,
         PLAYWRIGHT_TEST: "1",
-        ELECTRON_RENDERER_URL: rendererServer.origin
+        ELECTRON_RENDERER_URL: rendererServer.origin,
+        DISPLAY: process.env.DISPLAY ?? ":99"
     }
   });
   } catch (error) {
