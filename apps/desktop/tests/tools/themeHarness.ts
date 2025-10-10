@@ -140,6 +140,7 @@ async function ensureBuildArtifacts(workspace: HarnessWorkspace): Promise<void> 
     buildArtifactsPromise = (async () => {
       await ensureFrontendDist(workspace);
       await ensureDesktopDist(workspace);
+      await ensureBackendDist(workspace);
     })();
   }
 
@@ -162,6 +163,15 @@ async function ensureDesktopDist(workspace: HarnessWorkspace): Promise<void> {
   }
 
   await runWorkspaceCommand("@metaverse-systems/llm-tutor-desktop", "build", workspace.projectRoot);
+}
+
+async function ensureBackendDist(workspace: HarnessWorkspace): Promise<void> {
+  const backendDist = path.resolve(workspace.desktopRoot, "../backend/dist/index.js");
+  if (await pathExists(backendDist)) {
+    return;
+  }
+
+  await runWorkspaceCommand("@metaverse-systems/llm-tutor-backend", "build", workspace.projectRoot);
 }
 
 async function pathExists(target: string): Promise<boolean> {
