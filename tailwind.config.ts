@@ -1,4 +1,10 @@
 import type { Config } from "tailwindcss";
+import type { PluginAPI } from "tailwindcss/types/config";
+
+import { buildTailwindTheme } from "./packages/shared/src/styles/generateThemeAssets.js";
+import { themeTokens } from "./packages/shared/src/styles/tokens.js";
+
+const sharedTheme = buildTailwindTheme(themeTokens);
 
 const config: Config = {
   content: [
@@ -9,9 +15,14 @@ const config: Config = {
     "./packages/shared/src/**/*.{ts,tsx,js,jsx,html}",
     "./docs/**/*.{md,mdx}"
   ],
+  safelist: [
+    { pattern: /^contrast:/ },
+    { pattern: /^motion-reduced:/ }
+  ],
   theme: {
     extend: {
       colors: {
+        ...sharedTheme.colors,
         brand: {
           50: "#f5f7ff",
           100: "#e7ecff",
@@ -26,15 +37,35 @@ const config: Config = {
         }
       },
       fontFamily: {
-        display: ["'InterVariable'", "'Inter'", "system-ui", "sans-serif"],
-        body: ["'InterVariable'", "'Inter'", "system-ui", "sans-serif"]
+        ...sharedTheme.fontFamily
+      },
+      fontSize: {
+        ...sharedTheme.fontSize
+      },
+      spacing: {
+        ...sharedTheme.spacing
       },
       borderRadius: {
+        ...sharedTheme.borderRadius,
         xl: "1.25rem"
+      },
+      boxShadow: {
+        ...sharedTheme.boxShadow
+      },
+      transitionDuration: {
+        ...sharedTheme.transitionDuration
+      },
+      transitionTimingFunction: {
+        ...sharedTheme.transitionTimingFunction
       }
     }
   },
-  plugins: [],
+  plugins: [
+    ({ addVariant }: PluginAPI) => {
+      addVariant("contrast", '[data-theme="contrast"] &');
+      addVariant("motion-reduced", '[data-motion="reduced"] &');
+    }
+  ],
   future: {
     hoverOnlyWhenSupported: true
   }

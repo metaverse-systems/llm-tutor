@@ -88,7 +88,7 @@ packages/
 └── shared/
       └── src/
 
-tailwind.config.ts (root shared configuration)
+tailwind.config.cjs (root shared configuration)
 scripts/ (formatting + tailwind orchestration)
 ```
 

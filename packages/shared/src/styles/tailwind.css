@@ -1,8 +1,122 @@
+@import "../../dist/theme.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /*
   Shared package Tailwind entry.
-  Ensures shared UI primitives inherit the global utility palette.
+  Ensures shared UI primitives inherit the global utility palette while referencing
+  generated CSS variables from the design token catalogue.
 */
+
+@import "../../dist/theme.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Shared package Tailwind entry.
+  Ensures shared UI primitives inherit the global utility palette while referencing
+  generated CSS variables from the design token catalogue.
+*/
+
+@layer base {
+  :root {
+    color: var(--text-primary);
+    background-color: var(--surface-canvas);
+    font-family: var(--font-body-font-family);
+    font-size: var(--font-body-font-size);
+    line-height: var(--font-body-line-height);
+  }
+
+  body {
+    @apply bg-surface-canvas text-text-primary font-body antialiased;
+    transition: background-color var(--motion-gentle-duration) var(--motion-gentle-easing),
+      color var(--motion-quick-duration) var(--motion-quick-easing);
+  }
+
+  body[data-theme="contrast"] {
+    @apply contrast:text-text-inverse;
+  }
+
+  a {
+    @apply text-accent-primary underline underline-offset-4 transition-colors duration-quick contrast:text-accent-emphasis;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    @apply font-body;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-heading font-heading text-heading;
+  }
+
+  code,
+  pre {
+    @apply font-mono;
+  }
+}
+
+@layer components {
+  .theme-card {
+    @apply bg-surface-elevated border border-border-subtle rounded-radius-lg shadow-md p-spacing-lg flex flex-col gap-spacing-sm transition-shadow duration-standard;
+  }
+
+  .theme-card__title {
+    @apply text-heading font-heading text-text-primary tracking-tight;
+  }
+
+  .theme-card__meta {
+    @apply text-sm text-text-muted;
+  }
+
+  .theme-button {
+    @apply inline-flex items-center justify-center gap-spacing-2xs rounded-radius-md px-spacing-md py-spacing-sm text-sm font-medium transition-colors duration-quick focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent-primary;
+  }
+
+  .theme-button--primary {
+    @apply theme-button bg-accent-primary text-text-inverse hover:bg-accent-emphasis contrast:bg-accent-emphasis contrast:text-text-primary;
+  }
+
+  .theme-button--secondary {
+    @apply theme-button border border-border-subtle bg-surface-canvas text-text-primary hover:bg-surface-muted;
+  }
+
+  .theme-focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2;
+  }
+
+  .theme-alert {
+    @apply rounded-radius-md border border-border-strong bg-surface-muted px-spacing-md py-spacing-sm text-sm text-text-primary shadow-sm;
+  }
+
+  .theme-toast {
+    @apply theme-card bg-surface-overlay text-text-inverse shadow-lg;
+  }
+
+  .theme-modal-backdrop {
+    @apply fixed inset-0 bg-surface-overlay/90 backdrop-blur-sm motion-reduced:transition-none transition-opacity duration-standard;
+  }
+
+  .theme-modal {
+    @apply theme-card max-w-xl w-full shadow-lg bg-surface-elevated text-text-primary;
+  }
+}
+
+@layer utilities {
+  .grid-auto-fit {
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  }
+
+  .min-safe-h-screen {
+    min-height: calc(100vh - var(--spacing-lg));
+  }
+}

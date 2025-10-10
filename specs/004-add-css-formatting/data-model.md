@@ -21,7 +21,7 @@ The formatting initiative introduces shared configuration and documentation arti
 ### TailwindProfile
 | Field | Type | Notes |
 | --- | --- | --- |
-| `configPath` | string | Absolute path to the shared Tailwind configuration (`{repoRoot}/tailwind.config.ts`). |
+| `configPath` | string | Absolute path to the shared Tailwind configuration (`{repoRoot}/tailwind.config.cjs`). |
 | `postcssConfigPath` | string | Location of the PostCSS pipeline definition (`{repoRoot}/postcss.config.cjs`). |
 | `contentGlobs` | array<string> | Globs mapping to component templates across workspaces to drive purge/safe-listing. |
 | `themeExtensions` | object | Shared design tokens (colors, typography, spacing scales) added to Tailwind. |

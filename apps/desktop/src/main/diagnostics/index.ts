@@ -17,6 +17,7 @@ import { fork, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import net from "node:net";
 import path from "node:path";
 
@@ -112,6 +113,8 @@ type EventKeys = keyof DiagnosticsManagerEvents;
 
 const MAX_PROCESS_EVENTS = 50;
 
+const requireFromDiagnostics = createRequire(__filename);
+
 function formatCrashMessage(code: number | null, signal: NodeJS.Signals | null): string {
 	if (code !== null) {
 		return `Backend process exited with code ${code}`;
@@ -184,6 +187,12 @@ export class DiagnosticsManager extends TypedEventEmitter {
 	private preferenceDisposers: (() => void)[] = [];
 	private isShuttingDown = false;
 	private backendLockPath: string | null = null;
+	private rendererWindow: BrowserWindow | null = null;
+	private rendererDomReadyDisposer: (() => void) | null = null;
+	private rendererCssKey: string | null = null;
+	private themeCssContent: string | null = null;
+	private themeCssPath: string | null = null;
+	private readonly isDevEnvironment = process.env.NODE_ENV === "development" || !app.isPackaged;
 	private readonly handleVaultUpdated = (payload: DiagnosticsPreferenceRecordPayload) => {
 		this.latestPreferences = {
 			...payload,
@@ -195,9 +204,18 @@ export class DiagnosticsManager extends TypedEventEmitter {
 		if (snapshot) {
 			this.emit("preferences-updated", snapshot);
 		}
+		this.syncRendererThemeState();
 	};
 	private readonly handleVaultStorageHealth = (payload: DiagnosticsPreferenceRecordPayload) => {
 		this.updateStorageHealth(payload.storageHealth ?? null);
+	};
+	private readonly handleBrowserWindowCreated = (_event: unknown, window: BrowserWindow) => {
+		const mainWindow = this.options.getMainWindow?.();
+		if (!mainWindow || mainWindow.id !== window.id) {
+			return;
+		}
+		this.attachRendererWindow(window);
+		void this.applyThemeToRenderer(window);
 	};
 
 	constructor(private readonly options: DiagnosticsManagerOptions) {
@@ -213,6 +231,12 @@ export class DiagnosticsManager extends TypedEventEmitter {
 			this.preferencesVault.on("updated", this.handleVaultUpdated),
 			this.preferencesVault.on("storage-health", this.handleVaultStorageHealth)
 		];
+		app.on("browser-window-created", this.handleBrowserWindowCreated);
+		const initialWindow = this.options.getMainWindow?.();
+		if (initialWindow && !initialWindow.isDestroyed()) {
+			this.attachRendererWindow(initialWindow);
+			void this.applyThemeToRenderer(initialWindow);
+		}
 	}
 
 	async initialize(): Promise<void> {
@@ -227,6 +251,7 @@ export class DiagnosticsManager extends TypedEventEmitter {
 				record: currentPreferences
 			});
 		}
+		this.syncRendererThemeState();
 		void this.fetchLatestSnapshot().catch(() => null);
 	}
 
@@ -245,6 +270,8 @@ export class DiagnosticsManager extends TypedEventEmitter {
 		} catch (error) {
 			this.options.getLogger?.().warn?.("Pending diagnostics preference sync did not complete", error);
 		}
+		app.off("browser-window-created", this.handleBrowserWindowCreated);
+		this.detachRendererWindow();
 		this.stopBackendProcess();
 	}
 
@@ -769,6 +796,173 @@ export class DiagnosticsManager extends TypedEventEmitter {
 		} else {
 			void dialog.showMessageBox(options);
 		}
+	}
+
+	private getActiveRendererWindow(): BrowserWindow | null {
+		const candidate = this.options.getMainWindow?.() ?? this.rendererWindow;
+		if (!candidate || candidate.isDestroyed()) {
+			return null;
+		}
+		this.attachRendererWindow(candidate);
+		return this.rendererWindow;
+	}
+
+	private attachRendererWindow(window: BrowserWindow): void {
+		if (window.isDestroyed()) {
+			return;
+		}
+		if (this.rendererWindow && this.rendererWindow.id === window.id) {
+			return;
+		}
+		this.detachRendererWindow();
+		this.rendererWindow = window;
+		const handleDomReady = () => {
+			void this.applyThemeToRenderer(window);
+		};
+		window.webContents.on("dom-ready", handleDomReady);
+		this.rendererDomReadyDisposer = () => {
+			if (!window.isDestroyed()) {
+				window.webContents.off("dom-ready", handleDomReady);
+			}
+		};
+		window.once("closed", () => {
+			this.rendererDomReadyDisposer?.();
+			this.rendererDomReadyDisposer = null;
+			this.rendererWindow = null;
+			this.rendererCssKey = null;
+		});
+		void this.applyThemeToRenderer(window);
+	}
+
+	private detachRendererWindow(): void {
+		if (this.rendererDomReadyDisposer) {
+			this.rendererDomReadyDisposer();
+			this.rendererDomReadyDisposer = null;
+		}
+		if (this.rendererWindow && this.rendererCssKey && !this.rendererWindow.isDestroyed()) {
+			void this.rendererWindow.webContents.removeInsertedCSS(this.rendererCssKey).catch(() => undefined);
+		}
+		this.rendererWindow = null;
+		this.rendererCssKey = null;
+	}
+
+	private syncRendererThemeState(): void {
+		const window = this.getActiveRendererWindow();
+		if (!window) {
+			return;
+		}
+		void this.applyThemeToRenderer(window);
+	}
+
+	private async applyThemeToRenderer(window: BrowserWindow): Promise<void> {
+		if (!window || window.isDestroyed()) {
+			return;
+		}
+		await this.injectThemeCss(window);
+		await this.updateRendererThemeAttributes(window);
+	}
+
+	private async injectThemeCss(window: BrowserWindow): Promise<void> {
+		if (!window || window.isDestroyed()) {
+			return;
+		}
+		const css = this.loadThemeCss();
+		if (!css) {
+			return;
+		}
+		try {
+			if (this.rendererCssKey) {
+				await window.webContents.removeInsertedCSS(this.rendererCssKey).catch(() => undefined);
+				this.rendererCssKey = null;
+			}
+			this.rendererCssKey = await window.webContents.insertCSS(css, { cssOrigin: "user" });
+		} catch (error) {
+			this.options.getLogger?.().warn?.("Failed to inject diagnostics theme CSS", error);
+		}
+	}
+
+	private async updateRendererThemeAttributes(window: BrowserWindow): Promise<void> {
+		if (!window || window.isDestroyed()) {
+			return;
+		}
+		const preferences = this.getPreferencesRecord();
+		const appearance = preferences?.highContrastEnabled ? "high-contrast" : "standard";
+		const themeAttribute = appearance === "high-contrast" ? "contrast" : "standard";
+		const motion = preferences?.reducedMotionEnabled ? "reduced" : "full";
+		const script = `
+(() => {
+  const body = document.body;
+  if (!body) {
+    return;
+  }
+  body.dataset.appearance = ${JSON.stringify(appearance)};
+  body.setAttribute("data-theme", ${JSON.stringify(themeAttribute)});
+  body.setAttribute("data-motion", ${JSON.stringify(motion)});
+  if (${JSON.stringify(motion)} === "reduced") {
+    body.classList.add("motion-reduce");
+  } else {
+    body.classList.remove("motion-reduce");
+  }
+})();
+`;
+		try {
+			await window.webContents.executeJavaScript(script, true);
+		} catch (error) {
+			this.options.getLogger?.().warn?.("Failed to apply diagnostics theme attributes", error);
+		}
+	}
+
+	private loadThemeCss(): string | null {
+		const cssPath = this.themeCssPath ?? this.resolveThemeAssetPath("theme.css");
+		if (!cssPath) {
+			this.options.getLogger?.().warn?.("Diagnostics theme assets missing: unable to locate theme.css");
+			return null;
+		}
+		this.themeCssPath = cssPath;
+		const shouldReload = this.isDevEnvironment || this.themeCssContent === null;
+		if (!shouldReload) {
+			return this.themeCssContent;
+		}
+		try {
+			const css = readFileSync(cssPath, "utf-8");
+			this.themeCssContent = css;
+			return css;
+		} catch (error) {
+			this.options.getLogger?.().warn?.("Failed to read diagnostics theme.css", error);
+			this.themeCssContent = null;
+			return null;
+		}
+	}
+
+	private resolveThemeAssetPath(filename: string): string | null {
+		try {
+			return requireFromDiagnostics.resolve(
+				`@metaverse-systems/llm-tutor-shared/dist/${filename}`
+			);
+		} catch (error) {
+			this.options.getLogger?.().warn?.(
+				`Failed to locate diagnostics theme asset via module resolution: ${filename}`,
+				error
+			);
+		}
+
+		const baseDirectories = [
+			path.resolve(__dirname, "../../../../../packages/shared/dist"),
+			path.resolve(__dirname, "../../../../packages/shared/dist"),
+			path.resolve(app.getAppPath(), "../../packages/shared/dist"),
+			path.resolve(app.getAppPath(), "../packages/shared/dist"),
+			path.resolve(app.getAppPath(), "packages/shared/dist"),
+			path.resolve(process.cwd(), "../../packages/shared/dist"),
+			path.resolve(process.cwd(), "../packages/shared/dist"),
+			path.resolve(process.cwd(), "packages/shared/dist")
+		];
+		for (const directory of baseDirectories) {
+			const candidate = path.join(directory, filename);
+			if (existsSync(candidate)) {
+				return candidate;
+			}
+		}
+		return null;
 	}
 
 	private async fetchSummaryFromBackend(): Promise<DiagnosticsSnapshotPayload | null> {

@@ -3,7 +3,7 @@
 _Last updated: 2025-10-09_
 
 ## 1. Baseline Audit
-- **Tailwind configuration**: `tailwind.config.ts` currently exposes default palette with minimal custom tokens. No shared color scale or typography tokens beyond Tailwind defaults. Frontend and desktop both import root config via local entrypoints (`apps/frontend/src/styles/tailwind.css`, `apps/desktop/src/renderer/styles/tailwind.css`).
+- **Tailwind configuration**: `tailwind.config.cjs` currently exposes default palette with minimal custom tokens. No shared color scale or typography tokens beyond Tailwind defaults. Frontend and desktop both import root config via local entrypoints (`apps/frontend/src/styles/tailwind.css`, `apps/desktop/src/renderer/styles/tailwind.css`).
 - **Component styling**: Key surfaces (`DiagnosticsPanel.tsx`, `pages/landing/index.tsx`, `AccessibilityToggles.tsx`) rely on bespoke BEM classes defined in legacy CSS files. Very few Tailwind utility classes are used, resulting in divergence between frontend and Electron renderer.
 - **Asset pipeline**: Vite + PostCSS pipeline already configured; adding additional Tailwind layers or custom plugins will go through existing `tailwind-build.cjs` script. Desktop renderer builds with the same Tailwind entry file bundled through Electron's Vite configuration.
 
@@ -15,7 +15,7 @@ _Last updated: 2025-10-09_
 
 ## 3. Solution Directions
 - **Token storage**: Author token definitions in TypeScript under `packages/shared/src/styles/tokens.ts`, export JSON snapshot during build for renderer consumption. Supplement with generated CSS variables to keep runtime class usage minimal.
-- **Tailwind integration**: Extend Tailwind theme using `tailwind.config.ts` `theme.extend` with token-driven values. Introduce custom plugin to emit variant classes (high-contrast, reduced-motion) for relevant utilities.
+- **Tailwind integration**: Extend Tailwind theme using `tailwind.config.cjs` `theme.extend` with token-driven values. Introduce custom plugin to emit variant classes (high-contrast, reduced-motion) for relevant utilities.
 - **Component migration**: Replace BEM class names with Tailwind utility stacks referencing new semantic tokens. Bundle domain-specific compositions as Tailwind `@apply` mixins if repeated.
 - **Desktop alignment**: Ensure renderer uses same compiled CSS via shared build step—potentially add `prebuild` script syncing generated CSS and token JSON from shared package.
 

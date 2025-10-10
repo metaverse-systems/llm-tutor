@@ -20,7 +20,8 @@ test.describe("Desktop diagnostics high contrast theme", () => {
 
     const axe = new AxeBuilder({ page: handle.window })
       .include("body")
-      .withTags(["wcag2a", "wcag2aa"]);
+      .withTags(["wcag2a", "wcag2aa"])
+      .setLegacyMode(true);
 
     const results = await axe.analyze();
     expect(results.violations).toEqual([]);

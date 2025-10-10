@@ -26,7 +26,7 @@
 
 ## Phase 3.3: Core Implementation
 \- [x] T007 Add devDependencies to root `package.json` for `tailwindcss`, `postcss`, `autoprefixer`, and `prettier-plugin-tailwindcss`; regenerate the lockfile. *(Installed via `npm install` and verified lock refresh.)*
-\- [x] T008 Create root-level Tailwind config `tailwind.config.ts` and PostCSS config `postcss.config.cjs` aligned with research decisions (content globs, theme extensions, plugins). *(Config includes shared content globs, brand palette, and PostCSS pipeline with Tailwind + Autoprefixer.)*
+\- [x] T008 Create root-level Tailwind config `tailwind.config.cjs` and PostCSS config `postcss.config.cjs` aligned with research decisions (content globs, theme extensions, plugins). *(Config includes shared content globs, brand palette, and PostCSS pipeline with Tailwind + Autoprefixer.)*
 \- [x] T009 Create root-level Prettier configuration `prettier.config.cjs` capturing shared CSS/SCSS rules, enabling `prettier-plugin-tailwindcss`, and exporting overrides for `.css`, `.scss`, and Tailwind layer files. *(Config committed at repo root with Tailwind plugin enabled.)*
 \- [x] T010 Update root `package.json` scripts to add `format:css` (delegating to workspaces via `npm run format:css --workspaces --if-present`) and include a root fallback for any top-level styles. *(Script backed by `scripts/format-css.cjs` for argument forwarding and root fallbacks.)*
 \- [x] T011 Add `format:css`, `tailwind:build`, and `tailwind:watch` scripts to `apps/frontend/package.json`, wiring them to Vite/PostCSS as appropriate and creating `src/styles/tailwind.css` with base/import layers. *(Scripts added and Tailwind entry imported by `src/index.tsx`; tests now pass.)*

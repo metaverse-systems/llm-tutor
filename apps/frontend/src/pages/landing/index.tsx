@@ -1,4 +1,5 @@
 import type { DiagnosticsPreferenceRecordPayload } from "@metaverse-systems/llm-tutor-shared";
+import { useThemeMode } from "@metaverse-systems/llm-tutor-shared";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AccessibilityToggles } from "../../components/AccessibilityToggles/AccessibilityToggles";
@@ -13,25 +14,9 @@ interface ToastMessage {
   tone: ToastTone;
   testId?: string;
 }
-interface DocumentAccessibilityPreferences {
-  highContrast: boolean;
-  reduceMotion: boolean;
-}
-
-function applyDocumentPreferences(preferences: DocumentAccessibilityPreferences): void {
-  if (typeof document === "undefined") {
-    return;
-  }
-  const body = document.body;
-  if (!body) {
-    return;
-  }
-  body.setAttribute("data-color-mode", preferences.highContrast ? "high-contrast" : "standard");
-  body.setAttribute("data-reduce-motion", preferences.reduceMotion ? "true" : "false");
-}
-
 export const LandingPage: React.FC = () => {
   const diagnostics = useDiagnostics();
+  const { appearance, motion, setAppearance, setMotion } = useThemeMode();
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -106,14 +91,20 @@ export const LandingPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    applyDocumentPreferences({
-      highContrast: derivedPreferences.highContrast,
-      reduceMotion: derivedPreferences.reduceMotion
-    });
-    return () => {
-      applyDocumentPreferences({ highContrast: false, reduceMotion: false });
-    };
-  }, [derivedPreferences.highContrast, derivedPreferences.reduceMotion]);
+    if (previewPreferences) {
+      return;
+    }
+
+    const nextAppearance = derivedPreferences.highContrast ? "high-contrast" : "standard";
+    const nextMotion = derivedPreferences.reduceMotion ? "reduced" : "full";
+
+    if (appearance !== nextAppearance) {
+      setAppearance(nextAppearance);
+    }
+    if (motion !== nextMotion) {
+      setMotion(nextMotion);
+    }
+  }, [appearance, derivedPreferences.highContrast, derivedPreferences.reduceMotion, motion, previewPreferences, setAppearance, setMotion]);
 
   useEffect(() => {
     if (!previewPreferences) {
@@ -183,19 +174,10 @@ export const LandingPage: React.FC = () => {
   }, [isExportDialogOpen]);
 
   const handleToggleChange = useCallback(
-    async (
-      updater: (previous: { highContrast: boolean; reduceMotion: boolean; remoteProviders: boolean }) => {
-        highContrast: boolean;
-        reduceMotion: boolean;
-        remoteProviders: boolean;
-      }
-    ) => {
-      const baseline = previewPreferences ?? derivedPreferences;
-      const next = updater({ ...baseline });
+    async (next: { highContrast: boolean; reduceMotion: boolean; remoteProviders: boolean }) => {
+      setPreviewPreferences(next);
 
       const summary = next.remoteProviders ? "Remote providers enabled" : "Remote providers are disabled";
-
-      setPreviewPreferences(next);
 
       try {
         if (typeof window !== "undefined") {
@@ -227,7 +209,7 @@ export const LandingPage: React.FC = () => {
         addToast("Diagnostics preferences could not be saved. Check logs for details.", "error");
       }
     },
-    [addToast, diagnostics, derivedPreferences, previewPreferences]
+    [addToast, diagnostics]
   );
 
   const handleExportClick = useCallback(() => {
@@ -348,7 +330,7 @@ export const LandingPage: React.FC = () => {
       />
 
       <AccessibilityToggles
-        preferences={derivedPreferences}
+        remoteProviders={derivedPreferences.remoteProviders}
         onChange={handleToggleChange}
         isPersisting={diagnostics.isUpdatingPreferences}
       />

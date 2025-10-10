@@ -20,10 +20,12 @@
     "diagnostics:export": "node apps/desktop/scripts/export-diagnostics.cjs",
     "format:css": "node ./scripts/format-css.cjs",
     "tailwind:build": "node ./scripts/tailwind-build.cjs",
-    "format": "npm run format:css"
+    "format": "npm run format:css",
+    "build:tokens": "npm run build:tokens --workspace @metaverse-systems/llm-tutor-shared"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.20",
+  "@axe-core/playwright": "^4.9.2",
+  "autoprefixer": "^10.4.20",
     "@typescript-eslint/eslint-plugin": "^8.8.1",
     "@typescript-eslint/parser": "^8.8.1",
     "postcss": "^8.4.47",

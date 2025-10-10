@@ -62,7 +62,7 @@ Accessibility guidelines against the running preview server.
   classes by the canonical ordering. Spot-check the rendered component; if the visual
   result differs, use utilities like `@apply` to group class names semantically.
 - **Tailwind build fails with missing content sources** – Confirm new component paths are
-  included in `tailwind.config.ts` content globs. Re-run the build after updating.
+  included in `tailwind.config.cjs` content globs. Re-run the build after updating.
 - **Watch command exits immediately** – Ensure you pass through `--` when forwarding
   additional arguments (e.g., `npm run tailwind:watch -- --minify=false`).
 
