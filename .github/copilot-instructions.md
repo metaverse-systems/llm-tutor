@@ -15,6 +15,12 @@ Auto-generated from all feature plans. Last updated: 2025-10-07
 - TypeScript 5.5 across workspaces, Node.js 20 runtime for Electron main + backend + Electron 38, electron-store 9, Fastify 4, React 18, Vite 5, Zod (validation), Vitest, Playwright + axe-core (007-llm-connection-management)
 - electron-store JSON vault for profiles (API keys encrypted via electron-safeStorage when available); diagnostics JSONL exports unchanged (007-llm-connection-management)
 
+## Workspace Package Management
+- Use `npm` for all workspace commands (no `pnpm`).
+
+## Package Naming
+- Shared workspace package: `@metaverse-systems/llm-tutor-shared`.
+
 ## Project Structure
 ```
 backend/
