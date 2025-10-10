@@ -56,7 +56,7 @@ test.describe("Diagnostics preference persistence", () => {
 
 		await page.reload();
 
-		await expect(page.locator("body")).toHaveAttribute("data-color-mode", "high-contrast");
+		await expect(page.locator("body")).toHaveAttribute("data-appearance", "high-contrast");
 		await expect(remoteProvidersToggle).toHaveAttribute("aria-checked", "true");
 		await expect(page.locator('[data-testid="diagnostics-consent-summary"]')).toContainText("Remote providers enabled");
 	});

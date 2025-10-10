@@ -41,11 +41,11 @@ test.describe("Diagnostics accessibility regressions", () => {
 
     await highContrastToggle.press("Space");
     await expect(highContrastToggle).toHaveAttribute("aria-checked", "true");
-    await expect(page.locator("body")).toHaveAttribute("data-color-mode", "high-contrast");
+  await expect(page.locator("body")).toHaveAttribute("data-appearance", "high-contrast");
 
     await page.reload();
 
-    await expect(page.locator("body")).toHaveAttribute("data-color-mode", "high-contrast");
+  await expect(page.locator("body")).toHaveAttribute("data-appearance", "high-contrast");
     await expect(highContrastToggle).toHaveAttribute("aria-checked", "true");
   });
 
@@ -61,7 +61,7 @@ test.describe("Diagnostics accessibility regressions", () => {
     await reduceMotionToggle.press("Space");
     await expect(reduceMotionToggle).toHaveAttribute("aria-checked", "true");
 
-    await expect(page.locator("body")).toHaveAttribute("data-reduce-motion", "true");
+  await expect(page.locator("body")).toHaveAttribute("data-motion", "reduced");
     await expect(animatedElements).toHaveCount(0);
   });
 });
