@@ -24,6 +24,37 @@ test.describe("Desktop diagnostics high contrast theme", () => {
     await expect(handle.window.locator("body")).toHaveAttribute("data-theme", "contrast");
     await expect(handle.window.locator("body")).toHaveAttribute("data-motion", "reduced");
 
+    await handle.window.waitForFunction(() => {
+      const body = document.body;
+      if (!body) {
+        return false;
+      }
+      const styles = window.getComputedStyle(body);
+      const surfaceCanvas = styles.getPropertyValue("--surface-canvas").trim().toLowerCase();
+      const surfaceMuted = styles.getPropertyValue("--surface-muted").trim().toLowerCase();
+      const backgroundColor = styles.backgroundColor.trim().toLowerCase();
+      const expectedBodyBackgrounds = new Set([
+        "rgb(10, 10, 10)",
+        "#0a0a0a"
+      ]);
+
+      const highContrastButton = document.querySelector(
+        '[data-testid="landing-accessibility-toggle-high-contrast"]'
+      );
+      if (!highContrastButton) {
+        return false;
+      }
+      const buttonBackground = window.getComputedStyle(highContrastButton).backgroundColor.trim().toLowerCase();
+
+      return (
+        surfaceCanvas === "#0a0a0a" &&
+        surfaceMuted !== "" &&
+        surfaceMuted !== "#edf2ff" &&
+        expectedBodyBackgrounds.has(backgroundColor) &&
+        buttonBackground !== "rgb(255, 255, 255)"
+      );
+    });
+
     const axe = new AxeBuilder({ page: handle.window })
       .include("body")
       .withTags(["wcag2a", "wcag2aa"])

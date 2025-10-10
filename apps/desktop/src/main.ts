@@ -17,6 +17,9 @@ if (isAutomation) {
   app.commandLine.appendSwitch("headless");
   app.commandLine.appendSwitch("disable-gpu");
   app.commandLine.appendSwitch("disable-software-rasterizer");
+  app.commandLine.appendSwitch("no-sandbox");
+  app.commandLine.appendSwitch("disable-dev-shm-usage");
+  app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion,BackForwardCache");
   app.disableHardwareAcceleration();
 }
 
