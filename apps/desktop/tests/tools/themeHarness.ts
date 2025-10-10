@@ -49,10 +49,17 @@ export async function launchDiagnosticsWindow(): Promise<DiagnosticsWindowHandle
         PLAYWRIGHT_TEST: "1",
         ELECTRON_RENDERER_URL: rendererServer.origin,
         DISPLAY: process.env.DISPLAY ?? ":99"
-    }
+    },
+      timeout: 30000
   });
+    
+    // Log Electron console output
+    app.on('console', (msg) => {
+      console.log('[Electron]', msg.text());
+    });
   } catch (error) {
     await stopRendererServer(rendererServer.server);
+    console.error("[themeHarness] Failed to launch Electron:", error);
     throw error;
   }
 
@@ -67,7 +74,8 @@ export async function launchDiagnosticsWindow(): Promise<DiagnosticsWindowHandle
     await seedPreferences(resolvedUserDataDir);
   }
 
-  const window = await app.firstWindow();
+  // Wait for window to be created (even if not shown in headless mode)
+  const window = await app.waitForEvent('window', { timeout: 30000 });
   await window.waitForLoadState("domcontentloaded");
 
   let themeState = await readThemeState(window);

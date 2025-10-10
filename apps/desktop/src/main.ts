@@ -91,7 +91,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 1024,
     minHeight: 720,
-    show: !isAutomation,
+    show: false,
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
@@ -129,6 +129,9 @@ function createWindow(): void {
 void app
   .whenReady()
   .then(async () => {
+    // Create window first to ensure it's available for testing
+    createWindow();
+
     diagnosticsManager = new DiagnosticsManager({
       resolveBackendEntry,
       getLogger: () => console,
@@ -142,9 +145,6 @@ void app
       getWebContents: () => mainWindow?.webContents ?? null
     });
 
-    await diagnosticsManager.initialize();
-    createWindow();
-
     diagnosticsManager.on("backend-error", (payload) => {
       console.warn("Diagnostics backend error", payload.message);
     });
@@ -152,6 +152,9 @@ void app
     diagnosticsManager.on("retention-warning", (warning) => {
       console.info("Diagnostics retention warning", warning);
     });
+
+    // Initialize diagnostics after window is created
+    await diagnosticsManager.initialize();
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
