@@ -1,18 +1,18 @@
+import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import type { ElectronApplication } from "playwright";
-import { afterEach, describe, expect, it } from "vitest";
 
 import { closeDiagnosticsApp, launchDiagnosticsWindow } from "../tools/themeHarness";
 
-describe("Desktop diagnostics high contrast theme", () => {
+test.describe("Desktop diagnostics high contrast theme", () => {
   let app: ElectronApplication | null = null;
 
-  afterEach(async () => {
+  test.afterEach(async () => {
     await closeDiagnosticsApp(app);
     app = null;
   });
 
-  it("loads shared theme assets, syncs preferences, and passes axe", async () => {
+  test("loads shared theme assets, syncs preferences, and passes axe", async () => {
     const handle = await launchDiagnosticsWindow();
     app = handle.app;
 
@@ -21,11 +21,8 @@ describe("Desktop diagnostics high contrast theme", () => {
       return !!body && body.getAttribute("data-theme") === "contrast";
     });
 
-    const theme = await handle.window.getAttribute("body", "data-theme");
-    expect(theme).toBe("contrast");
-
-    const motion = await handle.window.getAttribute("body", "data-motion");
-    expect(motion).toBe("reduced");
+    await expect(handle.window.locator("body")).toHaveAttribute("data-theme", "contrast");
+    await expect(handle.window.locator("body")).toHaveAttribute("data-motion", "reduced");
 
     const axe = new AxeBuilder({ page: handle.window })
       .include("body")
