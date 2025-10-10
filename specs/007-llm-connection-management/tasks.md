@@ -381,7 +381,7 @@
 ---
 
 ### T016 [P]: E2E test for deleting active profile
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/desktop/tests/e2e/llm/delete-active-profile.spec.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
@@ -399,7 +399,11 @@
 **Expected**: ❌ Test MUST FAIL
 
 **Acceptance Criteria**:
-- [ ] Covers quickstart.md Scenario 4 (Deleting Active Profile)
+- [x] Covers quickstart.md Scenario 4 (Deleting Active Profile)
+
+**Notes**:
+- Authored Electron Playwright scenario that seeds two Azure profiles, forces one active, and verifies delete workflow requires selecting and activating an alternate profile.
+- Ensures status messaging, active badge transfer, and consent dialog interactions remain under regression coverage.
 
 ---
 
