@@ -1,5 +1,36 @@
 # Diagnostics Quickstart Execution Log
 
+_Date:_ 2025-10-10  
+_Operator:_ Automation via GitHub Copilot agent
+
+## Unified theme enforcement sweep
+
+### Step 1 – Consolidated lint + theme orchestration
+
+```bash
+npm run lint
+```
+
+Outcome: ✅ The enhanced lint script ran workspace ESLint checks, formatter audit (`--check` mode), regenerated token assets, rebuilt Tailwind layers for every workspace, executed the shared Vitest theme suites, and finished with the frontend and desktop high-contrast Playwright specs. CI now relies on this single entry point for theme validation.
+
+### Step 2 – Desktop high-contrast smoke (focused rerun)
+
+```bash
+npx playwright test apps/desktop/tests/main/high-contrast.theme.spec.ts
+```
+
+Outcome: ✅ The diagnostics window launched with `ThemeHarness`, reported `data-theme="contrast"`, and passed axe checks. Preference seeds are logged when `LLM_TUTOR_DIAGNOSTICS_LOG=1`.
+
+### Step 3 – Frontend accessibility sweep (focused rerun)
+
+```bash
+npm run test:a11y --workspace @metaverse-systems/llm-tutor-frontend -- --grep "Unified theme high contrast accessibility"
+```
+
+Outcome: ✅ High-contrast toggle exercised `useThemeMode`, and axe returned zero violations. Generated report archived under `docs/reports/playwright/`.
+
+---
+
 _Date:_ 2025-10-07  
 _Operator:_ Automation via GitHub Copilot agent
 
@@ -71,10 +102,24 @@ Outcome: ✅ Playwright now delegates to the Electron launcher, which guarantees
 - Renderer hook unit coverage: ✅
 - Desktop preload IPC coverage: ✅
 
-## CI Troubleshooting – Formatter & Tailwind
+## CI Troubleshooting – Lint, Tokens, and Tailwind
 
-CI now runs the shared formatting and Tailwind build workflows after linting. Use the
-following steps when a pipeline fails:
+CI now delegates to the root `npm run lint`, which chains ESLint, formatter checks, token
+generation, Tailwind builds, Vitest theme suites, and the frontend/desktop high-contrast
+Playwright specs. Use the following steps when a pipeline fails:
+
+### Consolidated lint entry point (`npm run lint`)
+
+1. Reproduce locally to surface the first failing stage:
+
+	```bash
+	npm run lint
+	```
+
+2. Inspect the output headers (each step prints `→ Step Name`). Address the first failure
+	before rerunning; later steps are skipped automatically.
+3. For Playwright failures, rerun the targeted spec (see Steps 2–3 in the latest sweep
+	log above) after ensuring token assets are fresh (`npm run build:tokens`).
 
 ### Formatter check (`npm run format:css -- --check`)
 
@@ -109,8 +154,8 @@ following steps when a pipeline fails:
 	retry.
 4. For workspace-specific issues, invoke `npm run tailwind:build --workspace <package>` to
 	isolate the failing bundle.
-5. Once fixed, regenerate any documentation that references the build output (e.g., Playwright
-	reports) before re-running CI.
+5. Once fixed, regenerate theme assets (`npm run build:tokens`) and any documentation that
+	references the build output (e.g., Playwright reports) before re-running CI.
 
 ## Follow-ups
 

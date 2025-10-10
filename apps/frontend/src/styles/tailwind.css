@@ -22,7 +22,8 @@
     font-size: var(--font-body-font-size);
     line-height: var(--font-body-line-height);
     -webkit-font-smoothing: antialiased;
-    transition: background-color var(--motion-gentle-duration) var(--motion-gentle-easing),
+    transition:
+      background-color var(--motion-gentle-duration) var(--motion-gentle-easing),
       color var(--motion-quick-duration) var(--motion-quick-easing);
   }
 
@@ -202,7 +203,8 @@
     font-weight: 500;
     line-height: 1.2;
     cursor: pointer;
-    transition: background-color var(--motion-quick-duration) var(--motion-quick-easing),
+    transition:
+      background-color var(--motion-quick-duration) var(--motion-quick-easing),
       color var(--motion-quick-duration) var(--motion-quick-easing),
       box-shadow var(--motion-quick-duration) var(--motion-quick-easing);
   }
@@ -402,7 +404,8 @@
     border: 1px solid var(--border-subtle);
     background-color: var(--surface-canvas);
     color: var(--text-primary);
-    transition: background-color var(--motion-quick-duration) var(--motion-quick-easing),
+    transition:
+      background-color var(--motion-quick-duration) var(--motion-quick-easing),
       color var(--motion-quick-duration) var(--motion-quick-easing),
       box-shadow var(--motion-quick-duration) var(--motion-quick-easing);
   }
@@ -476,7 +479,8 @@
     letter-spacing: 0.015em;
     background: linear-gradient(120deg, var(--accent-primary), var(--accent-emphasis));
     color: var(--text-inverse);
-    transition: transform var(--motion-quick-duration) var(--motion-quick-easing),
+    transition:
+      transform var(--motion-quick-duration) var(--motion-quick-easing),
       box-shadow var(--motion-quick-duration) var(--motion-quick-easing),
       background-color var(--motion-quick-duration) var(--motion-quick-easing);
   }
@@ -555,7 +559,8 @@
     background-color: var(--surface-elevated);
     color: var(--text-primary);
     box-shadow: var(--shadow-md);
-    transition: transform var(--motion-quick-duration) var(--motion-quick-easing),
+    transition:
+      transform var(--motion-quick-duration) var(--motion-quick-easing),
       box-shadow var(--motion-quick-duration) var(--motion-quick-easing);
   }
 
@@ -672,7 +677,8 @@
     padding: var(--spacing-sm) var(--spacing-md);
     border-radius: var(--radius-md);
     font-weight: 600;
-    transition: background-color var(--motion-quick-duration) var(--motion-quick-easing),
+    transition:
+      background-color var(--motion-quick-duration) var(--motion-quick-easing),
       color var(--motion-quick-duration) var(--motion-quick-easing),
       box-shadow var(--motion-quick-duration) var(--motion-quick-easing);
   }

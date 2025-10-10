@@ -55,7 +55,7 @@
 - [x] T019 Enhance `scripts/lint-all.cjs` (and any referenced CI entrypoints) to run `npm run build:tokens`, Vitest theme suites, and new Playwright specs. *(Lint orchestrator now prints labeled steps, executes token/Tailwind builds, and drives the shared + Playwright suites while CI reuses the same workflow via `npm run lint`.)*
 
 ## Phase 3.5: Polish
-- [ ] T020 Refresh contributor docs with new workflows (`docs/frontend-quickstart.md`, `docs/diagnostics.md`, `docs/testing-log.md`, and `docs/release-notes/005-apply-a-unified.md`) detailing tokens, scripts, and validation steps.
+- [x] T020 Refresh contributor docs with new workflows (`docs/frontend-quickstart.md`, `docs/diagnostics.md`, `docs/testing-log.md`, and `docs/release-notes/005-apply-a-unified.md`) detailing tokens, scripts, and validation steps. *(Docs now cover token builds, `npm run lint` enforcement, high-contrast harnesses, and the new release notes for the unified theme rollout.)*
 
 ## Dependencies
 - T001 → T002 (dist output required before bundling) → T003+

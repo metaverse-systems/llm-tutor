@@ -32,8 +32,9 @@
   }
 
   body {
-    @apply bg-surface-canvas text-text-primary font-body antialiased;
-    transition: background-color var(--motion-gentle-duration) var(--motion-gentle-easing),
+    @apply bg-surface-canvas font-body text-text-primary antialiased;
+    transition:
+      background-color var(--motion-gentle-duration) var(--motion-gentle-easing),
       color var(--motion-quick-duration) var(--motion-quick-easing);
   }
 
@@ -56,7 +57,7 @@
   h2,
   h3,
   h4 {
-    @apply text-heading font-heading text-heading;
+    @apply font-heading text-heading;
   }
 
   code,
@@ -67,11 +68,11 @@
 
 @layer components {
   .theme-card {
-    @apply bg-surface-elevated border border-border-subtle rounded-radius-lg shadow-md p-spacing-lg flex flex-col gap-spacing-sm transition-shadow duration-standard;
+    @apply flex flex-col gap-spacing-sm rounded-radius-lg border border-border-subtle bg-surface-elevated p-spacing-lg shadow-md transition-shadow duration-standard;
   }
 
   .theme-card__title {
-    @apply text-heading font-heading text-text-primary tracking-tight;
+    @apply font-heading text-heading tracking-tight text-text-primary;
   }
 
   .theme-card__meta {
@@ -79,7 +80,7 @@
   }
 
   .theme-button {
-    @apply inline-flex items-center justify-center gap-spacing-2xs rounded-radius-md px-spacing-md py-spacing-sm text-sm font-medium transition-colors duration-quick focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent-primary;
+    @apply inline-flex items-center justify-center gap-spacing-2xs rounded-radius-md px-spacing-md py-spacing-sm text-sm font-medium transition-colors duration-quick focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2;
   }
 
   .theme-button--primary {
@@ -103,11 +104,11 @@
   }
 
   .theme-modal-backdrop {
-    @apply fixed inset-0 bg-surface-overlay/90 backdrop-blur-sm motion-reduced:transition-none transition-opacity duration-standard;
+    @apply bg-surface-overlay/90 fixed inset-0 backdrop-blur-sm transition-opacity duration-standard motion-reduced:transition-none;
   }
 
   .theme-modal {
-    @apply theme-card max-w-xl w-full shadow-lg bg-surface-elevated text-text-primary;
+    @apply theme-card w-full max-w-xl bg-surface-elevated text-text-primary shadow-lg;
   }
 }
 
