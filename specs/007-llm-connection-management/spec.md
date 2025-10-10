@@ -9,6 +9,13 @@ This feature establishes the foundational layer for managing LLM API connections
 
 ## Clarifications
 
+### Session 2025-10-10
+- Q: When all auto-discovery probes fail on first launch, what should happen? → A: Skip profile creation entirely; user must add manually later
+- Q: What happens when a user tries to delete the currently active profile? → A: Show warning dialog with option to activate alternate before deleting
+- Q: Is there a maximum limit on the number of profiles a user can create? → A: No
+- Q: When electron-safeStorage is unavailable (e.g., Linux without keyring daemon), how should API keys be stored? → A: Store unencrypted with prominent warning to user
+- Q: Should profile names be unique, or can multiple profiles share the same display name? → A: Can duplicate; use UUID for identity
+
 ### What This Feature Includes
 - **Connection Profile Management**: CRUD operations for LLM connection profiles (name, endpoint URL, API key, model identifier, provider type)
 - **Profile Persistence**: Store connection profiles in the diagnostics preference vault (electron-store) with encrypted API keys
@@ -117,12 +124,12 @@ This feature establishes the foundational layer for managing LLM API connections
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
-- **FR-001**: System MUST persist LLM connection profiles in the diagnostics preference vault with fields: id (UUID), name, provider type (llama.cpp | azure | custom), endpoint URL, API key (encrypted), model ID, creation/modified timestamps
-- **FR-002**: System MUST encrypt API keys using `electron-safeStorage` before persisting to vault
+- **FR-001**: System MUST persist LLM connection profiles in the diagnostics preference vault with fields: id (UUID), name, provider type (llama.cpp | azure | custom), endpoint URL, API key (encrypted), model ID, creation/modified timestamps; there is no maximum limit on the number of profiles a user can create; profile identity is determined by UUID, allowing multiple profiles to share the same display name
+- **FR-002**: System MUST encrypt API keys using `electron-safeStorage` before persisting to vault; if `electron-safeStorage` is unavailable (e.g., Linux without keyring daemon), system MUST display a prominent warning dialog explaining that API keys will be stored unencrypted and allow the user to proceed or cancel profile creation
 - **FR-003**: Backend MUST expose REST endpoints: `GET /internal/llm/profiles`, `POST /internal/llm/profiles`, `PUT /internal/llm/profiles/:id`, `DELETE /internal/llm/profiles/:id`, `POST /internal/llm/profiles/:id/activate`, `POST /internal/llm/profiles/:id/test`
-- **FR-004**: System MUST maintain exactly one active profile at a time; activation MUST deactivate the previous profile atomically
+- **FR-004**: System MUST maintain exactly one active profile at a time; activation MUST deactivate the previous profile atomically; deletion of the active profile MUST trigger a warning dialog allowing the user to select an alternate profile to activate before deletion completes, or cancel the deletion
 - **FR-005**: Test prompt endpoint (`POST /internal/llm/profiles/:id/test`) MUST send a configurable test string (default: "Hello, can you respond?") and return: success boolean, response text (truncated to 500 chars), latency (ms), model name, error details if failed
-- **FR-006**: On first launch, system MUST attempt to auto-discover local llama.cpp by probing `http://localhost:8080`, `http://localhost:8000`, `http://127.0.0.1:11434` (Ollama), and create a default profile if any respond
+- **FR-006**: On first launch, system MUST attempt to auto-discover local llama.cpp by probing `http://localhost:8080`, `http://localhost:8000`, `http://127.0.0.1:11434` (Ollama), and create a default profile if any respond; if all probes fail, system MUST NOT create any profile and user must manually add a profile via Settings
 - **FR-007**: Remote provider activation MUST trigger a consent dialog in the renderer explaining data transmission; profile activation MUST NOT complete until user explicitly accepts
 - **FR-008**: All profile CRUD operations, activations, and test prompts MUST append events to diagnostics snapshots with structure: `{ type: "llm_profile_created" | "llm_profile_activated" | "llm_test_prompt", timestamp, profileId, profileName, providerType, metadata }`
 - **FR-009**: Settings UI MUST render an accessible form with labels, error messages, keyboard navigation, and focus management meeting WCAG 2.1 AA standards
@@ -131,7 +138,7 @@ This feature establishes the foundational layer for managing LLM API connections
 ### Non-Functional Requirements
 - **NFR-001**: Test prompt requests MUST complete within 10s or timeout with clear error
 - **NFR-002**: Profile CRUD operations MUST complete within 500ms (excluding network I/O for test prompts)
-- **NFR-003**: API key encryption/decryption MUST use platform-native keychains (macOS Keychain, Windows Credential Vault, Linux Secret Service) via `electron-safeStorage`
+- **NFR-003**: API key encryption/decryption MUST use platform-native keychains (macOS Keychain, Windows Credential Vault, Linux Secret Service) via `electron-safeStorage`; when platform keychain is unavailable, fallback to unencrypted storage with user consent
 - **NFR-004**: Settings UI MUST maintain 60fps interactions during form edits and provider switches
 - **NFR-005**: Consent dialog MUST be a focus trap with Escape key to cancel and Enter to accept
 - **NFR-006**: All error messages MUST be logged to diagnostics and remain visible in UI until dismissed
@@ -143,10 +150,10 @@ This feature establishes the foundational layer for managing LLM API connections
 - **AR-003**: Success/error messages MUST use ARIA live regions (`role="status"` or `role="alert"`)
 - **AR-004**: Consent dialog MUST trap focus, announce purpose on open, and restore focus on close
 - **AR-005**: Active profile badge MUST be perceivable in high-contrast mode (border, not color-only)
-- **AR-006**: Profile deletion MUST require confirmation dialog with clear, keyboard-accessible controls
+- **AR-006**: Profile deletion MUST require confirmation dialog with clear, keyboard-accessible controls; deleting the active profile MUST show a warning dialog with a list of alternate profiles to activate (if any exist) before deletion proceeds
 
 ### Data & Privacy Requirements
-- **DR-001**: API keys MUST be encrypted at rest; plaintext MUST NOT be logged or included in diagnostics exports
+- **DR-001**: API keys MUST be encrypted at rest when platform keychain is available; when unavailable, API keys MAY be stored unencrypted with explicit user consent and warning; plaintext keys MUST NOT be logged or included in diagnostics exports regardless of encryption status
 - **DR-002**: Remote provider profiles MUST store explicit consent timestamp and allow revocation
 - **DR-003**: Diagnostics snapshots MUST redact API keys but include provider type, endpoint (hostname only), and connection success/failure
 - **DR-004**: Profile export (if implemented) MUST exclude API keys and prompt user to re-enter after import

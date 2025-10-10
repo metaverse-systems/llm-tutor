@@ -12,6 +12,8 @@ Auto-generated from all feature plans. Last updated: 2025-10-07
 - Local filesystem only (diagnostics JSONL exports, preference vault) (003-003-electron-diagnostics)
 - TypeScript 5.5 (all workspaces), Node.js 20 runtime + Prettier formatter, workspace-specific build tooling (Vite, Fastify, Electron) (004-add-css-formatting)
 - N/A (tooling configuration only) (004-add-css-formatting)
+- TypeScript 5.5 across workspaces, Node.js 20 runtime for Electron main + backend + Electron 38, electron-store 9, Fastify 4, React 18, Vite 5, Zod (validation), Vitest, Playwright + axe-core (007-llm-connection-management)
+- electron-store JSON vault for profiles (API keys encrypted via electron-safeStorage when available); diagnostics JSONL exports unchanged (007-llm-connection-management)
 
 ## Project Structure
 ```
@@ -27,9 +29,9 @@ tests/
 : Follow standard conventions
 
 ## Recent Changes
+- 007-llm-connection-management: Added TypeScript 5.5 across workspaces, Node.js 20 runtime for Electron main + backend + Electron 38, electron-store 9, Fastify 4, React 18, Vite 5, Zod (validation), Vitest, Playwright + axe-core
 - 004-add-css-formatting: Added TypeScript 5.5 (all workspaces), Node.js 20 runtime + Prettier formatter, workspace-specific build tooling (Vite, Fastify, Electron)
 - 003-003-electron-diagnostics: Added TypeScript 5.5 across Electron desktop + Playwright harness, Node.js 20 runtime + Electron 38, Playwright, Vite preview server, Vitest, axe-core
-- 002-persist-diagnostics-accessibility: Added TypeScript 5.5 across Electron backend/renderer, Node.js 20 runtime + Electron 38, React 18 + Vite 5, Fastify 4, electron-store 9, Zod, Vitest, Playwright + axe-core
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
