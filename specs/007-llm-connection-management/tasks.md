@@ -104,7 +104,7 @@
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE IMPLEMENTATION
 
 ### T004 [P]: Contract test for List Profiles endpoint
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/contract/llm/list-profiles.contract.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅ (independent contract test)
@@ -120,14 +120,14 @@
 **Expected**: ❌ Test MUST FAIL (no implementation yet)
 
 **Acceptance Criteria**:
-- [ ] Test fails with "handler not implemented"
-- [ ] Request/response schemas match contracts/api.md
-- [ ] Error codes validated
+- [x] Test fails with "handler not implemented"
+- [x] Request/response schemas match contracts/api.md
+- [x] Error codes validated
 
 ---
 
 ### T005 [P]: Contract test for Create Profile endpoint
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/contract/llm/create-profile.contract.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅ (independent contract test)
@@ -144,9 +144,9 @@
 **Expected**: ❌ Test MUST FAIL
 
 **Acceptance Criteria**:
-- [ ] Test fails with "handler not implemented"
-- [ ] Zod validation enforced
-- [ ] Consent requirement tested
+- [x] Test fails with "handler not implemented"
+- [x] Zod validation enforced
+- [x] Consent requirement tested
 
 ---
 

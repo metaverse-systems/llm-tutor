@@ -5,6 +5,16 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./src/index.ts"
+    },
+    "./llm": {
+      "import": "./dist/llm/index.js",
+      "types": "./src/llm/index.ts"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepare": "npm run build:tokens",
