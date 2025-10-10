@@ -151,7 +151,7 @@
 ---
 
 ### T006 [P]: Contract test for Update Profile endpoint
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/contract/llm/update-profile.contract.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
@@ -165,10 +165,15 @@
 
 **Expected**: ❌ Test MUST FAIL
 
+**Acceptance Criteria**:
+- [x] Test fails with "handler not implemented"
+- [x] Partial updates covered
+- [x] Error codes validated
+
 ---
 
 ### T007 [P]: Contract test for Delete Profile endpoint
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/contract/llm/delete-profile.contract.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
@@ -183,17 +188,16 @@
 
 **Expected**: ❌ Test MUST FAIL
 
----
+**Acceptance Criteria**:
+- [x] Test fails with "handler not implemented"
+- [x] Request validates alternate handling
+- [x] Error codes validated
 
 ### T008 [P]: Contract test for Activate Profile endpoint
 **Status**: ⏳ Pending  
 **File**: `apps/backend/tests/contract/llm/activate-profile.contract.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
-
-**Steps**:
-1. Create test file
-2. Mock IPC channel `llm:profiles:activate`
 3. Assert response includes `activeProfile` and `deactivatedProfileId`
 4. Test error case: `PROFILE_NOT_FOUND`
 5. Run: `npm -F @llm-tutor/backend test:contract`
