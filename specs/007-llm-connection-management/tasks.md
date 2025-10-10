@@ -115,7 +115,7 @@
 3. Assert response structure matches `SuccessResponse<{ profiles, encryptionAvailable, activeProfileId }>`
 4. Verify API keys redacted to `***REDACTED***`
 5. Test error case: `VAULT_READ_ERROR`
-6. Run: `npm -F @llm-tutor/backend test:contract`
+6. Run: `npm -F @metaverse-systems/llm-tutor-backend test:contract`
 
 **Expected**: ❌ Test MUST FAIL (no implementation yet)
 
@@ -139,7 +139,7 @@
 4. Assert response includes created profile with UUID
 5. Test error cases: `VALIDATION_ERROR`, `VAULT_WRITE_ERROR`
 6. Verify Azure/custom providers require `consentTimestamp`
-7. Run: `npm -F @llm-tutor/backend test:contract`
+7. Run: `npm -F @metaverse-systems/llm-tutor-backend test:contract`
 
 **Expected**: ❌ Test MUST FAIL
 
@@ -161,7 +161,7 @@
 2. Mock IPC channel `llm:profiles:update`
 3. Assert partial updates supported (only provided fields changed)
 4. Test error cases: `PROFILE_NOT_FOUND`, `VALIDATION_ERROR`
-5. Run: `npm -F @llm-tutor/backend test:contract`
+5. Run: `npm -F @metaverse-systems/llm-tutor-backend test:contract`
 
 **Expected**: ❌ Test MUST FAIL
 
@@ -184,7 +184,7 @@
 3. Test request with `id` and optional `activateAlternateId`
 4. Assert response includes `deletedId`, `newActiveProfileId`, `requiresUserSelection`
 5. Test error cases: `PROFILE_NOT_FOUND`, `ALTERNATE_NOT_FOUND`
-6. Run: `npm -F @llm-tutor/backend test:contract`
+6. Run: `npm -F @metaverse-systems/llm-tutor-backend test:contract`
 
 **Expected**: ❌ Test MUST FAIL
 
@@ -194,20 +194,27 @@
 - [x] Error codes validated
 
 ### T008 [P]: Contract test for Activate Profile endpoint
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/contract/llm/activate-profile.contract.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
-3. Assert response includes `activeProfile` and `deactivatedProfileId`
-4. Test error case: `PROFILE_NOT_FOUND`
-5. Run: `npm -F @llm-tutor/backend test:contract`
+ 
+**Steps**:
+1. Create contract test covering `llm:profiles:activate` channel
+2. Assert success response includes `activeProfile` and optional `deactivatedProfileId`
+3. Verify request validation rejects missing `id`
+4. Validate error response for `PROFILE_NOT_FOUND`
+5. Execute targeted contract suite (expected to fail pre-implementation)
 
-**Expected**: ❌ Test MUST FAIL
+**Acceptance Criteria**:
+- [x] Test fails with "handler not implemented"
+- [x] Response contracts validated against shared schemas
+- [x] Error path for `PROFILE_NOT_FOUND` asserted
 
 ---
 
 ### T009 [P]: Contract test for Test Prompt endpoint
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/contract/llm/test-prompt.contract.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
@@ -218,9 +225,12 @@
 3. Assert response matches `TestPromptResult` schema
 4. Verify fields: success, latencyMs, responseText (truncated 500 chars), errorCode
 5. Test error cases: `NO_ACTIVE_PROFILE`, `TIMEOUT`, `ECONNREFUSED`
-6. Run: `npm -F @llm-tutor/backend test:contract`
+6. Execute contract suite (expected to fail pre-implementation)
 
-**Expected**: ❌ Test MUST FAIL
+**Acceptance Criteria**:
+- [x] Test fails with "handler not implemented"
+- [x] Response matches `TestPromptResult` schema (success and failure)
+- [x] Network error codes mapped to contract values
 
 ---
 
@@ -235,7 +245,7 @@
 2. Mock IPC channel `llm:profiles:discover`
 3. Assert response includes `discovered`, `discoveredUrl`, `profileCreated`, `probedPorts`
 4. Test with `force: true` to bypass cache
-5. Run: `npm -F @llm-tutor/backend test:contract`
+5. Run: `npm -F @metaverse-systems/llm-tutor-backend test:contract`
 
 **Expected**: ❌ Test MUST FAIL
 
@@ -254,7 +264,7 @@
 4. Test scenario: All ports fail → no profile created
 5. Test scenario: Port 8080 succeeds → default profile created with name "Local llama.cpp"
 6. Assert diagnostics event `llm_autodiscovery` logged
-7. Run: `npm -F @llm-tutor/backend test:integration`
+7. Run: `npm -F @metaverse-systems/llm-tutor-backend test:integration`
 
 **Expected**: ❌ Test MUST FAIL
 
@@ -276,7 +286,7 @@
 3. Assert "exactly one active" invariant enforced
 4. Test deleting active profile requires alternate selection
 5. Verify diagnostics events: `llm_profile_created`, `llm_profile_updated`, `llm_profile_activated`, `llm_profile_deleted`
-6. Run: `npm -F @llm-tutor/backend test:integration`
+6. Run: `npm -F @metaverse-systems/llm-tutor-backend test:integration`
 
 **Expected**: ❌ Test MUST FAIL
 
@@ -300,7 +310,7 @@
    - Azure 401 → `errorCode: "401"`, `errorMessage: "Invalid API key"`
    - Timeout (10s) → `errorCode: "TIMEOUT"`
 5. Verify response text truncated to 500 chars
-6. Run: `npm -F @llm-tutor/backend test:integration`
+6. Run: `npm -F @metaverse-systems/llm-tutor-backend test:integration`
 
 **Expected**: ❌ Test MUST FAIL
 
@@ -324,7 +334,7 @@
 5. Test keyboard navigation: Tab through profiles, Enter to activate, Delete key to delete
 6. Verify ARIA labels: `role="list"`, `role="listitem"`, `aria-live="polite"` for status
 7. Test focus trap in consent dialog
-8. Run: `npm -F @llm-tutor/frontend test:a11y`
+8. Run: `npm -F @metaverse-systems/llm-tutor-frontend test:a11y`
 
 **Expected**: ❌ Test MUST FAIL (UI not implemented)
 
@@ -348,7 +358,7 @@
 5. Accept consent dialog
 6. Assert profile appears in list with "Encrypted" badge
 7. Click "Test Connection" → verify success/error toast
-8. Run: `npm -F @llm-tutor/desktop test:e2e`
+8. Run: `npm -F @metaverse-systems/llm-tutor-desktop test:e2e`
 
 **Expected**: ❌ Test MUST FAIL
 
@@ -371,7 +381,7 @@
 5. Select Profile B from dropdown
 6. Click "Delete"
 7. Assert Profile A removed, Profile B now active
-8. Run: `npm -F @llm-tutor/desktop test:e2e`
+8. Run: `npm -F @metaverse-systems/llm-tutor-desktop test:e2e`
 
 **Expected**: ❌ Test MUST FAIL
 
@@ -397,7 +407,7 @@
 3. Handle unavailable keychain: Return plaintext with warning flag
 4. Add diagnostics event: `llm_encryption_unavailable` when fallback triggered
 5. Write unit tests in `apps/backend/tests/unit/encryption.spec.ts` (mock safeStorage)
-6. Run: `npm -F @llm-tutor/backend test:unit`
+6. Run: `npm -F @metaverse-systems/llm-tutor-backend test:unit`
 
 **Acceptance Criteria**:
 - [ ] Unit tests pass (mock electron safeStorage)
@@ -429,7 +439,7 @@
    - `deleteProfile(id: string): void`
 4. Enforce invariant: At most one profile has `isActive: true`
 5. Write unit tests in `apps/backend/tests/unit/profile-vault.spec.ts`
-6. Run: `npm -F @llm-tutor/backend test:unit`
+6. Run: `npm -F @metaverse-systems/llm-tutor-backend test:unit`
 
 **Acceptance Criteria**:
 - [ ] Unit tests pass
@@ -458,7 +468,7 @@
 4. Log diagnostics events: `llm_profile_created`, `llm_profile_updated`, etc.
 5. Redact API keys in responses (replace with `***REDACTED***`)
 6. Write unit tests in `apps/backend/tests/unit/profile-service.spec.ts`
-7. Run: `npm -F @llm-tutor/backend test:unit`
+7. Run: `npm -F @metaverse-systems/llm-tutor-backend test:unit`
 
 **Acceptance Criteria**:
 - [ ] Unit tests pass (>90% coverage)
@@ -490,7 +500,7 @@
 3. Return `TestPromptResult` with all fields populated
 4. Log diagnostics event: `llm_test_prompt` with result
 5. Write unit tests with mock HTTP client (nock/msw)
-6. Run: `npm -F @llm-tutor/backend test:unit`
+6. Run: `npm -F @metaverse-systems/llm-tutor-backend test:unit`
 
 **Acceptance Criteria**:
 - [ ] Unit tests pass
@@ -526,7 +536,7 @@
      - Active: `true`
 3. Log diagnostics event: `llm_autodiscovery` with `discovered`, `discoveredUrl`, `probedPorts`
 4. Write unit tests with mock HTTP servers
-5. Run: `npm -F @llm-tutor/desktop test:unit`
+5. Run: `npm -F @metaverse-systems/llm-tutor-desktop test:unit`
 
 **Acceptance Criteria**:
 - [ ] Unit tests pass
@@ -559,7 +569,7 @@
 4. Wrap all responses in `SuccessResponse` or `ErrorResponse` format
 5. Catch errors and return standardized error responses
 6. Write integration tests in `apps/desktop/tests/main/llm-ipc-handlers.spec.ts`
-7. Run: `npm -F @llm-tutor/desktop test:integration`
+7. Run: `npm -F @metaverse-systems/llm-tutor-desktop test:integration`
 
 **Acceptance Criteria**:
 - [ ] All 7 channels registered
@@ -591,7 +601,7 @@
 4. Use `contextBridge.exposeInMainWorld()` to expose `llmAPI` to renderer
 5. Add TypeScript types for all methods
 6. Write preload tests in `apps/desktop/tests/preload/llm-bridge.spec.ts`
-7. Run: `npm -F @llm-tutor/desktop test`
+7. Run: `npm -F @metaverse-systems/llm-tutor-desktop test`
 
 **Acceptance Criteria**:
 - [ ] All methods typed correctly
@@ -627,7 +637,7 @@
 4. Handle loading/error states
 5. Invalidate cache on mutations
 6. Write unit tests in `apps/frontend/tests/hooks/useLLMProfiles.test.tsx` (React Testing Library)
-7. Run: `npm -F @llm-tutor/frontend test`
+7. Run: `npm -F @metaverse-systems/llm-tutor-frontend test`
 
 **Acceptance Criteria**:
 - [ ] Unit tests pass
@@ -657,7 +667,7 @@
 8. Loading states with skeleton UI
 9. Error states with user-friendly messages
 10. Write component tests in `apps/frontend/tests/pages/LLMProfiles.test.tsx`
-11. Run: `npm -F @llm-tutor/frontend test`
+11. Run: `npm -F @metaverse-systems/llm-tutor-frontend test`
 
 **Acceptance Criteria**:
 - [ ] Component tests pass
@@ -689,7 +699,7 @@
 6. Display validation errors with `aria-describedby` linked to error messages
 7. Focus management: Auto-focus first field on open, return focus on close
 8. Write component tests
-9. Run: `npm -F @llm-tutor/frontend test`
+9. Run: `npm -F @metaverse-systems/llm-tutor-frontend test`
 
 **Acceptance Criteria**:
 - [ ] Component tests pass
@@ -718,7 +728,7 @@
 5. On Cancel: Set `consentGranted: false`, log `llm_consent_denied`
 6. Styled with theme tokens
 7. Write component tests
-8. Run: `npm -F @llm-tutor/frontend test`
+8. Run: `npm -F @metaverse-systems/llm-tutor-frontend test`
 
 **Acceptance Criteria**:
 - [ ] Component tests pass
@@ -744,7 +754,7 @@
 3. Implement focus trap
 4. On Delete: Call `deleteProfile(id, alternateId?)` from hook
 5. Write component tests
-6. Run: `npm -F @llm-tutor/frontend test`
+6. Run: `npm -F @metaverse-systems/llm-tutor-frontend test`
 
 **Acceptance Criteria**:
 - [ ] Component tests pass
@@ -771,7 +781,7 @@
 4. Use `aria-live="polite"` region to announce results to screen readers
 5. Timeout: 10s
 6. Write component tests
-7. Run: `npm -F @llm-tutor/frontend test`
+7. Run: `npm -F @metaverse-systems/llm-tutor-frontend test`
 
 **Acceptance Criteria**:
 - [ ] Component tests pass
@@ -798,7 +808,7 @@
    - Set `firstLaunch: false` in store
 3. Do not block app startup (run discovery in background)
 4. Write integration test in `apps/desktop/tests/integration/app-lifecycle.test.ts`
-5. Run: `npm -F @llm-tutor/desktop test:integration`
+5. Run: `npm -F @metaverse-systems/llm-tutor-desktop test:integration`
 
 **Acceptance Criteria**:
 - [ ] Integration test passes
@@ -829,7 +839,7 @@
    - `llm_autodiscovery`
 3. Implement redaction: Never log `apiKey` field, log only hostname from `endpointUrl`
 4. Write unit tests verifying redaction
-5. Run: `npm -F @llm-tutor/backend test:unit`
+5. Run: `npm -F @metaverse-systems/llm-tutor-backend test:unit`
 
 **Acceptance Criteria**:
 - [ ] Unit tests pass
@@ -876,7 +886,7 @@
    - Unicode characters in API key
    - Encryption unavailable on Linux (mock safeStorage.isEncryptionAvailable() → false)
    - Decrypt invalid ciphertext → graceful error
-3. Run: `npm -F @llm-tutor/backend test:unit`
+3. Run: `npm -F @metaverse-systems/llm-tutor-backend test:unit`
 
 **Acceptance Criteria**:
 - [ ] All edge cases covered
@@ -899,7 +909,7 @@
    - Azure profile without consent rejected
    - Profile name >100 chars rejected
    - API key >500 chars rejected
-3. Run: `npm -F @llm-tutor/backend test:unit`
+3. Run: `npm -F @metaverse-systems/llm-tutor-backend test:unit`
 
 **Acceptance Criteria**:
 - [ ] All validation rules from data-model.md tested
@@ -921,7 +931,7 @@
    - Update profile: <200ms
    - Delete profile: <200ms
 3. Assert p95 latency meets performance goals from plan.md
-4. Run: `npm -F @llm-tutor/backend test:perf`
+4. Run: `npm -F @metaverse-systems/llm-tutor-backend test:perf`
 
 **Acceptance Criteria**:
 - [ ] All operations meet <500ms target
@@ -945,7 +955,7 @@
 5. Run `axe.run()` on each state
 6. Save accessibility report to `docs/reports/accessibility/007-llm-profiles.json`
 7. Assert 0 violations for WCAG 2.1 AA
-8. Run: `npm -F @llm-tutor/frontend test:a11y`
+8. Run: `npm -F @metaverse-systems/llm-tutor-frontend test:a11y`
 
 **Acceptance Criteria**:
 - [ ] Report saved to docs/reports/
@@ -1101,13 +1111,13 @@ Polish:
 ### Phase 3.2 (Tests) - Launch all contract tests together:
 ```bash
 # Terminal 1
-npm -F @llm-tutor/backend test:contract apps/backend/tests/contract/llm/list-profiles.contract.test.ts
+npm -F @metaverse-systems/llm-tutor-backend test:contract apps/backend/tests/contract/llm/list-profiles.contract.test.ts
 
 # Terminal 2
-npm -F @llm-tutor/backend test:contract apps/backend/tests/contract/llm/create-profile.contract.test.ts
+npm -F @metaverse-systems/llm-tutor-backend test:contract apps/backend/tests/contract/llm/create-profile.contract.test.ts
 
 # Terminal 3
-npm -F @llm-tutor/backend test:contract apps/backend/tests/contract/llm/update-profile.contract.test.ts
+npm -F @metaverse-systems/llm-tutor-backend test:contract apps/backend/tests/contract/llm/update-profile.contract.test.ts
 
 # ... (continue for T006-T010)
 ```
