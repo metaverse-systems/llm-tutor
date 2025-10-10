@@ -9,6 +9,15 @@ export interface LlmContractTestHarness {
 	clearVault(): Promise<void>;
 	simulateVaultReadError(error?: Error): Promise<void>;
 	simulateVaultWriteError(error?: Error): Promise<void>;
+	simulateDiscoveryResult?(result: {
+		discovered: boolean;
+		discoveredUrl: string | null;
+		profileCreated: boolean;
+		profileId: string | null;
+		probedPorts?: number[];
+	}): Promise<void>;
+	simulateDiscoveryError?(error?: Error): Promise<void>;
+	readDiagnosticsEvents?(filter?: { type?: string }): Promise<unknown[]>;
 	close(): Promise<void>;
 }
 
@@ -31,6 +40,14 @@ class NotImplementedHarness implements LlmContractTestHarness {
 
 	async simulateVaultWriteError(): Promise<void> {}
 
+	async simulateDiscoveryResult(): Promise<void> {}
+
+	async simulateDiscoveryError(): Promise<void> {}
+
+	async readDiagnosticsEvents(): Promise<unknown[]> {
+		return [];
+	}
+
 	async close(): Promise<void> {}
 }
 
@@ -49,9 +66,21 @@ function assertHarness(value: unknown): asserts value is LlmContractTestHarness 
 		"close"
 	];
 
+	const optionalMethods: Array<keyof LlmContractTestHarness> = [
+		"simulateDiscoveryResult",
+		"simulateDiscoveryError",
+		"readDiagnosticsEvents"
+	];
+
 	const missing = requiredMethods.find((method) => typeof candidate[method] !== "function");
 	if (missing) {
 		throw new Error(`LLM contract test harness must implement ${missing}()`);
+	}
+
+	for (const method of optionalMethods) {
+		if (method in candidate && typeof candidate[method] !== "function") {
+			throw new Error(`LLM contract test harness ${String(method)} must be a function when provided`);
+		}
 	}
 }
 

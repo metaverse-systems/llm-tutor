@@ -235,47 +235,47 @@
 ---
 
 ### T010 [P]: Contract test for Auto-Discover endpoint
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/contract/llm/auto-discover.contract.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
 
 **Steps**:
-1. Create test file
-2. Mock IPC channel `llm:profiles:discover`
-3. Assert response includes `discovered`, `discoveredUrl`, `profileCreated`, `probedPorts`
-4. Test with `force: true` to bypass cache
-5. Run: `npm -F @metaverse-systems/llm-tutor-backend test:contract`
+1. Created contract test validating success, no-discovery, and error responses for `llm:profiles:discover`
+2. Added harness helpers to simulate discovery results and fatal errors
+3. Ensured `force: true` payload supported and response shape matches contract
+4. Documented diagnostics requirements for future implementation
+5. Ran targeted Vitest contract suite (expected failure)
 
-**Expected**: ❌ Test MUST FAIL
+**Acceptance Criteria**:
+- [x] Test fails with "handler not implemented"
+- [x] Response schema assertion covers discovery flags and probed ports list
+- [x] Error path for `DISCOVERY_ERROR` asserted
 
 ---
 
 ### T011 [P]: Integration test for auto-discovery scenario
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/integration/llm/auto-discovery.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
 
 **Steps**:
-1. Create test file
-2. Mock HTTP servers on ports 8080, 8000, 11434 using `nock` or `msw`
-3. Simulate `/health` endpoint responses (200 OK, 500 error, timeout)
-4. Test scenario: All ports fail → no profile created
-5. Test scenario: Port 8080 succeeds → default profile created with name "Local llama.cpp"
-6. Assert diagnostics event `llm_autodiscovery` logged
-7. Run: `npm -F @metaverse-systems/llm-tutor-backend test:integration`
-
-**Expected**: ❌ Test MUST FAIL
+1. Authored integration suite using `nock` to stub localhost probes across 8080/8000/11434
+2. Exercised success path (port 8080 healthy) and failure path (all ports unavailable)
+3. Verified vault mutations and active profile selection via list endpoint assertions
+4. Required diagnostics capture through `readDiagnosticsEvents`
+5. Added `nock` dev dependency and ambient module declaration for TypeScript
+6. Executed focused test run (currently fails due to missing handler and pending dependency install)
 
 **Acceptance Criteria**:
-- [ ] Test fails (no AutoDiscoveryService implemented)
-- [ ] Covers quickstart.md Scenario 1 (First Launch with Auto-Discovery)
+- [x] Test fails prior to implementation (`llm:profiles:discover` handler not implemented; dependency install still required)
+- [x] Covers quickstart.md Scenario 1 (First Launch with Auto-Discovery)
 
 ---
 
 ### T012 [P]: Integration test for profile CRUD workflow
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/integration/llm/profile-crud.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
@@ -291,7 +291,8 @@
 **Expected**: ❌ Test MUST FAIL
 
 **Acceptance Criteria**:
-- [ ] Covers quickstart.md Scenario 3 (Switching Active Profiles) and Scenario 4 (Deleting Active Profile)
+- [x] Test fails pre-implementation (`llm:profiles:create` handler not implemented)
+- [x] Covers quickstart.md Scenario 3 (Switching Active Profiles) and Scenario 4 (Deleting Active Profile)
 
 ---
 
