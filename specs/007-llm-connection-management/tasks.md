@@ -297,7 +297,7 @@
 ---
 
 ### T013 [P]: Integration test for test prompt with mock providers
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/tests/integration/llm/test-prompt-providers.test.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
@@ -316,13 +316,17 @@
 **Expected**: ❌ Test MUST FAIL
 
 **Acceptance Criteria**:
-- [ ] Covers contracts/providers.md error mapping
-- [ ] Tests TTFB latency measurement
+- [x] Covers contracts/providers.md error mapping
+- [x] Tests TTFB latency measurement
+
+**Notes**:
+- Added `test-prompt-providers.test.ts` exercising llama.cpp success, Azure 401 mapping, and timeout error handling with `nock` delays.
+- Ensures response text truncation to 500 chars and asserts latency fields are populated.
 
 ---
 
 ### T014 [P]: Accessibility test for Settings UI
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/frontend/tests/accessibility/llm-settings.spec.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
@@ -340,13 +344,17 @@
 **Expected**: ❌ Test MUST FAIL (UI not implemented)
 
 **Acceptance Criteria**:
-- [ ] Test fails (Settings page not found)
-- [ ] Validates AR-001 through AR-006 from spec
+- [x] Test fails (Settings page not found)
+- [x] Validates AR-001 through AR-006 from spec
+
+**Notes**:
+- New Playwright accessibility suite audits axe violations, keyboard navigation order, and consent dialog focus trap expectations.
+- Introduced helper to capture active element test IDs mirroring diagnostics accessibility coverage.
 
 ---
 
 ### T015 [P]: E2E test for profile creation workflow
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/desktop/tests/e2e/llm/create-profile.spec.ts`  
 **Dependencies**: T001  
 **Parallel**: ✅
@@ -364,7 +372,11 @@
 **Expected**: ❌ Test MUST FAIL
 
 **Acceptance Criteria**:
-- [ ] Covers quickstart.md Scenario 2 (Manual Profile Creation)
+- [x] Covers quickstart.md Scenario 2 (Manual Profile Creation)
+
+**Notes**:
+- Authored Electron Playwright workflow using diagnostics harness to navigate to LLM settings, create Azure profile, and trigger connection test status assertions.
+- Asserts consent dialog entry, encrypted badge, and status region messaging to lock in UX contract.
 
 ---
 
