@@ -11,6 +11,14 @@ import { DiagnosticsManager } from "./main/diagnostics";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const rendererDevServerUrl = process.env.ELECTRON_RENDERER_URL;
+const isAutomation = process.env.PLAYWRIGHT_TEST === "1";
+
+if (isAutomation) {
+  app.commandLine.appendSwitch("headless");
+  app.commandLine.appendSwitch("disable-gpu");
+  app.commandLine.appendSwitch("disable-software-rasterizer");
+  app.disableHardwareAcceleration();
+}
 
 let mainWindow: BrowserWindow | null = null;
 let diagnosticsManager: DiagnosticsManager | null = null;
@@ -80,7 +88,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 1024,
     minHeight: 720,
-    show: false,
+    show: !isAutomation,
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
@@ -89,8 +97,10 @@ function createWindow(): void {
   });
 
   mainWindow.on("ready-to-show", () => {
-    mainWindow?.show();
-    if (isDev) {
+    if (!isAutomation) {
+      mainWindow?.show();
+    }
+    if (isDev && !isAutomation) {
       mainWindow?.webContents.openDevTools({ mode: "detach" });
     }
     diagnosticsIpc?.emitInitialState();
