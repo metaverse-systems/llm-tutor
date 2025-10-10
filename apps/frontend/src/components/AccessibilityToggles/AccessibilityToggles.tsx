@@ -1,3 +1,4 @@
+import { useThemeMode } from "@metaverse-systems/llm-tutor-shared";
 import React, { useCallback, useMemo } from "react";
 
 interface ToggleState {
@@ -7,9 +8,17 @@ interface ToggleState {
 }
 
 interface AccessibilityTogglesProps {
-  preferences: ToggleState;
-  onChange: (updater: (previous: ToggleState) => ToggleState) => void | Promise<void>;
+  remoteProviders: boolean;
+  onChange: (next: ToggleState) => void | Promise<void>;
   isPersisting?: boolean;
+}
+
+interface ToggleConfig {
+  id: string;
+  label: string;
+  value: boolean;
+  description: string;
+  onToggle: () => Promise<void> | void;
 }
 
 function createSwitchAriaLabel(label: string, value: boolean): string {
@@ -17,11 +26,18 @@ function createSwitchAriaLabel(label: string, value: boolean): string {
 }
 
 export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
-  preferences,
+  remoteProviders,
   onChange,
   isPersisting = false
 }) => {
-  const { highContrast, reduceMotion, remoteProviders } = preferences;
+  const { appearance, motion, toggleAppearance, toggleMotion } = useThemeMode();
+  const highContrast = appearance === "high-contrast";
+  const reduceMotion = motion === "reduced";
+
+  const currentState = useMemo<ToggleState>(
+    () => ({ highContrast, reduceMotion, remoteProviders }),
+    [highContrast, reduceMotion, remoteProviders]
+  );
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>, toggleAction: () => void | Promise<void>) => {
@@ -33,18 +49,17 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
     []
   );
 
-  const switches = useMemo(
+  const switches = useMemo<ToggleConfig[]>(
     () => [
       {
         id: "landing-accessibility-toggle-high-contrast",
         label: "High contrast",
         value: highContrast,
         description: "Increase contrast for text and key interface elements.",
-        onToggle: () => {
-          return onChange((previous) => ({
-            ...previous,
-            highContrast: !previous.highContrast
-          }));
+        onToggle: async () => {
+          const nextState: ToggleState = { ...currentState, highContrast: !currentState.highContrast };
+          toggleAppearance(nextState.highContrast ? "high-contrast" : "standard");
+          await onChange(nextState);
         }
       },
       {
@@ -52,11 +67,10 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
         label: "Reduce motion",
         value: reduceMotion,
         description: "Disable animations that may trigger motion sensitivity.",
-        onToggle: () => {
-          return onChange((previous) => ({
-            ...previous,
-            reduceMotion: !previous.reduceMotion
-          }));
+        onToggle: async () => {
+          const nextState: ToggleState = { ...currentState, reduceMotion: !currentState.reduceMotion };
+          toggleMotion(nextState.reduceMotion ? "reduced" : "full");
+          await onChange(nextState);
         }
       },
       {
@@ -64,28 +78,25 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
         label: "Remote providers",
         value: remoteProviders,
         description: "Share remote provider status within diagnostics exports and consent logs.",
-        onToggle: () => {
-          return onChange((previous) => ({
-            ...previous,
-            remoteProviders: !previous.remoteProviders
-          }));
+        onToggle: async () => {
+          const nextState: ToggleState = { ...currentState, remoteProviders: !currentState.remoteProviders };
+          await onChange(nextState);
         }
       }
     ],
-    [highContrast, reduceMotion, remoteProviders, onChange]
+    [currentState, highContrast, onChange, reduceMotion, remoteProviders, toggleAppearance, toggleMotion]
   );
 
   return (
-    <section
-      aria-labelledby="accessibility-preferences-heading"
-      className="accessibility-toggles"
-    >
-      <div className="accessibility-toggles__header">
-        <h2 id="accessibility-preferences-heading">Accessibility preferences</h2>
-        <p>Adjust renderer settings to match your comfort and reduce fatigue.</p>
+    <section aria-labelledby="accessibility-preferences-heading" className="theme-card">
+      <div className="flex flex-col gap-spacing-xs">
+        <h2 id="accessibility-preferences-heading" className="text-heading font-heading text-text-primary">
+          Accessibility preferences
+        </h2>
+        <p className="text-sm text-text-muted">Adjust renderer settings to match your comfort and reduce fatigue.</p>
       </div>
 
-      <div role="group" aria-label="Accessibility toggles" className="accessibility-toggles__group">
+      <div role="group" aria-label="Accessibility toggles" className="flex flex-col gap-spacing-sm">
         {switches.map((toggle) => (
           <button
             key={toggle.id}
@@ -95,28 +106,26 @@ export const AccessibilityToggles: React.FC<AccessibilityTogglesProps> = ({
             aria-label={createSwitchAriaLabel(toggle.label, toggle.value)}
             aria-describedby={`${toggle.id}-description`}
             data-testid={toggle.id}
-            className={`accessibility-toggles__switch accessibility-toggles__switch--${
-              toggle.value ? "on" : "off"
-            }`}
+            className={`theme-button w-full justify-between ${toggle.value ? "bg-surface-muted" : "bg-surface-canvas"}`}
             onClick={() => void toggle.onToggle()}
             onKeyDown={(event) => handleKeyDown(event, toggle.onToggle)}
             disabled={isPersisting}
           >
-            <span className="accessibility-toggles__switch-label">{toggle.label}</span>
-            <span className="accessibility-toggles__switch-state" aria-hidden="true">
-              {toggle.value ? "On" : "Off"}
+            <span className="flex flex-col items-start gap-spacing-2xs text-left">
+              <span className="text-sm font-medium text-text-primary">{toggle.label}</span>
+              <span id={`${toggle.id}-description`} className="text-xs text-text-muted">
+                {toggle.description}
+              </span>
             </span>
-            <span id={`${toggle.id}-description`} className="accessibility-toggles__hint">
-              {toggle.description}
+            <span className="text-sm font-semibold text-text-primary" aria-hidden="true">
+              {toggle.value ? "On" : "Off"}
             </span>
           </button>
         ))}
       </div>
 
-
-
       {isPersisting ? (
-        <p role="status" aria-live="polite" className="accessibility-toggles__status">
+        <p role="status" aria-live="polite" className="text-sm text-text-muted">
           Saving preferences…
         </p>
       ) : null}

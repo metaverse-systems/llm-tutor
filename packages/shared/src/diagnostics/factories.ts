@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import {
   serializeConsentEventLog,
   type ConsentEventLog,
@@ -21,6 +19,7 @@ import {
   type StorageHealthAlert,
   type StorageHealthAlertPayload
 } from "./storage-health.js";
+import { generateUUID } from "../utils/uuid.js";
 
 export type DiagnosticsPreferenceRecordOverrides = Partial<DiagnosticsPreferenceRecord> & {
 	consentEvents?: (ConsentEventLog | ConsentEventLogPayload)[];
@@ -59,7 +58,7 @@ export function buildConsentEventLog(
   overrides: ConsentEventLogOverrides = {}
 ): ConsentEventLog {
   return {
-    eventId: overrides.eventId ?? randomUUID(),
+    eventId: overrides.eventId ?? generateUUID(),
     occurredAt: overrides.occurredAt ?? new Date(),
     actor: overrides.actor ?? "learner",
     previousState: overrides.previousState ?? "disabled",
@@ -111,7 +110,7 @@ export function buildDiagnosticsSnapshot(
 ): DiagnosticsSnapshot {
   const generatedAt = overrides.generatedAt ?? new Date();
   return {
-    id: overrides.id ?? randomUUID(),
+    id: overrides.id ?? generateUUID(),
     generatedAt,
     backendStatus: overrides.backendStatus ?? "running",
     backendMessage: overrides.backendMessage,
@@ -135,7 +134,7 @@ export function buildProcessHealthEvent(
 ): ProcessHealthEvent {
   const occurredAt = overrides.occurredAt ?? new Date();
   return {
-    id: overrides.id ?? randomUUID(),
+    id: overrides.id ?? generateUUID(),
     occurredAt,
     type: overrides.type ?? "spawn",
     exitCode: overrides.exitCode ?? null,

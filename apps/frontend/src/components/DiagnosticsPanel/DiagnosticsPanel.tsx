@@ -130,11 +130,11 @@ function combineWarnings(snapshot: DiagnosticsSnapshotPayload | null, warnings: 
 function getToneClass(tone: StatusDescriptor["tone"]): string {
   switch (tone) {
     case "positive":
-      return "diagnostics-panel__status diagnostics-panel__status--positive";
+      return "app-status--positive";
     case "negative":
-      return "diagnostics-panel__status diagnostics-panel__status--negative";
+      return "app-status--negative";
     default:
-      return "diagnostics-panel__status diagnostics-panel__status--neutral";
+      return "app-status--neutral";
   }
 }
 
@@ -196,64 +196,78 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
   return (
     <section
       data-testid="diagnostics-panel"
-      className="diagnostics-panel"
+      className="app-card app-stack-lg"
       aria-labelledby="diagnostics-panel-heading"
     >
-      <header className="diagnostics-panel__header">
-        <h2 id="diagnostics-panel-heading">System diagnostics</h2>
-        <p role="status" aria-live="polite">
+      <header className="app-stack-sm">
+        <h2 id="diagnostics-panel-heading" className="text-heading font-heading text-text-primary">
+          System diagnostics
+        </h2>
+        <p role="status" aria-live="polite" className="text-sm text-text-muted">
           {isLoading ? "Loading latest status…" : `Last snapshot captured ${lastGeneratedLabel}.`}
         </p>
       </header>
 
-      <div className="diagnostics-panel__grid" role="list">
-        <article role="listitem" className="diagnostics-panel__card">
-          <h3 className="diagnostics-panel__card-title">Backend status</h3>
+      <div className="app-grid-responsive" role="list">
+        <article
+          role="listitem"
+          className="flex flex-col gap-spacing-sm rounded-radius-md border border-border-subtle bg-surface-elevated p-spacing-md shadow-sm"
+        >
+          <h3 className="text-heading font-heading text-text-primary">Backend status</h3>
           <p className={getToneClass(backendDescriptor.tone)}>{backendDescriptor.label}</p>
           {backend?.message ?? snapshot?.backendMessage ? (
-            <p className="diagnostics-panel__card-meta">
+            <p className="text-sm text-text-muted">
               {backend?.message ?? snapshot?.backendMessage}
             </p>
           ) : null}
-          {backend?.pid ? <p className="diagnostics-panel__card-meta">PID {backend.pid}</p> : null}
+          {backend?.pid ? <p className="text-sm text-text-muted">PID {backend.pid}</p> : null}
         </article>
 
-        <article role="listitem" className="diagnostics-panel__card">
-          <h3 className="diagnostics-panel__card-title">llama.cpp probe</h3>
+        <article
+          role="listitem"
+          className="flex flex-col gap-spacing-sm rounded-radius-md border border-border-subtle bg-surface-elevated p-spacing-md shadow-sm"
+        >
+          <h3 className="text-heading font-heading text-text-primary">llama.cpp probe</h3>
           <p className={getToneClass(llmDescriptor.tone)}>{llmDescriptor.label}</p>
           {snapshot?.llmEndpoint ? (
-            <p className="diagnostics-panel__card-meta">Endpoint: {snapshot.llmEndpoint}</p>
+            <p className="text-sm text-text-muted">Endpoint: {snapshot.llmEndpoint}</p>
           ) : (
-            <p className="diagnostics-panel__card-meta">No remote endpoint configured</p>
+            <p className="text-sm text-text-muted">No remote endpoint configured</p>
           )}
         </article>
 
-        <article role="listitem" className="diagnostics-panel__card">
-          <h3 className="diagnostics-panel__card-title">Log storage</h3>
-          <p className="diagnostics-panel__status diagnostics-panel__status--neutral">{diskUsageLabel} used</p>
-          <p className="diagnostics-panel__card-meta" aria-label="Diagnostics log directory">
+        <article
+          role="listitem"
+          className="flex flex-col gap-spacing-sm rounded-radius-md border border-border-subtle bg-surface-elevated p-spacing-md shadow-sm"
+        >
+          <h3 className="text-heading font-heading text-text-primary">Log storage</h3>
+          <p className="app-status--neutral">{diskUsageLabel} used</p>
+          <p className="text-sm text-text-muted" aria-label="Diagnostics log directory">
             {logDirectory}
           </p>
-          <p className="diagnostics-panel__card-meta">Snapshots (30d): {snapshotCount}</p>
+          <p className="text-sm text-text-muted">Snapshots (30d): {snapshotCount}</p>
         </article>
 
-        <article role="listitem" className="diagnostics-panel__card">
-          <h3 className="diagnostics-panel__card-title">Accessibility sync</h3>
-          <p className="diagnostics-panel__status diagnostics-panel__status--neutral">{preferenceSummary}</p>
-          <p className="diagnostics-panel__card-meta">
+        <article
+          role="listitem"
+          className="flex flex-col gap-spacing-sm rounded-radius-md border border-border-subtle bg-surface-elevated p-spacing-md shadow-sm"
+        >
+          <h3 className="text-heading font-heading text-text-primary">Accessibility sync</h3>
+          <p className="app-status--neutral">{preferenceSummary}</p>
+          <p className="text-sm text-text-muted">
             Remote providers: {remoteProvidersEnabled ? "Enabled" : "Disabled"}
           </p>
           <p
-            className="diagnostics-panel__card-meta"
+            className="text-sm text-text-muted"
             data-testid="diagnostics-consent-summary"
             aria-live="polite"
           >
             {consentSummary}
           </p>
-          <p className="diagnostics-panel__card-meta">{preferenceUpdatedAtLabel}</p>
-          <p className="diagnostics-panel__card-meta">{preferenceUpdatedByLabel}</p>
+          <p className="text-sm text-text-muted">{preferenceUpdatedAtLabel}</p>
+          <p className="text-sm text-text-muted">{preferenceUpdatedByLabel}</p>
           {consentHistory.length > 0 ? (
-            <ul className="diagnostics-panel__card-list" aria-label="Recent consent changes">
+            <ul className="flex flex-col gap-spacing-2xs text-sm text-text-muted" aria-label="Recent consent changes">
               {consentHistory.map((event) => (
                 <li key={event.id}>{event.label}</li>
               ))}
@@ -263,45 +277,50 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
       </div>
 
       {showAnimation ? (
-        <div className="diagnostics-panel__pulse" data-animates="true" aria-hidden="true">
-          <span className="diagnostics-panel__pulse-dot" />
-          <span className="diagnostics-panel__pulse-ring" />
+        <div className="flex items-center gap-spacing-xs text-state-success" aria-hidden="true">
+          <span className="relative flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-state-success/40 animate-ping" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-state-success" />
+          </span>
+          <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+            Live updates
+          </span>
         </div>
       ) : null}
 
       {showStorageAlert ? (
         <aside
-          className="diagnostics-panel__storage-alert"
+          className="app-alert app-stack-sm"
           role="alert"
           aria-live="assertive"
           data-testid="diagnostics-storage-panel-alert"
         >
-          <h3 className="diagnostics-panel__card-title">Preference storage issue</h3>
+          <h3 className="text-heading font-heading text-text-primary">Preference storage issue</h3>
           <p>{storageAlert?.message}</p>
-          <p className="diagnostics-panel__card-meta">
+          <p className="text-sm text-text-muted">
             {formatStorageReason(storageAlert?.reason)} • Detected {formatTimestamp(storageAlert?.detectedAt ?? null)}
           </p>
           {storageAlert?.recommendedAction ? <p>{storageAlert.recommendedAction}</p> : null}
           {storageAlert?.retryAvailableAt ? (
-            <p className="diagnostics-panel__card-meta">
+            <p className="text-sm text-text-muted">
               Retry available {formatTimestamp(storageAlert.retryAvailableAt)}
             </p>
           ) : null}
-          <p>
+          <p className="text-sm text-text-muted">
             These settings will apply for this session only until storage is restored. Recent changes may not persist.
           </p>
         </aside>
       ) : null}
 
-      <section className="diagnostics-panel__warnings" aria-live="polite" aria-label="Diagnostics warnings">
+      <section className="app-card app-card--muted app-stack-sm" aria-live="polite" aria-label="Diagnostics warnings">
         {combinedWarnings.length > 0 ? (
-          <ul>
+          <ul className="flex flex-col gap-spacing-2xs text-sm text-text-primary">
             {combinedWarnings.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}
           </ul>
         ) : (
-          <p>No retention warnings in the last 30 days.</p>
+          <p className="text-sm text-text-muted">No retention warnings in the last 30 days.</p>
         )}
       </section>
     </section>

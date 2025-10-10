@@ -29,7 +29,7 @@ A shared Prettier toolchain and Tailwind CSS baseline will standardise styling a
   2. **Lint-only enforcement** – rejected since ESLint cannot guarantee stylistic consistency for CSS/SCSS and would miss property ordering/spacing issues Prettier solves automatically.
 
   ### D004 – Tailwind CSS adoption pattern
-  - **Decision**: Install Tailwind CSS, PostCSS, and Autoprefixer as root-level dev dependencies, expose a shared `tailwind.config.ts` and `postcss.config.cjs`, and generate workspace-specific entrypoints (`apps/frontend/src/styles/tailwind.css`, etc.) that import Tailwind layers. Provide npm scripts (`tailwind:build`, `tailwind:watch`) per workspace that leverage Vite or PostCSS CLI depending on bundler support.
+  - **Decision**: Install Tailwind CSS, PostCSS, and Autoprefixer as root-level dev dependencies, expose a shared `tailwind.config.cjs` and `postcss.config.cjs`, and generate workspace-specific entrypoints (`apps/frontend/src/styles/tailwind.css`, etc.) that import Tailwind layers. Provide npm scripts (`tailwind:build`, `tailwind:watch`) per workspace that leverage Vite or PostCSS CLI depending on bundler support.
   - **Rationale**: Root-level dependencies simplify version management while allowing each workspace to opt in via imports. A shared config centralises design tokens (colours, typography, accessibility presets) and keeps the build pipeline offline. Scripts map directly to existing tooling: Vite handles Tailwind during dev/build for frontend/desktop, while backend/shared can use PostCSS CLI for generating static CSS when needed.
   - **Alternatives Considered**:
     1. **Per-workspace Tailwind installs** – rejected due to duplication and higher maintenance overhead when upgrading Tailwind.

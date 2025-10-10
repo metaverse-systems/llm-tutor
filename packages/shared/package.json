@@ -7,14 +7,15 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "prepare": "npm run build",
-    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "prepare": "npm run build:tokens",
+  "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest run",
     "test:e2e": "echo 'Shared package exposes no e2e targets.'",
     "test:a11y": "echo 'Shared package has no accessibility surface.'",
     "format:css": "node ../../scripts/format-css-workspace.cjs src",
-    "tailwind:build": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --minify",
-    "tailwind:watch": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --watch"
+  "tailwind:build": "tailwindcss -c ../../tailwind.config.cjs -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --minify",
+  "tailwind:watch": "tailwindcss -c ../../tailwind.config.cjs -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --watch",
+  "build:tokens": "npm run build && node ./dist/styles/generateThemeAssets.js"
   },
   "dependencies": {
     "zod": "^3.23.8"

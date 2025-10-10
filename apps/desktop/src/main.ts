@@ -11,6 +11,17 @@ import { DiagnosticsManager } from "./main/diagnostics";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const rendererDevServerUrl = process.env.ELECTRON_RENDERER_URL;
+const isAutomation = process.env.PLAYWRIGHT_TEST === "1";
+
+if (isAutomation) {
+  app.commandLine.appendSwitch("headless");
+  app.commandLine.appendSwitch("disable-gpu");
+  app.commandLine.appendSwitch("disable-software-rasterizer");
+  app.commandLine.appendSwitch("no-sandbox");
+  app.commandLine.appendSwitch("disable-dev-shm-usage");
+  app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion,BackForwardCache");
+  app.disableHardwareAcceleration();
+}
 
 let mainWindow: BrowserWindow | null = null;
 let diagnosticsManager: DiagnosticsManager | null = null;
@@ -89,8 +100,10 @@ function createWindow(): void {
   });
 
   mainWindow.on("ready-to-show", () => {
-    mainWindow?.show();
-    if (isDev) {
+    if (!isAutomation) {
+      mainWindow?.show();
+    }
+    if (isDev && !isAutomation) {
       mainWindow?.webContents.openDevTools({ mode: "detach" });
     }
     diagnosticsIpc?.emitInitialState();
@@ -116,6 +129,9 @@ function createWindow(): void {
 void app
   .whenReady()
   .then(async () => {
+    // Create window first to ensure it's available for testing
+    createWindow();
+
     diagnosticsManager = new DiagnosticsManager({
       resolveBackendEntry,
       getLogger: () => console,
@@ -129,9 +145,6 @@ void app
       getWebContents: () => mainWindow?.webContents ?? null
     });
 
-    await diagnosticsManager.initialize();
-    createWindow();
-
     diagnosticsManager.on("backend-error", (payload) => {
       console.warn("Diagnostics backend error", payload.message);
     });
@@ -139,6 +152,9 @@ void app
     diagnosticsManager.on("retention-warning", (warning) => {
       console.info("Diagnostics retention warning", warning);
     });
+
+    // Initialize diagnostics after window is created
+    await diagnosticsManager.initialize();
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {

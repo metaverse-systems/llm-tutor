@@ -13,8 +13,8 @@
     "test:e2e": "echo 'No backend-specific e2e tests yet'",
     "test:a11y": "echo 'Accessibility tests run from frontend workspace'",
     "format:css": "node ../../scripts/format-css-workspace.cjs src",
-    "tailwind:build": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/backend.css --minify",
-    "tailwind:watch": "tailwindcss -c ../../tailwind.config.ts -i ./src/styles/tailwind.css -o ./.tailwind/backend.css --watch"
+  "tailwind:build": "tailwindcss -c ../../tailwind.config.cjs -i ./src/styles/tailwind.css -o ./.tailwind/backend.css --minify",
+  "tailwind:watch": "tailwindcss -c ../../tailwind.config.cjs -i ./src/styles/tailwind.css -o ./.tailwind/backend.css --watch"
   },
   "dependencies": {
   "@metaverse-systems/llm-tutor-shared": "file:../../packages/shared",

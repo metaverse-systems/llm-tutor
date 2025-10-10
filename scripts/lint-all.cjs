@@ -21,16 +21,66 @@ function run(command, args) {
   }
 }
 
+function runStep(label, command, args) {
+  console.log(`\n→ ${label}`);
+  run(command, args);
+}
+
 const lintArgs = ["run", "--workspaces", "--if-present", "lint"];
 if (forwardedArgs.length > 0) {
   lintArgs.push(...forwardedArgs);
 }
 
-run("npm", lintArgs);
+runStep("Workspace lint", "npm", lintArgs);
 
 if (skipEnforcement) {
   process.exit(0);
 }
 
-run("npm", ["run", "format:css", "--", "--check"]);
-run("npm", ["run", "tailwind:build", "--", "--ci"]);
+runStep("CSS format check", "npm", ["run", "format:css", "--", "--check"]);
+
+runStep("Generate theme tokens", "npm", ["run", "build:tokens"]);
+
+runStep("Compile Tailwind layers", "npm", ["run", "tailwind:build", "--", "--ci"]);
+
+runStep("Run shared theme unit suites", "npm", [
+  "run",
+  "--workspace",
+  "@metaverse-systems/llm-tutor-shared",
+  "test",
+  "--",
+  "tests/unit/theme.tokens.contract.test.ts",
+  "tests/unit/theme.css.spec.ts"
+]);
+
+runStep("Run frontend high-contrast accessibility spec", "npm", [
+  "run",
+  "--workspace",
+  "@metaverse-systems/llm-tutor-frontend",
+  "test:a11y",
+  "--",
+  "--grep",
+  "Unified theme high contrast accessibility"
+]);
+
+// Desktop Electron tests need xvfb in CI environments
+const isCI = process.env.CI === "true";
+const desktopTestCommand = isCI ? "xvfb-run" : "npx";
+const desktopTestArgs = isCI
+  ? [
+      "--auto-servernum",
+      "--server-args=-screen 0 1280x960x24",
+      "npx",
+      "playwright",
+      "test",
+      "apps/desktop/tests/main/high-contrast.theme.spec.ts",
+      "--config=apps/desktop/playwright.config.ts"
+    ]
+  : [
+      "playwright",
+      "test",
+      "apps/desktop/tests/main/high-contrast.theme.spec.ts",
+      "--config=apps/desktop/playwright.config.ts"
+    ];
+
+runStep("Run desktop high-contrast accessibility spec", desktopTestCommand, desktopTestArgs);

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import {
@@ -18,9 +17,10 @@ import {
 	type StorageHealthAlert,
 	type StorageHealthAlertPayload
 } from "./storage-health.js";
+import { generateUUID } from "../utils/uuid.js";
 
 export const diagnosticsPreferenceRecordSchema = z.object({
-	id: z.string().uuid().default(() => randomUUID()),
+	id: z.string().uuid().default(() => generateUUID()),
 	highContrastEnabled: z.boolean().default(false),
 	reducedMotionEnabled: z.boolean().default(false),
 	remoteProvidersEnabled: z.boolean().default(false),
@@ -122,9 +122,9 @@ export function createDiagnosticsPreferenceRecord(
 		lastUpdatedAt?: Date;
 		consentEvents?: readonly (ConsentEventLog | ConsentEventLogPayload)[];
 	} = {}
-): DiagnosticsPreferenceRecord {
+	): DiagnosticsPreferenceRecord {
 	return {
-		id: overrides.id ?? randomUUID(),
+		id: overrides.id ?? generateUUID(),
 		highContrastEnabled: overrides.highContrastEnabled ?? false,
 		reducedMotionEnabled: overrides.reducedMotionEnabled ?? false,
 		remoteProvidersEnabled: overrides.remoteProvidersEnabled ?? false,

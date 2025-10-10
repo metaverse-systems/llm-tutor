@@ -6,6 +6,7 @@ on:
       - main
       - "feature/**"
       - "004-add-css-formatting"
+      - "005-apply-a-unified"
   pull_request:
     branches:
       - main
@@ -27,16 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Lint and style checks
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run lint and theme enforcement suite
         run: npm run lint
-        env:
-          LINT_SKIP_ENFORCEMENT: "true"
-
-      - name: Verify formatter output
-        run: npm run format:css -- --check
-
-      - name: Compile Tailwind layers
-        run: npm run tailwind:build -- --ci
 
       - name: Run unit tests
         run: npm run test

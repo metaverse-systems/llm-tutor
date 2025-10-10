@@ -9,6 +9,8 @@ This runbook explains how to validate, operate, and troubleshoot the diagnostics
 1. **Prepare the workspace**
    - Install dependencies: `npm install`
    - Build shared artefacts: `npm run build --workspaces`
+   - Generate theme tokens + CSS variables: `npm run build:tokens`
+   - Optional consolidated check: `npm run lint` (runs linting, formatter check, token build, Tailwind builds, Vitest theme suites, and the Playwright high-contrast specs used in CI).
 2. **Launch the stack in development**
    - Backend: `npm run dev --workspace @metaverse-systems/llm-tutor-backend`
    - Frontend: `npm run dev --workspace @metaverse-systems/llm-tutor-frontend`
@@ -19,6 +21,7 @@ This runbook explains how to validate, operate, and troubleshoot the diagnostics
 4. **Exercise the preference vault**
    - Toggle high contrast, reduced motion, and remote provider controls.
    - Confirm the banner updates without forcing a snapshot refresh and that the consent summary reflects the latest event.
+   - Verify the landing page and diagnostics window apply `data-theme="contrast"` and motion attributes (`data-motion="reduced"` when enabled) via the shared `ThemeModeProvider`.
    - Quit and relaunch the desktop shell; the stored preferences should hydrate immediately after preload initialisation.
 5. **Simulate storage disruption**
    - Temporarily remove write access to `${app.getPath("userData")}/diagnostics-preferences.json` (see _Storage Failure Remediation_ below) or deliberately toggle the backend failure hook (`consentSummary = "Simulate storage failure"` via REST client in development).
@@ -34,6 +37,18 @@ This runbook explains how to validate, operate, and troubleshoot the diagnostics
 - Set `NODE_OPTIONS=--import=tsx` so Playwright can load the TypeScript launcher utilities without precompiling.
 - Enable `LLM_TUTOR_DIAGNOSTICS_LOG=1` during investigations to mirror export instrumentation to stderr; logs are prefixed with `[diagnostics-export]`.
 - When debugging launcher arguments, add `DEBUG_ELECTRON_LAUNCH=1` to print the normalised Electron CLI payload.
+
+### Theme alignment suites
+
+- Run the high-contrast coverage suite inline with CI via `npm run lint`. To execute manually:
+
+   ```bash
+   npm run test:a11y --workspace @metaverse-systems/llm-tutor-frontend -- --grep "Unified theme high contrast accessibility"
+   npx playwright test apps/desktop/tests/main/high-contrast.theme.spec.ts
+   ```
+
+- The desktop scenario relies on `apps/desktop/tests/tools/themeHarness.ts`, which bootstraps Electron with the shared `theme.css`, seeds high-contrast and reduced-motion preferences, and cleans up its temporary user-data directory after each run.
+- Both harnesses expect freshly generated token artefacts (`npm run build:tokens`) so the renderer and diagnostics window can resolve semantic Tailwind classes.
 
 ### Remote debugging port resolution
 
@@ -64,6 +79,7 @@ This runbook explains how to validate, operate, and troubleshoot the diagnostics
 | Preference bootstrap | Launch diagnostics after quitting the desktop shell. | Vault hydrates within the first render; toggles match the stored record and `updatedBy` is `"main"`. |
 | Manual refresh | Activate the “Refresh” button or call `window.llmTutor.diagnostics.refreshSnapshot()`. | Hook returns `{ success: true }`, merges warnings without duplicates, and keeps preference timestamps intact. |
 | Backend offline | Stop backend process. | Renderer flips to offline mode, emits `ProcessHealthEvent`, and retry backoff (15 s default) kicks in. |
+| Theme propagation | Toggle high contrast in the landing page. | `body` surfaces `data-theme="contrast"` in both browser and Electron contexts; semantic tokens update without flashing unstyled content. |
 | Disk pressure | Inject >500 MB of JSONL data under `${app.getPath("userData")}/diagnostics`. | Retention warning banner renders; warning persists until disk usage falls below threshold. |
 | Preference vault unavailable | Remove write permissions from `diagnostics-preferences.json` and toggle a control. | Renderer shows a session-only warning, backend replies `503` with a `StorageHealthAlert`, and events still queue locally. |
 | Retention pruning | Seed snapshots older than 30 days and run `npm run test --workspace @metaverse-systems/llm-tutor-backend`. | Integration test prunes old files and records warnings. |
@@ -115,6 +131,7 @@ Vault updates append consent events to the record. The backend snapshot service 
 - Inspect storage health: call `window.llmTutor.diagnostics.getState()` and review the `storageHealth` payload; fix filesystem permissions, free disk space, or delete the corrupted vault file before retrying the update.
 - Collect logs for support: export snapshots, capture the latest validation summary (e.g., `docs/reports/diagnostics/2025-10-08-validation.md`), and attach to the support ticket.
 - Trace Playwright persistence failures without hanging the shell: wrap debug runs with a timeout (e.g., `timeout --preserve-status 180s PWDEBUG=console npx playwright test tests/accessibility/diagnostics-persistence.spec.ts --grep "persists accessibility"`) so the interactive inspector exits automatically.
+- High-contrast Playwright spec fails: regenerate tokens (`npm run build:tokens`), ensure `.tailwind` artefacts are up to date (`npm run tailwind:build -- --ci`), and re-run the suite with `LLM_TUTOR_DIAGNOSTICS_LOG=1` to confirm `ThemeHarness` is seeding preferences.
 
 ## Validation Checklist
 

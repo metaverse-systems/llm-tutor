@@ -44,7 +44,7 @@
 
 ## Phase 3.1: Setup
 - [ ] T001 Scaffold TypeScript workspace structure per implementation plan (e.g., `apps/backend`, `apps/frontend`, `packages/shared`)
-- [ ] T002 Initialize Node.js projects with package manager (pnpm/npm), TypeScript config, and shared env settings
+- [ ] T002 Initialize Node.js projects with npm workspaces, TypeScript config, and shared environment settings
 - [ ] T003 [P] Configure ESLint, Prettier, testing frameworks (Vitest/Jest), Playwright, and accessibility tooling (axe, Lighthouse CI)
 - [ ] T004 [P] Provision local storage primitives (SQLite/PostgreSQL migrations folder, vector store scaffolding) without implementation logic
 

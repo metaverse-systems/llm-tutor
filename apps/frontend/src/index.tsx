@@ -1,5 +1,6 @@
 import "./styles/tailwind.css";
 
+import { ThemeModeProvider } from "@metaverse-systems/llm-tutor-shared";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -13,6 +14,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <LandingPage />
+    <ThemeModeProvider>
+      <LandingPage />
+    </ThemeModeProvider>
   </StrictMode>
 );
