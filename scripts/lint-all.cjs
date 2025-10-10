@@ -66,5 +66,6 @@ runStep("Run frontend high-contrast accessibility spec", "npm", [
 runStep("Run desktop high-contrast accessibility spec", "npx", [
   "playwright",
   "test",
-  "apps/desktop/tests/main/high-contrast.theme.spec.ts"
+  "apps/desktop/tests/main/high-contrast.theme.spec.ts",
+  "--config=apps/desktop/playwright.config.ts"
 ]);

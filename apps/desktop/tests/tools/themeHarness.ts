@@ -94,11 +94,35 @@ export async function closeDiagnosticsApp(app: ElectronApplication | null | unde
     return;
   }
 
-  await app.close();
   const server = rendererServerRegistry.get(app);
-  if (server) {
-    await stopRendererServer(server);
-    rendererServerRegistry.delete(app);
+  
+  try {
+    // Close all windows first
+    const windows = app.windows();
+    await Promise.all(windows.map(w => w.close().catch(() => {})));
+    
+    // Then close the app with timeout
+    await Promise.race([
+      app.close(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("App close timeout")), 5000)
+      )
+    ]).catch(() => {
+      // Force kill if close hangs
+      try {
+        app.process().kill('SIGKILL');
+      } catch {}
+    });
+  } catch (error) {
+    console.error("[themeHarness] Error during app cleanup:", error);
+    try {
+      app.process().kill('SIGKILL');
+    } catch {}
+  } finally {
+    if (server) {
+      await stopRendererServer(server);
+      rendererServerRegistry.delete(app);
+    }
   }
 }
 

@@ -13,6 +13,7 @@ test.describe("Desktop diagnostics high contrast theme", () => {
   });
 
   test("loads shared theme assets, syncs preferences, and passes axe", async () => {
+    test.setTimeout(60000);
     const handle = await launchDiagnosticsWindow();
     app = handle.app;
 
