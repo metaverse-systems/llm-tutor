@@ -63,9 +63,24 @@ runStep("Run frontend high-contrast accessibility spec", "npm", [
   "Unified theme high contrast accessibility"
 ]);
 
-runStep("Run desktop high-contrast accessibility spec", "npx", [
-  "playwright",
-  "test",
-  "apps/desktop/tests/main/high-contrast.theme.spec.ts",
-  "--config=apps/desktop/playwright.config.ts"
-]);
+// Desktop Electron tests need xvfb in CI environments
+const isCI = process.env.CI === "true";
+const desktopTestCommand = isCI ? "xvfb-run" : "npx";
+const desktopTestArgs = isCI
+  ? [
+      "--auto-servernum",
+      "--server-args=-screen 0 1280x960x24",
+      "npx",
+      "playwright",
+      "test",
+      "apps/desktop/tests/main/high-contrast.theme.spec.ts",
+      "--config=apps/desktop/playwright.config.ts"
+    ]
+  : [
+      "playwright",
+      "test",
+      "apps/desktop/tests/main/high-contrast.theme.spec.ts",
+      "--config=apps/desktop/playwright.config.ts"
+    ];
+
+runStep("Run desktop high-contrast accessibility spec", desktopTestCommand, desktopTestArgs);

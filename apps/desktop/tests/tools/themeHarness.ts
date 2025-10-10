@@ -47,8 +47,7 @@ export async function launchDiagnosticsWindow(): Promise<DiagnosticsWindowHandle
       XDG_CONFIG_HOME: workspace.configRoot,
       APPDATA: workspace.configRoot,
         PLAYWRIGHT_TEST: "1",
-        ELECTRON_RENDERER_URL: rendererServer.origin,
-        DISPLAY: process.env.DISPLAY ?? ":99"
+        ELECTRON_RENDERER_URL: rendererServer.origin
     },
       timeout: 30000
   });
