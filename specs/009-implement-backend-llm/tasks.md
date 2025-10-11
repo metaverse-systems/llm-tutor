@@ -15,14 +15,14 @@
 - **T001 ✅**: Ensure backend workspace dependencies are installed (`npm install` from repo root). *(apps/backend)*
 - **T002 ✅**: Add Fastify plugin registration stub for profile routes to `apps/backend/src/index.ts`, wiring new `/api/llm/profiles` namespace without logic. *(apps/backend/src/index.ts)*
 
-### Phase 1: Contract Tests (TDD, parallel-friendly)
-- **T003 [P]**: Author failing contract test for GET `/api/llm/profiles/` response envelopes validating redaction, diagnostics metadata, and ≤500 ms timing expectation. *(apps/backend/tests/contract/llm/list-profiles.contract.test.ts)*
-- **T004 [P]**: Author failing contract test for POST `/api/llm/profiles/` create flow covering validation errors, safe storage outage, and redaction rules. *(apps/backend/tests/contract/llm/create-profile.contract.test.ts)*
-- **T005 [P]**: Author failing contract test for PATCH `/api/llm/profiles/:id` update scenarios including validation, missing profile, and safe storage outage. *(apps/backend/tests/contract/llm/update-profile.contract.test.ts)*
-- **T006 [P]**: Author failing contract test for DELETE `/api/llm/profiles/:id` enforcing successor handling and alternate-not-found error. *(apps/backend/tests/contract/llm/delete-profile.contract.test.ts)*
-- **T007 [P]**: Author failing contract test for POST `/api/llm/profiles/:id/activate` covering previous active return and unknown profile error. *(apps/backend/tests/contract/llm/activate-profile.contract.test.ts)*
-- **T008 [P]**: Author failing contract test for POST `/api/llm/profiles/:id/test` verifying timeout at 30 s, provider error mapping, and diagnostics payload. *(apps/backend/tests/contract/llm/test-prompt.contract.test.ts)*
-- **T009 [P]**: Author failing contract test for POST `/api/llm/profiles/discover` ensuring deduplication, conflict flags, and discovery error paths. *(apps/backend/tests/contract/llm/auto-discover.contract.test.ts)*
+### Phase 1: Contract Tests (TDD, parallel-friendly) ✅ COMPLETE
+- **T003 [P] ✅**: Author failing contract test for GET `/api/llm/profiles/` response envelopes validating redaction, diagnostics metadata, and ≤500 ms timing expectation. *(apps/backend/tests/contract/llm/list-profiles.contract.test.ts)*
+- **T004 [P] ✅**: Author failing contract test for POST `/api/llm/profiles/` create flow covering validation errors, safe storage outage, and redaction rules. *(apps/backend/tests/contract/llm/create-profile.contract.test.ts)*
+- **T005 [P] ✅**: Author failing contract test for PATCH `/api/llm/profiles/:id` update scenarios including validation, missing profile, and safe storage outage. *(apps/backend/tests/contract/llm/update-profile.contract.test.ts)*
+- **T006 [P] ✅**: Author failing contract test for DELETE `/api/llm/profiles/:id` enforcing successor handling and alternate-not-found error. *(apps/backend/tests/contract/llm/delete-profile.contract.test.ts)*
+- **T007 [P] ✅**: Author failing contract test for POST `/api/llm/profiles/:id/activate` covering previous active return and unknown profile error. *(apps/backend/tests/contract/llm/activate-profile.contract.test.ts)*
+- **T008 [P] ✅**: Author failing contract test for POST `/api/llm/profiles/:id/test` verifying timeout at 30 s, provider error mapping, and diagnostics payload. *(apps/backend/tests/contract/llm/test-prompt.contract.test.ts)*
+- **T009 [P] ✅**: Author failing contract test for POST `/api/llm/profiles/discover` ensuring deduplication, conflict flags, and discovery error paths. *(apps/backend/tests/contract/llm/auto-discover.contract.test.ts)*
 
 ### Phase 2: Integration Tests (TDD before implementation)
 - **T010 [P]**: Update integration test for profile CRUD workflow to cover new HTTP routes and ensure diagnostics breadcrumbs emitted. *(apps/backend/tests/integration/llm/profile-crud.test.ts)*
