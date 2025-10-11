@@ -25,11 +25,11 @@
 - [x] T015 Implement `ProfileOperationResponse`, `ProfileErrorCode` enum, and shared response envelope helpers in `packages/shared/src/contracts/llm-profile-ipc.ts`.
 - [x] T016 Add channel-specific response payload schemas (list/create/update/delete/activate/test/discover) and sanitization helpers in `packages/shared/src/contracts/llm-profile-ipc.ts`.
 - [x] T017 Add `DiagnosticsBreadcrumb` and `SafeStorageOutageState` schemas plus correlation ID utilities in `packages/shared/src/contracts/llm-profile-ipc.ts` and export them for reuse.
-- [ ] T018 Implement safe-storage outage manager service handling state transitions and diagnostics hooks in `apps/desktop/src/main/services/safe-storage-outage.service.ts`.
-- [ ] T019 Implement diagnostics recorder for profile IPC events with rotation + warning thresholds in `apps/desktop/src/main/diagnostics/profile-ipc.recorder.ts`.
-- [ ] T020 Create typed IPC router scaffold registering seven channels and wiring dispose lifecycle in `apps/desktop/src/main/ipc/profile-ipc.router.ts` and integrate with `apps/desktop/src/main/ipc/index.ts`.
-- [ ] T021 Implement `llmProfile:list` handler with payload validation, service call, diagnostics emission, and ≤500 ms budget enforcement in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
-- [ ] T022 Implement `llmProfile:create` handler with safeStorage gating, sanitization, and error mapping in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
+- [x] T018 Implement safe-storage outage manager service handling state transitions and diagnostics hooks in `apps/desktop/src/main/services/safe-storage-outage.service.ts`.
+- [x] T019 Implement diagnostics recorder for profile IPC events with rotation + warning thresholds in `apps/desktop/src/main/diagnostics/profile-ipc.recorder.ts`.
+- [x] T020 Create typed IPC router scaffold registering seven channels and wiring dispose lifecycle in `apps/desktop/src/main/ipc/profile-ipc.router.ts` and integrate with `apps/desktop/src/main/ipc/index.ts`.
+- [x] T021 Implement `llmProfile:list` handler with payload validation, service call, diagnostics emission, and ≤500 ms budget enforcement in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
+- [x] T022 Implement `llmProfile:create` handler with safeStorage gating, sanitization, and error mapping in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
 - [ ] T023 Implement `llmProfile:update` handler handling partial changes, conflict detection, and diagnostics metadata in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
 - [ ] T024 Implement `llmProfile:delete` handler enforcing successor selection and structured conflicts in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
 - [ ] T025 Implement `llmProfile:activate` handler managing serialized activation and conflict codes in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
