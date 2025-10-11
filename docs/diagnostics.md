@@ -27,7 +27,7 @@ This runbook explains how to validate, operate, and troubleshoot the diagnostics
    - Temporarily remove write access to `${app.getPath("userData")}/diagnostics-preferences.json` (see _Storage Failure Remediation_ below) or deliberately toggle the backend failure hook (`consentSummary = "Simulate storage failure"` via REST client in development).
    - Observe the renderer “session-only” alert, check `window.llmTutor.diagnostics.getState()` for a `storageHealth` payload, and clear the condition to verify auto-recovery.
 6. **Validate export**
-   - Trigger “Export snapshot”, save the JSONL archive, and confirm it contains the last generated snapshot with preference records and any storage health alerts.
+   - Trigger “Export snapshot”, save the JSONL archive, and confirm it contains the last generated snapshot with preference records, any storage health alerts, and appended `llm_*` diagnostics events from the sanitised `diagnostics-events.jsonl` log.
 
 ## Automation Workflow
 
@@ -62,6 +62,7 @@ This runbook explains how to validate, operate, and troubleshoot the diagnostics
 - Every export run prepares a JSONL log alongside the snapshot archive. By default logs live in `${app.getPath("userData")}/diagnostics/exports`, but if the user saves to `/path/to/run`, both the snapshot and log land there.
 - Filenames follow `diagnostics-snapshot-export-<timestamp>.log.jsonl` (UTC, punctuation stripped) and include structured payloads for `outcome`, `snapshotPath`, `accessibilityState`, and failure metadata.
 - Use the Playwright helper `ensureSnapshotAvailable` to wait for the log file; the scenario fails fast with a clear error if the log is missing after the configured timeout.
+- Verify every export bundles the latest `diagnostics-events.jsonl` entries after the snapshot line. Expect `llm_profile_*`, `llm_autodiscovery`, and `llm_test_prompt` events when the corresponding workflows have run; each entry is stored without API keys or full endpoint URLs.
 - Keep the log directory private (mode `0700`) so the export pipeline retains learner-specific context without leaking between system users.
 
 ### Troubleshooting automation
@@ -108,6 +109,7 @@ Vault updates append consent events to the record. The backend snapshot service 
 - **Retention Logs** – JSONL records appended alongside snapshots with `type: "retention-warning"` events.
 - **Exports** – User-selected directory determined via Electron’s save dialog.
 - **Preferences** – `app.getPath("userData")/diagnostics-preferences.json` managed by `electron-store`; includes consent log and storage health metadata.
+- **LLM Diagnostics Events** – `app.getPath("userData")/diagnostics/diagnostics-events.jsonl` capturing sanitised `llm_*` timeline entries that are appended to each export.
 - **Storage alerts** – Inline with the preference record’s `storageHealth` field; also mirrored inside the latest diagnostics snapshot.
 
 ## Storage Failure Remediation

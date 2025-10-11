@@ -380,7 +380,7 @@ grep -i 'sk-proj' docs/reports/diagnostics/007-llm-profiles-test.jsonl
 4. **Build UI Components**: Create Settings page with profile list, add/edit forms, test buttons
 5. **Write Tests**: Unit → Contract → Integration → E2E → Accessibility (TDD approach)
 6. **Validate Accessibility**: Run `axe-core` scans, verify WCAG 2.1 AA compliance
-7. **Export Diagnostics**: Verify all events logged correctly with API key redaction
+7. **Export Diagnostics**: Verify the JSONL export appends sanitised `llm_*` entries from `diagnostics-events.jsonl` with API keys redacted
 
 ---
 
@@ -392,7 +392,7 @@ Before submitting PR:
 - [ ] Integration tests cover CRUD workflows
 - [ ] E2E tests verify UI interactions (Playwright)
 - [ ] Accessibility tests report 0 violations (axe-core)
-- [ ] Diagnostics events logged correctly (verify JSONL export)
+- [ ] Diagnostics events logged correctly (JSONL export contains sanitised `llm_*` entries)
 - [ ] API keys redacted in all read operations
 - [ ] Encryption fallback tested (Linux headless mode)
 - [ ] Auto-discovery tested with/without llama.cpp server

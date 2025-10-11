@@ -9,7 +9,8 @@ export {
 export {
 	DiagnosticsLogger,
 	createDiagnosticsLogger,
-	sanitizeDiagnosticsEvent
+	sanitizeDiagnosticsEvent,
+	DIAGNOSTICS_EVENTS_FILE_NAME
 } from "./diagnostics-logger.js";
 
 export type {

@@ -30,6 +30,11 @@ import {
   type SafeStorageAdapter
 } from "../../backend/src/infra/encryption/index.js";
 import {
+  createDiagnosticsLogger,
+  type DiagnosticsEvent,
+  type DiagnosticsLogger
+} from "../../backend/src/infra/logging/index.js";
+import {
   ProfileVaultService,
   createElectronProfileVaultStore
 } from "../../backend/src/services/llm/profile-vault.js";
@@ -58,6 +63,7 @@ let diagnosticsManager: DiagnosticsManager | null = null;
 let diagnosticsIpc: DiagnosticsIpcRegistration | null = null;
 let llmRegistration: LlmIpcRegistration | null = null;
 let firstLaunchCoordinator: FirstLaunchAutoDiscoveryCoordinator | null = null;
+let diagnosticsEventLogger: DiagnosticsLogger | null = null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -117,6 +123,41 @@ function resolveBackendEntry(): string | null {
   return null;
 }
 
+function getDiagnosticsLogDirectory(): string | null {
+  const directory = diagnosticsManager?.getDiagnosticsDirectory();
+  if (directory) {
+    return directory;
+  }
+
+  try {
+    const fallback = path.join(app.getPath("userData"), "diagnostics");
+    return fallback;
+  } catch (error) {
+    console.warn("Failed to resolve diagnostics log directory", error);
+    return null;
+  }
+}
+
+function getDiagnosticsLogger(): DiagnosticsLogger | null {
+  if (diagnosticsEventLogger) {
+    return diagnosticsEventLogger;
+  }
+
+  const directory = getDiagnosticsLogDirectory();
+  if (!directory) {
+    return null;
+  }
+
+  try {
+    diagnosticsEventLogger = createDiagnosticsLogger({ logDirectory: directory });
+    return diagnosticsEventLogger;
+  } catch (error) {
+    console.warn("Failed to create diagnostics logger", error);
+    diagnosticsEventLogger = null;
+    return null;
+  }
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -160,33 +201,55 @@ function createWindow(): void {
 
 async function setupLlmSubsystem(): Promise<void> {
   const logger = console;
+  const diagnosticsLogger = getDiagnosticsLogger();
+  const recordDiagnosticsEvent = diagnosticsLogger
+    ? (event: DiagnosticsEvent) => diagnosticsLogger.record(event)
+    : null;
 
   const profileVaultStore = await createElectronProfileVaultStore();
   const profileVaultService = new ProfileVaultService({ store: profileVaultStore });
   const encryptionService = new EncryptionService({
     safeStorage: createSafeStorageAdapter(logger),
-    onFallback: (event) => logEncryptionFallback(event, logger)
+    onFallback: (event) => {
+      logEncryptionFallback(event, logger);
+      void recordDiagnosticsEvent?.(event);
+    }
   });
 
   const profileService = new ProfileService({
     vaultService: profileVaultService,
     encryptionService,
-    diagnosticsRecorder: null
+    diagnosticsRecorder: recordDiagnosticsEvent
+      ? {
+          record: (event) => recordDiagnosticsEvent(event)
+        }
+      : null
   });
 
   const testPromptService = new TestPromptService({
     vaultService: profileVaultService,
     encryptionService,
-    diagnosticsRecorder: null
+    diagnosticsRecorder: recordDiagnosticsEvent
+      ? {
+          record: (event) => recordDiagnosticsEvent(event)
+        }
+      : null
   });
 
   const autoDiscoveryService = new AutoDiscoveryService({
     profileService: createAutoDiscoveryProfileServiceAdapter(profileService),
-    diagnosticsRecorder: {
-      record: (event) => {
-        logger.info?.("[llm:auto-discovery] diagnostics event", event);
-      }
-    },
+    diagnosticsRecorder: recordDiagnosticsEvent
+      ? {
+          record: async (event) => {
+            logger.info?.("[llm:auto-discovery] diagnostics event", event);
+            await recordDiagnosticsEvent(event);
+          }
+        }
+      : {
+          record: (event) => {
+            logger.info?.("[llm:auto-discovery] diagnostics event", event);
+          }
+        },
     logger
   });
 
@@ -334,4 +397,5 @@ app.on("quit", () => {
   llmRegistration?.dispose();
   llmRegistration = null;
   firstLaunchCoordinator = null;
+  diagnosticsEventLogger = null;
 });

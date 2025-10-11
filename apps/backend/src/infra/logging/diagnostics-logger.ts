@@ -9,6 +9,7 @@ import { URL } from "node:url";
 import type { EncryptionFallbackEvent } from "../encryption/index.js";
 
 const DEFAULT_FILE_NAME = "diagnostics-events.jsonl" as const;
+export const DIAGNOSTICS_EVENTS_FILE_NAME = DEFAULT_FILE_NAME;
 const DIRECTORY_MODE = 0o700;
 const MAX_RESPONSE_LENGTH = 500;
 const RESPONSE_TRUNCATION_SUFFIX = "..." as const;

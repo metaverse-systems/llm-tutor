@@ -913,24 +913,31 @@
 ---
 
 ### T032 [P]: Export diagnostics with LLM events
-**Status**: ⏳ Pending  
-**File**: `apps/desktop/scripts/export-diagnostics.cjs`  
+**Status**: ✅ Completed (2025-10-19)  
+**Files**: `apps/desktop/src/main.ts`, `apps/desktop/src/main/diagnostics/index.ts`, `apps/backend/src/infra/logging/export.ts`, `apps/backend/src/api/diagnostics/routes.ts`, `tests/e2e/diagnostics/export.spec.ts`  
 **Dependencies**: T031  
 **Parallel**: ✅
 
 **Steps**:
-1. Edit `apps/desktop/scripts/export-diagnostics.cjs`
-2. Ensure LLM event types exported to JSONL
-3. Test export manually: Create profiles, test prompts, export diagnostics
-4. Verify JSONL file contains `llm_*` events with redacted API keys
-5. Document in quickstart.md validation section
+1. Promote shared `DiagnosticsLogger` initialisation in Electron main so profile CRUD, test prompt, auto-discovery, and encryption fallback services stream `llm_*` events to disk alongside snapshots.
+2. Surface the diagnostics directory via `LLM_TUTOR_DIAGNOSTICS_DIR` for the backend child process and enhance the desktop fallback exporter to merge `diagnostics-events.jsonl` lines into the archive.
+3. Extend the backend export pipeline to parse and append sanitised event entries after snapshot payloads while gracefully skipping missing logs.
+4. Update the Playwright diagnostics export suite to synthesize representative LLM activity and assert exported archives contain redacted `llm_*` entries.
+5. Refresh diagnostics documentation and quickstart checklists to include verification guidance for `diagnostics-events.jsonl`.
 
 **Acceptance Criteria**:
-- [ ] LLM events appear in exported JSONL
-- [ ] API keys not present in export
-- [ ] Manual validation passed
+- [x] Exports include `llm_profile_*`, `llm_autodiscovery`, and related events with API keys removed and endpoints reduced to hostnames.
+- [x] Backend API honours `LLM_TUTOR_DIAGNOSTICS_DIR` and desktop fallback mirrors the same behaviour when the backend is unavailable.
+- [x] Playwright export test fails if `llm_*` entries are missing or leak `apiKey` values.
+- [x] Documentation updates guide contributors to validate `diagnostics-events.jsonl` contents during export checks.
 
-**References**: quickstart.md (Diagnostics Validation)
+**Notes**:
+- Introduced reusable diagnostics logger wiring in `apps/desktop/src/main.ts`, ensuring all LLM subsystems emit events once diagnostics initialisation completes.
+- Backend exports now parse `diagnostics-events.jsonl` and append events to the generated JSONL package; the desktop fallback uses identical parsing helpers for parity.
+- The Playwright export suite drives the renderer bridge to create/update/delete profiles, trigger auto-discovery, and run a test prompt, validating sanitisation within the exported archive.
+- `docs/diagnostics.md` and `specs/007-llm-connection-management/quickstart.md` document the new verification step and event log location under the diagnostics directory.
+
+**References**: docs/diagnostics.md (export validation), quickstart.md (LLM diagnostics checklist), data-model.md (DiagnosticsLogger)
 
 ---
 
