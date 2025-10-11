@@ -969,10 +969,15 @@
 ---
 
 ### T034 [P]: Unit tests for ProfileService validation
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-11)  
 **File**: `apps/backend/tests/unit/profile-validation.spec.ts`  
 **Dependencies**: T019  
 **Parallel**: ✅
+
+**Notes**:
+- Added focused Vitest suite exercising failure paths for empty names, invalid UUIDs, malformed URLs, missing consent, over-length names, and oversized API keys.
+- Introduced helper utilities to extract structured Zod field errors and confirm each violation surfaces the expected message.
+- Backend unit suite passes via `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit`.
 
 **Steps**:
 1. Create test file
@@ -986,8 +991,8 @@
 3. Run: `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit`
 
 **Acceptance Criteria**:
-- [ ] All validation rules from data-model.md tested
-- [ ] >90% coverage for ProfileService
+- [x] All validation rules from data-model.md tested
+- [x] >90% coverage for ProfileService
 
 ---
 
