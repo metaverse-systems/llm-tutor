@@ -88,14 +88,14 @@ class ContractTestHarness implements LlmContractTestHarness {
 		this.testPromptService = new TestPromptService({
 			vaultService: this.vaultService,
 			encryptionService,
-			// Mock fetch for contract tests, but delegate to real fetch for integration tests
+			// Use smart mocking: mock for contract tests, real fetch for integration tests with nock
 			fetchImpl: async (url: string | URL, init?: RequestInit) => {
 				const urlString = url.toString();
 				const body = init?.body ? JSON.parse(init.body as string) : {};
 				const promptText = body.prompt || body.messages?.[0]?.content || "";
 				const signal = init?.signal;
 				
-				// Simulate timeout for specific prompt - wait for the abort signal
+				// Handle timeout simulation (contract test specific)
 				if (promptText.includes("Simulate timeout")) {
 					return new Promise((_, reject) => {
 						if (signal) {
@@ -105,44 +105,42 @@ class ContractTestHarness implements LlmContractTestHarness {
 								reject(error);
 							});
 						}
-						// Never resolve - let the abort signal trigger
 					});
 				}
 				
-				// Simulate error response for specific prompt (only for contract tests without nock)
-				if (promptText.includes("Cause an error") && urlString.includes("localhost:8080")) {
-					// Check if nock is active by seeing if there are pending mocks
-					const nockModule = (globalThis as any).nock;
-					if (!nockModule || !nockModule.activeMocks || nockModule.activeMocks().length === 0) {
+				// Try real fetch first (for integration tests with nock)
+				try {
+					return await globalThis.fetch(url, init);
+				} catch (error: any) {
+					// If fetch fails and we're testing localhost, provide a mock response
+					if (urlString.includes("localhost:8080")) {
+						// Handle error simulation
+						if (promptText.includes("Cause an error")) {
+							return new Response(
+								JSON.stringify({ error: { message: "Simulated provider error" } }),
+								{
+									status: 500,
+									headers: { "content-type": "application/json" }
+								}
+							);
+						}
+						
+						// Default success response for contract tests
 						return new Response(
-							JSON.stringify({ error: { message: "Simulated provider error" } }),
+							JSON.stringify({
+								choices: [{ text: "Test response from llama.cpp" }],
+								model: "llama-2-7b"
+							}),
 							{
-								status: 500,
+								status: 200,
 								headers: { "content-type": "application/json" }
 							}
 						);
 					}
+					
+					// Re-throw for non-localhost errors
+					throw error;
 				}
-				
-				// For integration tests with nock, delegate to real fetch
-				// For contract tests, return mock response for localhost
-				const hasNockMocks = (globalThis as any).nock?.activeMocks?.()?.length > 0;
-				if (!hasNockMocks && urlString.includes("localhost:8080")) {
-					// Mock successful response for contract tests
-					return new Response(
-						JSON.stringify({
-							choices: [{ text: "Test response from llama.cpp" }],
-							model: "llama-2-7b"
-						}),
-						{
-							status: 200,
-							headers: { "content-type": "application/json" }
-						}
-					);
-				}
-				
-				// Delegate to real fetch (for integration tests with nock)
-				return globalThis.fetch(url, init);
 			},
 			timeoutMs: 1000, // Short timeout for tests
 			diagnosticsRecorder: null
