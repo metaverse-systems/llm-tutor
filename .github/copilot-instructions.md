@@ -18,6 +18,8 @@ Auto-generated from all feature plans. Last updated: 2025-10-07
 - Local electron-store JSON vault plus diagnostics JSONL in `app.getPath('userData')/diagnostics` (008-llm-profile-ipc)
 - TypeScript 5.5 on Node.js 20 (backend workspace) + Fastify 4, Zod, electron-store (via profile vault), axios/fetch for provider probes (009-implement-backend-llm)
 - Local electron-store JSON vault for LLM profiles plus diagnostics JSONL writer (009-implement-backend-llm)
+- TypeScript 5.5 across Electron main/preload, backend Fastify services, and React renderer on Node.js 20 + React 18, Vite 5, Electron 38, Fastify 4, electron-store 9, Zod, shared contracts package (010-create-a-settings)
+- Local electron-store vault for preferences and diagnostics JSONL exports (no new persistence layers) (010-create-a-settings)
 
 ## Workspace Package Management
 - Use `npm` for all workspace commands (no `pnpm`).
@@ -39,9 +41,9 @@ tests/
 : Follow standard conventions
 
 ## Recent Changes
+- 010-create-a-settings: Added TypeScript 5.5 across Electron main/preload, backend Fastify services, and React renderer on Node.js 20 + React 18, Vite 5, Electron 38, Fastify 4, electron-store 9, Zod, shared contracts package
 - 009-implement-backend-llm: Added TypeScript 5.5 on Node.js 20 (backend workspace) + Fastify 4, Zod, electron-store (via profile vault), axios/fetch for provider probes
 - 008-llm-profile-ipc: Added TypeScript 5.5 across Electron main/renderer and Node.js 20 services + Electron 38 IPC layer, electron-store vault, Zod schema validation, Vitest, Playwright, axe-core
-- 007-llm-connection-management: Added TypeScript 5.5 across workspaces, Node.js 20 runtime for Electron main + backend + Electron 38, electron-store 9, Fastify 4, React 18, Vite 5, Zod (validation), Vitest, Playwright + axe-core
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
