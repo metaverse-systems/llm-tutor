@@ -116,7 +116,7 @@ describe("LLM Profile IPC contract", () => {
       type: "create",
       profile: {
         name: "LLM Tutor QA",
-        providerType: "openai",
+        providerType: "azure",
         endpointUrl: "https://api.openai.com/v1",
         apiKey: "sk-test",
         modelId: "gpt-4o",
