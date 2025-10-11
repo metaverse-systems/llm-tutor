@@ -840,10 +840,19 @@
 ## Phase 3.4: Integration & Polish
 
 ### T030: Wire auto-discovery to app lifecycle
-**Status**: ⏳ Pending  
-**File**: `apps/desktop/src/main.ts`  
+**Status**: ✅ Completed (2025-10-11)  
+**Files**:  
+- `apps/desktop/src/main.ts`  
+- `apps/desktop/src/main/llm/first-launch.ts`  
+- `apps/desktop/tests/integration/app-lifecycle.test.ts`  
 **Dependencies**: T021, T022  
 **Parallel**: N/A
+
+**Notes**:
+- Added `FirstLaunchAutoDiscoveryCoordinator` with an electron-store backed flag to ensure discovery runs exactly once and subsequent launches exit early.
+- Bootstrapped the coordinator during `app.whenReady()` and fire discovery asynchronously so window creation isn't delayed; cleanup now happens on `will-quit`.
+- Authored integration tests covering single-run behavior, concurrent invocation suppression, and error handling using an in-memory flag store.
+- Validated with `npm --workspace @metaverse-systems/llm-tutor-desktop run test -- tests/integration/app-lifecycle.test.ts` (passes).
 
 **Steps**:
 1. Edit `apps/desktop/src/main.ts`
@@ -853,12 +862,12 @@
    - Set `firstLaunch: false` in store
 3. Do not block app startup (run discovery in background)
 4. Write integration test in `apps/desktop/tests/integration/app-lifecycle.test.ts`
-5. Run: `npm --workspace @metaverse-systems/llm-tutor-desktop run test:integration`
+5. Run: `npm --workspace @metaverse-systems/llm-tutor-desktop run test -- tests/integration/app-lifecycle.test.ts`
 
 **Acceptance Criteria**:
-- [ ] Integration test passes
-- [ ] Auto-discovery only runs on first launch
-- [ ] App startup not blocked
+- [x] Integration test passes
+- [x] Auto-discovery only runs on first launch
+- [x] App startup not blocked
 
 **References**: quickstart.md (Scenario 1), spec.md (FR-001)
 
