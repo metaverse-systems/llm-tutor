@@ -24,6 +24,13 @@
 
 ---
 
+## Clarifications
+
+### Session 2025-10-11
+- Q: What is the maximum provider response time we should treat as a timeout when running a prompt test? → A: 30 seconds
+
+---
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### Primary User Story
@@ -35,7 +42,7 @@ A self-directed learner wants to manage connections to local or remote language 
 
 ### Edge Cases
 - What happens when local encryption support is temporarily unavailable during a write request? The backend must block unsafe writes, explain the outage, and record diagnostics for recovery.
-- How does the system handle provider timeouts or authentication failures during a test prompt? The learner must receive clear, localised error messaging, and diagnostics should record the failure without leaking prompt content.
+- How does the system handle provider timeouts or authentication failures during a test prompt? Any response exceeding 30 seconds is treated as a timeout, the learner must receive clear, localised error messaging, and diagnostics should record the failure without leaking prompt content.
 
 ## Requirements *(mandatory)*
 
@@ -46,7 +53,7 @@ A self-directed learner wants to manage connections to local or remote language 
 - **FR-004**: The backend MUST refuse profile write operations whenever secure local storage is unavailable, informing the learner of the outage and recording the blocked attempt for support follow-up.
 - **FR-005**: The backend MUST deliver profile deletion outcomes that either promote a designated successor or require the learner to select an alternate before removal, guaranteeing uninterrupted active profile coverage.
 - **FR-006**: The backend MUST execute profile activation requests serially, preventing race conditions and returning the previous active identifier when relevant for audit trails.
-- **FR-007**: The backend MUST run prompt tests against the selected model, measuring latency, capturing provider errors (timeouts, authentication issues), and returning results that the UI can present in accessible status banners.
+- **FR-007**: The backend MUST run prompt tests against the selected model, measuring latency, capturing provider errors (timeouts, authentication issues), and returning results that the UI can present in accessible status banners while treating any provider response longer than 30 seconds as a timeout.
 - **FR-008**: The backend MUST support automated discovery of local or remote model endpoints, consolidating findings, suppressing duplicates, and reporting conflicts or failures with remediation hints.
 - **FR-009**: Every profile operation MUST emit diagnostics entries containing correlation IDs, result codes, performance timings, and safe-storage status while omitting raw prompts or secrets.
 - **FR-010**: Automated regression tests MUST cover success and failure paths for all profile operations, ensuring contract and integration suites pass before release.
