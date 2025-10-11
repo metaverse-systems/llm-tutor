@@ -11,6 +11,7 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
   "test": "vitest run",
   "test:unit": "vitest run --run tests/unit",
+  "test:perf": "vitest run --run tests/performance",
     "test:e2e": "echo 'No backend-specific e2e tests yet'",
     "test:a11y": "echo 'Accessibility tests run from frontend workspace'",
     "format:css": "node ../../scripts/format-css-workspace.cjs src",

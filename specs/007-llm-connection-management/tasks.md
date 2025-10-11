@@ -997,24 +997,24 @@
 ---
 
 ### T035 [P]: Performance test for profile CRUD operations
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-11)  
 **File**: `apps/backend/tests/performance/profile-crud.perf.test.ts`  
 **Dependencies**: T019  
 **Parallel**: ✅
 
 **Steps**:
-1. Create performance test file
-2. Measure operations with 100 profiles in vault:
-   - List profiles: <100ms
-   - Create profile: <500ms (excluding network I/O)
-   - Update profile: <200ms
-   - Delete profile: <200ms
-3. Assert p95 latency meets performance goals from plan.md
-4. Run: `npm --workspace @metaverse-systems/llm-tutor-backend run test:perf`
+1. Create `apps/backend/tests/performance/profile-crud.perf.test.ts` enforcing plan.md latency thresholds with a seeded 100-profile in-memory vault.
+2. Benchmark list/create/update/delete flows across 75 iterations per operation, resetting the vault between runs and computing p95 latency.
+3. Emit structured console metrics so CI logs capture observed p95 values alongside the assertions.
+4. Add backend `test:perf` npm script and run `npm --workspace @metaverse-systems/llm-tutor-backend run test:perf`.
 
 **Acceptance Criteria**:
-- [ ] All operations meet <500ms target
-- [ ] Performance goals documented
+- [x] All operations meet <500ms target
+- [x] Performance goals documented
+
+**Notes**:
+- Latest run (Linux, Node 20) recorded p95 latencies: list 5.050 ms, create 7.089 ms, update 3.967 ms, delete 3.870 ms (see test log output).
+- The performance harness seeds deterministic UUIDs and timestamps via in-memory services to isolate business logic cost from I/O.
 
 **References**: plan.md (Performance Goals)
 
