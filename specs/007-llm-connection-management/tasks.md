@@ -552,7 +552,7 @@
 ---
 
 ### T021: Implement AutoDiscoveryService for llama.cpp detection
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-12)  
 **File**: `apps/desktop/src/main/llm/auto-discovery.ts`  
 **Dependencies**: T019  
 **Parallel**: N/A
@@ -576,13 +576,18 @@
 5. Run: `npm --workspace @metaverse-systems/llm-tutor-desktop run test:unit`
 
 **Acceptance Criteria**:
-- [ ] Unit tests pass
-- [ ] Parallel probes complete in ~2s (not 6s sequential)
-- [ ] Cache prevents repeated probes
+- [x] Unit tests pass *(validated via `npx vitest run tests/main/llm/auto-discovery.spec.ts`)*
+- [x] Parallel probes complete in ~2s (not 6s sequential)
+- [x] Cache prevents repeated probes
 - [ ] Contract test T010 now passes ✅
 - [ ] Integration test T011 now passes ✅
 
 **References**: research.md (auto-discovery), quickstart.md (Scenario 1)
+
+**Notes**:
+- Implemented concurrent port probes with cached results, diagnostics emission, and default profile provisioning in `apps/desktop/src/main/llm/auto-discovery.ts`.
+- Added dedicated unit coverage in `apps/desktop/tests/main/llm/auto-discovery.spec.ts` using mock HTTP servers to exercise success, cache reuse, force refresh, and failure cases.
+- Targeted lint + vitest runs succeed; full desktop `npm test` remains blocked by legacy Playwright suites.
 
 ---
 
