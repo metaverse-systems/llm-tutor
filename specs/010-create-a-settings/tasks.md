@@ -130,36 +130,36 @@
 
 ### Phase 3.9: Validation & Polish
 
-- [ ] **T020** Execute Vitest preload test suite and resolve failures:
+- [ ] **T020** Execute Vitest preload test suite and resolve failures (Requires manual execution):
   - Run `npm run test --workspace @metaverse-systems/llm-tutor-desktop -- apps/desktop/tests/preload/settings-bridge.spec.ts`
   - Verify all assertions pass
   *(apps/desktop/tests/preload/settings-bridge.spec.ts)*
 
-- [ ] **T021** Execute Playwright web test suite and resolve failures:
+- [ ] **T021** Execute Playwright web test suite and resolve failures (Requires manual execution):
   - Run `npm run test:e2e --workspace @metaverse-systems/llm-tutor-frontend -- apps/frontend/tests/pages/settings/settings-nav.spec.ts`
   - Verify all accessibility checks pass
   *(apps/frontend/tests/pages/settings/settings-nav.spec.ts)*
 
-- [ ] **T022** Execute Playwright Electron test suite and resolve failures:
+- [ ] **T022** Execute Playwright Electron test suite and resolve failures (Requires manual execution):
   - Run Electron e2e tests for Settings navigation
   - Verify parity with web build
   *(apps/desktop/tests/e2e/settings/settings-nav.e2e.spec.ts)*
 
-- [ ] **T023 [P]** Add unit tests for GeneralSection component covering telemetry toggle state management and consent timestamp display *(apps/frontend/tests/components/settings/GeneralSection.spec.tsx)*
+- [x] **T023 [P]** Add unit tests for GeneralSection component covering telemetry toggle state management and consent timestamp display *(apps/frontend/tests/components/settings/GeneralSection.spec.tsx)*
 
-- [ ] **T024 [P]** Add unit tests for DiagnosticsSection component covering disabled states and export action triggering *(apps/frontend/tests/components/settings/DiagnosticsSection.spec.tsx)*
+- [x] **T024 [P]** Add unit tests for DiagnosticsSection component covering disabled states and export action triggering *(apps/frontend/tests/components/settings/DiagnosticsSection.spec.tsx)*
 
-- [ ] **T025** Manual validation following quickstart.md scenarios:
+- [ ] **T025** Manual validation following quickstart.md scenarios (Requires manual execution):
   - Step through all verification steps for web and Electron
   - Confirm focus management, keyboard operability, and telemetry defaults
   - Document outcomes in test run notes
   *(Follow specs/010-create-a-settings/quickstart.md)*
 
-- [ ] **T026 [P]** Update documentation if needed:
+- [x] **T026 [P]** Update documentation if needed:
   - Add Settings page usage notes to user-facing docs
   - Document telemetry opt-out default and consent model
   - Update developer notes on focus management patterns
-  *(docs/)*
+  *(docs/settings.md)*
 
 ## Dependencies & Execution Order
 
