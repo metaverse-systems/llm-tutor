@@ -253,6 +253,17 @@ export async function registerProfileRoutes(
       
       const result = await profileService.createProfile(payload);
       
+      // Record diagnostics event
+      if (diagnosticsLogger) {
+        await diagnosticsLogger.record({
+          type: "llm_profile_created",
+          profileId: result.profile.id,
+          profileName: result.profile.name,
+          providerType: result.profile.providerType,
+          timestamp: Date.now()
+        });
+      }
+      
       return reply.code(201).send({
         success: true,
         data: {
@@ -306,6 +317,19 @@ export async function registerProfileRoutes(
       };
       
       const result = await profileService.updateProfile(payload);
+      
+      // Record diagnostics event
+      if (diagnosticsLogger) {
+        const changedFields = Object.keys(body.changes);
+        await diagnosticsLogger.record({
+          type: "llm_profile_updated",
+          profileId: result.profile.id,
+          profileName: result.profile.name,
+          providerType: result.profile.providerType,
+          changes: changedFields,
+          timestamp: Date.now()
+        });
+      }
       
       return reply.code(200).send({
         success: true,
@@ -363,12 +387,37 @@ export async function registerProfileRoutes(
       const { profileId } = request.params;
       const body = deleteProfileRequestSchema.parse(request.body || {});
       
+      // Fetch profile details before deletion for diagnostics
+      let profileName = "unknown";
+      let providerType: "llama.cpp" | "azure" | "custom" = "custom";
+      try {
+        const listResult = await profileService.listProfiles();
+        const profile = listResult.profiles.find(p => p.id === profileId);
+        if (profile) {
+          profileName = profile.name;
+          providerType = profile.providerType;
+        }
+      } catch {
+        // Continue with deletion even if profile lookup fails
+      }
+      
       const payload: DeleteProfilePayload = {
         id: profileId,
         activateAlternateId: body.successorProfileId
       };
       
       const result = await profileService.deleteProfile(payload);
+      
+      // Record diagnostics event
+      if (diagnosticsLogger) {
+        await diagnosticsLogger.record({
+          type: "llm_profile_deleted",
+          profileId: result.deletedId,
+          profileName,
+          providerType,
+          timestamp: Date.now()
+        });
+      }
       
       return reply.code(200).send({
         success: true,
@@ -432,6 +481,17 @@ export async function registerProfileRoutes(
       
       const result = await profileService.activateProfile(payload);
       
+      // Record diagnostics event
+      if (diagnosticsLogger) {
+        await diagnosticsLogger.record({
+          type: "llm_profile_activated",
+          profileId: result.activeProfile.id,
+          profileName: result.activeProfile.name,
+          providerType: result.activeProfile.providerType,
+          timestamp: Date.now()
+        });
+      }
+      
       return reply.code(200).send({
         success: true,
         data: {
@@ -483,6 +543,14 @@ export async function registerProfileRoutes(
         promptText: body.promptOverride || "Hello, this is a test prompt.",
         timeoutMs: body.timeoutMs
       });
+      
+      // Record diagnostics event
+      if (diagnosticsLogger) {
+        await diagnosticsLogger.record({
+          type: "llm_test_prompt",
+          result
+        });
+      }
       
       return reply.code(200).send({
         success: true,
