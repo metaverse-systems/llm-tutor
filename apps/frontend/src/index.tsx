@@ -5,6 +5,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { LandingPage } from "./pages/landing";
+import { LLMProfiles } from "./pages/settings";
 
 const rootElement = document.getElementById("root");
 
@@ -15,7 +16,7 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <ThemeModeProvider>
-      <LandingPage />
+      {window.location?.pathname.startsWith("/settings/llm") ? <LLMProfiles /> : <LandingPage />}
     </ThemeModeProvider>
   </StrictMode>
 );

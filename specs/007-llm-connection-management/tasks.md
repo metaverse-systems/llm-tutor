@@ -1021,8 +1021,10 @@
 ---
 
 ### T036 [P]: Accessibility snapshot test
-**Status**: ⏳ Pending  
-**File**: `apps/frontend/tests/accessibility/llm-snapshot.spec.ts`  
+**Status**: ✅ Completed (2025-10-12)  
+**Files**:  
+- `apps/frontend/tests/accessibility/llm-snapshot.spec.ts`  
+- `docs/reports/accessibility/007-llm-profiles.json`  
 **Dependencies**: T025-T029  
 **Parallel**: ✅
 
@@ -1037,9 +1039,14 @@
 8. Run: `npm --workspace @metaverse-systems/llm-tutor-frontend run test:a11y`
 
 **Acceptance Criteria**:
-- [ ] Report saved to docs/reports/
-- [ ] 0 violations across all UI states
-- [ ] Test T014 passes ✅
+- [x] Report saved to docs/reports/
+- [x] 0 violations across all UI states
+- [x] Test T014 passes ✅
+
+**Notes**:
+- Playwright axe snapshot run generates `docs/reports/accessibility/007-llm-profiles.json` capturing settings, profile form, and consent dialog states with zero violations.
+- Suite executes via `npm --workspace @metaverse-systems/llm-tutor-frontend run test:a11y` alongside T014; latest run passed 11/11 checks.
+
 
 **References**: spec.md (AR-001 through AR-006), quickstart.md (Accessibility Tests)
 

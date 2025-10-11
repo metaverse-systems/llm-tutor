@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2025-10-11T09:21:26.889Z",
+  "route": "/settings/llm",
+  "reviewer": "axe-core@playwright",
+  "snapshots": [
+    {
+      "state": "settings",
+      "url": "http://127.0.0.1:5173/settings/llm",
+      "passes": 20,
+      "violations": 0,
+      "incomplete": 1,
+      "inapplicable": 39
+    },
+    {
+      "state": "profile-form",
+      "url": "http://127.0.0.1:5173/settings/llm",
+      "passes": 24,
+      "violations": 0,
+      "incomplete": 1,
+      "inapplicable": 35
+    },
+    {
+      "state": "consent-dialog",
+      "url": "http://127.0.0.1:5173/settings/llm",
+      "passes": 24,
+      "violations": 0,
+      "incomplete": 1,
+      "inapplicable": 35
+    }
+  ]
+}

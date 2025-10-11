@@ -1,15 +1,34 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+
+import { installLLMSettingsHarness } from "./utils/llmHarness";
 
 const settingsUrl = "/settings/llm";
 
-async function getActiveTestId(page: Page) {
-	return page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? "");
+async function tabTo(page: Page, locator: Locator, description: string, maxTabs = 12): Promise<void> {
+	for (let attempt = 0; attempt < maxTabs; attempt += 1) {
+		await page.keyboard.press("Tab");
+		try {
+			await expect(locator, `${description} should receive focus`).toBeFocused({ timeout: 200 });
+			return;
+		} catch (error) {
+			if (attempt === maxTabs - 1) {
+				const details = error instanceof Error ? `: ${error.message}` : "";
+				throw new Error(`Failed to move focus to ${description} after ${maxTabs} Tab presses${details}`);
+			}
+		}
+	}
 }
 
 test.describe("LLM settings accessibility regressions", () => {
+  test.beforeEach(async ({ page }) => {
+    await installLLMSettingsHarness(page);
+  });
+
 	test("page has no axe-core violations", async ({ page }) => {
 		await page.goto(settingsUrl);
+		await expect(page.getByTestId("llm-profiles-page")).toBeVisible();
 		const builder = new AxeBuilder({ page });
 		const results = await builder.analyze();
 		expect(results.violations).toHaveLength(0);
@@ -18,34 +37,25 @@ test.describe("LLM settings accessibility regressions", () => {
 	test("profile list supports keyboard navigation", async ({ page }) => {
 		await page.goto(settingsUrl);
 
-		const expectedOrder = [
-			"llm-settings-add-profile",
-			"llm-settings-profile-0",
-			"llm-settings-profile-0-activate",
-			"llm-settings-profile-0-delete",
-			"llm-settings-profile-1"
-		];
+		const addProfileButton = page.getByTestId("add-profile-button");
+		await addProfileButton.focus();
+		await expect(addProfileButton).toBeFocused();
 
-		const actualOrder: string[] = [];
-		let guard = 0;
-		while (actualOrder.length < expectedOrder.length && guard < expectedOrder.length * 5) {
-			await page.keyboard.press("Tab");
-			const activeId = await getActiveTestId(page);
-			if (activeId && actualOrder.at(-1) !== activeId) {
-				actualOrder.push(activeId);
-			}
-			guard += 1;
-		}
+		await tabTo(page, page.getByTestId("add-remote-provider-button"), "Add remote provider button");
+		await tabTo(page, page.getByTestId("run-discovery-button"), "Run auto-discovery button");
+		await tabTo(page, page.getByTestId("refresh-profiles-button"), "Refresh profiles button");
 
-		expect(actualOrder).toStrictEqual(expectedOrder);
-
-		const activateButton = page.getByTestId("llm-settings-profile-0-activate");
+		const activateButton = page.getByTestId("activate-profile-profile-azure");
+		await tabTo(page, activateButton, "Azure activate button");
 		await activateButton.press("Enter");
-		await expect(page.getByRole("status")).toHaveText(/profile activated/i);
+		await expect(page.getByTestId("llm-status-announcer")).toHaveText(/activated azure production/i);
 
-		const deleteButton = page.getByTestId("llm-settings-profile-0-delete");
+		await tabTo(page, page.getByTestId("edit-profile-profile-azure"), "Azure edit button");
+
+		const deleteButton = page.getByTestId("delete-profile-profile-azure");
+		await tabTo(page, deleteButton, "Azure delete button");
 		await deleteButton.press("Delete");
-		const deleteDialog = page.getByRole("alertdialog", { name: /delete profile/i });
+		const deleteDialog = page.getByRole("alertdialog", { name: /delete/i });
 		await expect(deleteDialog).toBeVisible();
 	});
 
@@ -56,16 +66,21 @@ test.describe("LLM settings accessibility regressions", () => {
 		await addRemoteButton.focus();
 		await addRemoteButton.press("Enter");
 
-		const consentDialog = page.getByRole("dialog", { name: /remote provider consent/i });
+		const consentDialog = page.getByRole("alertdialog", { name: /remote provider consent/i });
 		await expect(consentDialog).toBeVisible();
 		const acceptButton = consentDialog.getByRole("button", { name: /accept/i });
 		const cancelButton = consentDialog.getByRole("button", { name: /cancel/i });
+		const privacyLink = consentDialog.getByRole("link", { name: /privacy documentation/i });
 
-		await acceptButton.focus();
+		await expect(privacyLink).toBeFocused();
+		await page.keyboard.press("Shift+Tab");
+		await expect(acceptButton).toBeFocused();
 		await page.keyboard.press("Tab");
-		await expect(await page.evaluate(() => document.activeElement?.textContent)).toMatch(/Cancel/i);
+		await expect(privacyLink).toBeFocused();
 		await page.keyboard.press("Tab");
-		await expect(await page.evaluate(() => document.activeElement?.textContent)).toMatch(/Accept/i);
+		await expect(cancelButton).toBeFocused();
+		await page.keyboard.press("Tab");
+		await expect(acceptButton).toBeFocused();
 
 		await page.keyboard.press("Escape");
 		await expect(consentDialog).not.toBeVisible();

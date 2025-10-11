@@ -411,6 +411,7 @@ export const LLMProfiles: React.FC = () => {
                       className="app-button--secondary"
                       onClick={() => void handleActivate(profile)}
                       disabled={profile.isActive}
+                      data-testid={`activate-profile-${profile.id}`}
                     >
                       {profile.isActive ? "Active" : "Activate"}
                     </button>
@@ -418,6 +419,7 @@ export const LLMProfiles: React.FC = () => {
                       type="button"
                       className="app-button"
                       onClick={() => openEditDialog(profile)}
+                      data-testid={`edit-profile-${profile.id}`}
                     >
                       Edit
                     </button>
@@ -431,6 +433,7 @@ export const LLMProfiles: React.FC = () => {
                           openDeleteDialog(profile);
                         }
                       }}
+                      data-testid={`delete-profile-${profile.id}`}
                     >
                       Delete
                     </button>
@@ -448,7 +451,7 @@ export const LLMProfiles: React.FC = () => {
         ) : null}
       </section>
 
-      <div className="settings__sr-status" aria-live="polite" aria-atomic="true">
+      <div className="settings__sr-status" aria-live="polite" aria-atomic="true" data-testid="llm-status-announcer">
         {ariaStatusMessage}
       </div>
 

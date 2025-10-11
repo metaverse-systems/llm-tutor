@@ -23,7 +23,8 @@ module.exports = {
     "**/build/**",
     "**/coverage/**",
     "**/.specify/**",
-    "**/.turbo/**"
+    "**/.turbo/**",
+    "apps/frontend/tests/accessibility/utils/*.ts"
   ],
   overrides: [
     {

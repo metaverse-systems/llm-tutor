@@ -175,7 +175,7 @@
   }
 
   .app-status--positive {
-    background-color: var(--state-success);
+    background-color: color-mix(in srgb, var(--state-success) 70%, black 30%);
     color: var(--text-inverse);
   }
 
@@ -185,7 +185,7 @@
   }
 
   .app-status--negative {
-    background-color: var(--state-danger);
+    background-color: color-mix(in srgb, var(--state-danger) 70%, black 30%);
     color: var(--text-inverse);
   }
 
@@ -895,7 +895,13 @@
   }
 
   .settings__delete-button {
-    color: var(--state-danger);
+    color: color-mix(in srgb, var(--state-danger) 60%, black 40%);
+    font-weight: 600;
+  }
+
+  .settings__delete-button:hover,
+  .settings__delete-button:focus-visible {
+    color: color-mix(in srgb, var(--state-danger) 50%, black 50%);
   }
 
   .settings__test-connection {
