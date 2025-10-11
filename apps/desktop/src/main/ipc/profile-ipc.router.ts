@@ -84,6 +84,7 @@ export interface ProfileIpcRouterOptions {
   safeStorageOutageService: SafeStorageOutageService;
   now?: () => number;
   logger?: Pick<Console, "info" | "warn" | "error">;
+  onPerformanceWarning?: (warning: { channel: ProfileIpcChannel; durationMs: number; budgetMs: number }) => void;
 }
 
 interface RegisteredHandler {
@@ -147,6 +148,7 @@ class ProfileIpcRouter {
   private readonly safeStorageOutageService: SafeStorageOutageService;
   private readonly now: () => number;
   private readonly logger?: Pick<Console, "info" | "warn" | "error">;
+  private readonly onPerformanceWarning?: (warning: { channel: ProfileIpcChannel; durationMs: number; budgetMs: number }) => void;
   private readonly registeredHandlers: RegisteredHandler[] = [];
   private readonly handlers = new Map<ProfileIpcChannel, ProfileIpcHandler>();
 
@@ -159,6 +161,7 @@ class ProfileIpcRouter {
     this.safeStorageOutageService = options.safeStorageOutageService;
     this.now = options.now ?? (() => Date.now());
     this.logger = options.logger;
+    this.onPerformanceWarning = options.onPerformanceWarning;
 
     this.handlers.set("llmProfile:list", (envelope) => this.handleList(envelope));
     this.handlers.set("llmProfile:create", (envelope) => this.handleCreate(envelope));
@@ -683,6 +686,16 @@ class ProfileIpcRouter {
       safeStorageStatus: response.safeStorageStatus,
       metadata: metadata ?? undefined
     });
+
+    // Emit performance warning if budget exceeded
+    const budget = REQUEST_BUDGET_MS[envelope.channel];
+    if (budget && response.durationMs > budget && this.onPerformanceWarning) {
+      this.onPerformanceWarning({
+        channel: envelope.channel,
+        durationMs: response.durationMs,
+        budgetMs: budget
+      });
+    }
   }
 
   private async executeWithBudget<T>(
