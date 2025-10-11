@@ -3,7 +3,8 @@ import type {
   ProcessHealthEventPayload,
   DiagnosticsPreferenceRecordPayload,
   StorageHealthAlertPayload,
-  DiagnosticsExportRequestPayload
+  DiagnosticsExportRequestPayload,
+  TelemetryPreference
 } from "@metaverse-systems/llm-tutor-shared";
 
 import type { LlmApiBridge } from "./types/llm-api";
@@ -77,6 +78,13 @@ declare global {
       ping: () => Promise<string>;
       diagnosticsSnapshot: () => Promise<unknown>;
       diagnostics: DiagnosticsPreloadApi;
+      settings: {
+        navigateToSettings(): Promise<void>;
+        telemetry: {
+          getState(): Promise<TelemetryPreference>;
+          setState(update: { enabled: boolean }): Promise<TelemetryPreference>;
+        };
+      };
     };
     llmAPI?: LlmApiBridge;
   }
