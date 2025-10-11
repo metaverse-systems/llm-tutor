@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import {
   type DraftProfile,
   type ProfileIpcChannel,
@@ -8,24 +6,32 @@ import {
   type ProfileSummary,
   type ProfileDiagnosticsSummary
 } from "@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc";
+import { randomUUID } from "node:crypto";
 
+import { ProfileIpcDiagnosticsRecorder } from "../../src/main/diagnostics/profile-ipc.recorder";
 import {
   createProfileIpcRouter,
   type ProfileIpcRouterRegistration,
   type ProfileServiceHandlers
 } from "../../src/main/ipc/profile-ipc.router";
-import { ProfileIpcDiagnosticsRecorder } from "../../src/main/diagnostics/profile-ipc.recorder";
 import { SafeStorageOutageService } from "../../src/main/services/safe-storage-outage.service";
 
 interface ProfileServiceOverrides {
   list?: (filter?: unknown) => unknown;
   create?: (draft: DraftProfile) => unknown;
+  update?: (profileId: string, changes: Partial<DraftProfile>) => unknown;
+  delete?: (profileId: string, successorProfileId?: string | null) => unknown;
+  activate?: (profileId: string, force?: boolean) => unknown;
 }
 
 export interface ProfileIpcHarnessOptions {
   profileService?: ProfileServiceOverrides;
-  testPromptService?: Partial<Record<string, unknown>>;
-  autoDiscoveryService?: Partial<Record<string, unknown>>;
+  testPromptService?: {
+    execute?: (profileId: string, promptOverride?: string, timeoutMs?: number) => unknown;
+  };
+  autoDiscoveryService?: {
+    discover?: (scope: unknown) => unknown;
+  };
   safeStorageAvailable?: boolean;
 }
 
@@ -65,7 +71,7 @@ const DEFAULT_OPERATOR_CONTEXT = {
   locale: "en-US"
 };
 
-export async function createProfileIpcHarness(
+export function createProfileIpcHarness(
   options: ProfileIpcHarnessOptions = {}
 ): Promise<ProfileIpcHarness> {
   const outageService = new SafeStorageOutageService();
@@ -92,11 +98,59 @@ export async function createProfileIpcHarness(
       }
 
       throw new Error("Profile service create handler not provided");
+    },
+    updateProfile: async (profileId, changes) => {
+      if (typeof profileServiceOverrides.update === "function") {
+        const result = await Promise.resolve(profileServiceOverrides.update(profileId, changes));
+        return normalizeUpdateResult(result);
+      }
+
+      throw new Error("Profile service update handler not provided");
+    },
+    deleteProfile: async (profileId, successorProfileId) => {
+      if (typeof profileServiceOverrides.delete === "function") {
+        const result = await Promise.resolve(profileServiceOverrides.delete(profileId, successorProfileId));
+        return normalizeDeleteResult(result);
+      }
+
+      throw new Error("Profile service delete handler not provided");
+    },
+    activateProfile: async (profileId, force) => {
+      if (typeof profileServiceOverrides.activate === "function") {
+        const result = await Promise.resolve(profileServiceOverrides.activate(profileId, force));
+        return normalizeActivateResult(result);
+      }
+
+      throw new Error("Profile service activate handler not provided");
     }
   };
 
+  const testPromptServiceOverrides = options.testPromptService ?? {};
+  const testPromptServiceHandlers = testPromptServiceOverrides.execute
+    ? {
+        execute: async (profileId: string, promptOverride?: string, timeoutMs?: number) => {
+          const result = await Promise.resolve(
+            testPromptServiceOverrides.execute!(profileId, promptOverride, timeoutMs)
+          );
+          return normalizeTestPromptResult(result);
+        }
+      }
+    : undefined;
+
+  const autoDiscoveryServiceOverrides = options.autoDiscoveryService ?? {};
+  const autoDiscoveryServiceHandlers = autoDiscoveryServiceOverrides.discover
+    ? {
+        discover: async (scope: unknown) => {
+          const result = await Promise.resolve(autoDiscoveryServiceOverrides.discover!(scope));
+          return normalizeDiscoveryResult(result);
+        }
+      }
+    : undefined;
+
   const router: ProfileIpcRouterRegistration = createProfileIpcRouter({
     profileService: profileServiceHandlers,
+    testPromptService: testPromptServiceHandlers,
+    autoDiscoveryService: autoDiscoveryServiceHandlers,
     diagnosticsRecorder,
     safeStorageOutageService: outageService,
     ipcMain: null,
@@ -130,8 +184,9 @@ export async function createProfileIpcHarness(
         return diagnosticsRecorder.getBreadcrumbs();
       }
     },
-    async dispose(): Promise<void> {
+    dispose(): Promise<void> {
       router.dispose();
+      return Promise.resolve();
     }
   };
 }
@@ -151,13 +206,13 @@ function buildEnvelope(
   };
 }
 
-type ProfileOperationRequestEnvelope = {
+interface ProfileOperationRequestEnvelope {
   channel: ProfileIpcChannel;
   requestId: string;
   timestamp: number;
   context: typeof DEFAULT_OPERATOR_CONTEXT;
   payload: ProfileOperationRequest;
-};
+}
 
 function buildOperationPayload(
   type: ProfileOperationRequest["type"],
@@ -167,7 +222,7 @@ function buildOperationPayload(
     case "list":
       return {
         type,
-        filter: payload.filter as ProfileOperationRequest & { type: "list" } extends { filter?: infer T }
+        filter: payload.filter as (ProfileOperationRequest & { type: "list" }) extends { filter?: infer T }
           ? T
           : undefined
       } as ProfileOperationRequest;
@@ -201,17 +256,19 @@ function buildOperationPayload(
         promptOverride: payload.promptOverride as string | undefined,
         timeoutMs:
           typeof payload.timeoutMs === "number"
-            ? (payload.timeoutMs as number)
+            ? payload.timeoutMs
             : 10000
       };
     case "discover":
       return {
         type,
-        scope: payload.scope as ProfileOperationRequest & { type: "discover" } extends { scope: infer T }
+        scope: payload.scope as (ProfileOperationRequest & { type: "discover" }) extends { scope: infer T }
           ? T
-          : never
+          : // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            never
       } as ProfileOperationRequest;
     default:
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Unsupported operation type: ${type}`);
   }
 }
@@ -237,7 +294,7 @@ function normalizeListResult(result: unknown, includeDiagnostics: boolean): {
     : [];
 
   const diagnostics = includeDiagnostics && Array.isArray(candidate.diagnostics)
-    ? (candidate.diagnostics as ProfileDiagnosticsSummary[]).map((entry) => ({ ...entry }))
+    ? (candidate.diagnostics as ProfileDiagnosticsSummary[])
     : includeDiagnostics
       ? []
       : undefined;
@@ -265,5 +322,133 @@ function normalizeCreateResult(result: unknown): { profile: ProfileSummary; warn
   return {
     profile: candidate.profile,
     warning: candidate.warning ?? null
+  };
+}
+
+function normalizeUpdateResult(result: unknown): { profile: ProfileSummary; warning?: string | null } {
+  if (!result || typeof result !== "object") {
+    throw new Error("Update profile override must return an object");
+  }
+
+  const candidate = result as {
+    profile?: ProfileSummary;
+    warning?: string | null;
+  };
+
+  if (!candidate.profile) {
+    throw new Error("Update profile override must include a profile");
+  }
+
+  return {
+    profile: candidate.profile,
+    warning: candidate.warning ?? null
+  };
+}
+
+function normalizeDeleteResult(result: unknown): { deletedId: string; successorProfileId?: string | null } {
+  if (!result || typeof result !== "object") {
+    throw new Error("Delete profile override must return an object");
+  }
+
+  const candidate = result as {
+    deletedId?: string;
+    successorProfileId?: string | null;
+  };
+
+  if (!candidate.deletedId) {
+    throw new Error("Delete profile override must include deletedId");
+  }
+
+  return {
+    deletedId: candidate.deletedId,
+    successorProfileId: candidate.successorProfileId ?? null
+  };
+}
+
+function normalizeActivateResult(result: unknown): {
+  activeProfile: ProfileSummary;
+  previousProfileId?: string | null;
+} {
+  if (!result || typeof result !== "object") {
+    throw new Error("Activate profile override must return an object");
+  }
+
+  const candidate = result as {
+    activeProfile?: ProfileSummary;
+    previousProfileId?: string | null;
+  };
+
+  if (!candidate.activeProfile) {
+    throw new Error("Activate profile override must include activeProfile");
+  }
+
+  return {
+    activeProfile: candidate.activeProfile,
+    previousProfileId: candidate.previousProfileId ?? null
+  };
+}
+
+function normalizeTestPromptResult(result: unknown): {
+  profileId: string;
+  success: boolean;
+  latencyMs?: number | null;
+  totalTimeMs: number;
+  modelName?: string | null;
+  truncatedResponse?: string | null;
+} {
+  if (!result || typeof result !== "object") {
+    throw new Error("Test prompt override must return an object");
+  }
+
+  const candidate = result as {
+    profileId?: string;
+    success?: boolean;
+    latencyMs?: number | null;
+    totalTimeMs?: number;
+    modelName?: string | null;
+    truncatedResponse?: string | null;
+  };
+
+  if (!candidate.profileId) {
+    throw new Error("Test prompt override must include profileId");
+  }
+
+  return {
+    profileId: candidate.profileId,
+    success: candidate.success ?? false,
+    latencyMs: candidate.latencyMs ?? null,
+    totalTimeMs: candidate.totalTimeMs ?? 0,
+    modelName: candidate.modelName ?? null,
+    truncatedResponse: candidate.truncatedResponse ?? null
+  };
+}
+
+function normalizeDiscoveryResult(result: unknown): {
+  providers: {
+    providerType: string;
+    endpointUrl: string;
+    latencyMs?: number | null;
+    requiresConsent?: boolean;
+  }[];
+} {
+  if (!result || typeof result !== "object") {
+    throw new Error("Discovery override must return an object");
+  }
+
+  const candidate = result as {
+    providers?: unknown;
+  };
+
+  if (!Array.isArray(candidate.providers)) {
+    throw new Error("Discovery override must include providers array");
+  }
+
+  return {
+    providers: candidate.providers as {
+      providerType: string;
+      endpointUrl: string;
+      latencyMs?: number | null;
+      requiresConsent?: boolean;
+    }[]
   };
 }
