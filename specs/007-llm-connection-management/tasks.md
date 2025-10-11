@@ -1069,7 +1069,7 @@
 ---
 
 ### T038 [P]: Update architecture.md with LLM module
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-11)  
 **File**: `docs/architecture.md`  
 **Dependencies**: T001-T036  
 **Parallel**: ✅
@@ -1085,8 +1085,15 @@
 4. Update system diagram to include LLM module
 
 **Acceptance Criteria**:
-- [ ] Architecture updated
-- [ ] Diagrams include LLM module
+- [x] Architecture updated
+- [x] Diagrams include LLM module
+
+**Notes**:
+- Introduced a dedicated "LLM Profile Management" section outlining backend, main-process,
+   preload, and renderer responsibilities with file path references.
+- Added a Mermaid system diagram covering UI ↔ preload ↔ main ↔ backend flows, including
+   encryption and auto-discovery integrations.
+- Documented diagnostics emission and consent/encryption safeguards alongside the new flow description.
 
 ---
 
