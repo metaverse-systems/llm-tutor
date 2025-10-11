@@ -62,7 +62,8 @@ This runbook explains how to validate, operate, and troubleshoot the diagnostics
 - Every export run prepares a JSONL log alongside the snapshot archive. By default logs live in `${app.getPath("userData")}/diagnostics/exports`, but if the user saves to `/path/to/run`, both the snapshot and log land there.
 - Filenames follow `diagnostics-snapshot-export-<timestamp>.log.jsonl` (UTC, punctuation stripped) and include structured payloads for `outcome`, `snapshotPath`, `accessibilityState`, and failure metadata.
 - Use the Playwright helper `ensureSnapshotAvailable` to wait for the log file; the scenario fails fast with a clear error if the log is missing after the configured timeout.
-- Verify every export bundles the latest `diagnostics-events.jsonl` entries after the snapshot line. Expect `llm_profile_*`, `llm_autodiscovery`, and `llm_test_prompt` events when the corresponding workflows have run; each entry is stored without API keys or full endpoint URLs.
+- Verify every export bundles the latest `diagnostics-events.jsonl` entries after the snapshot line. Expect `llm_profile_*`, `llm_autodiscovery`, `llm_test_prompt`, and `llm_profile_ipc` events when the corresponding workflows have run; each entry is stored without API keys or full endpoint URLs.
+- The `llm_profile_ipc` events record diagnostic breadcrumbs for all profile IPC operations (list, create, update, delete, activate, test, discover) with correlation IDs, duration metrics, operator role, and safe storage status. These breadcrumbs are automatically included in diagnostics exports to enable performance analysis and troubleshooting.
 - Keep the log directory private (mode `0700`) so the export pipeline retains learner-specific context without leaking between system users.
 
 ### Troubleshooting automation
@@ -134,6 +135,22 @@ Vault updates append consent events to the record. The backend snapshot service 
 - Collect logs for support: export snapshots, capture the latest validation summary (e.g., `docs/reports/diagnostics/2025-10-08-validation.md`), and attach to the support ticket.
 - Trace Playwright persistence failures without hanging the shell: wrap debug runs with a timeout (e.g., `timeout --preserve-status 180s PWDEBUG=console npx playwright test tests/accessibility/diagnostics-persistence.spec.ts --grep "persists accessibility"`) so the interactive inspector exits automatically.
 - High-contrast Playwright spec fails: regenerate tokens (`npm run build:tokens`), ensure `.tailwind` artefacts are up to date (`npm run tailwind:build -- --ci`), and re-run the suite with `LLM_TUTOR_DIAGNOSTICS_LOG=1` to confirm `ThemeHarness` is seeding preferences.
+
+## Profile IPC Performance Monitoring
+
+The diagnostics system automatically tracks performance metrics for all profile IPC operations:
+
+- **Performance Budgets**: List operations must complete within 500ms (excluding remote network calls). Other operations are monitored but not budget-constrained.
+- **Breadcrumb Recording**: Every IPC operation records a diagnostic breadcrumb containing channel, requestId, correlationId, operatorRole, durationMs, resultCode, and safeStorageStatus. These breadcrumbs are automatically written to `diagnostics-events.jsonl` and included in exports.
+- **Performance Warnings**: When operations exceed their budget, the system emits a `performance-threshold-warning` event containing channel, durationMs, and budgetMs. These warnings can be monitored by the renderer or backend for alerting.
+- **Correlation IDs**: Each breadcrumb includes a correlation ID (auto-generated UUID when not provided) that links IPC requests to service operations and diagnostics events, enabling full trace analysis across the stack.
+
+To analyze performance:
+1. Export diagnostics snapshot and filter for `"type": "llm_profile_ipc"` events
+2. Review `durationMs` values against budgets (500ms for list operations)
+3. Check for patterns in slow operations (e.g., large profile counts, encryption overhead)
+4. Investigate any `TIMEOUT` result codes in breadcrumbs
+5. Run performance regression tests: `npm test apps/desktop/tests/performance/profile-ipc.performance.spec.ts`
 
 ## Validation Checklist
 

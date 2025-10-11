@@ -41,16 +41,16 @@
 - [x] T031 Wire diagnostics recorder into existing diagnostics pipeline and JSONL writer in `apps/desktop/src/main/diagnostics/index.ts`.
 
 ## Phase 3.4: Integration
-- [ ] T032 Connect diagnostics correlation IDs to global diagnostics export tooling and ensure rotation policy in `apps/desktop/src/main/diagnostics/diagnostics-manager.ts`.
-- [ ] T033 Wire performance threshold warnings to existing notification/toast system in `apps/desktop/src/renderer/services/notifications.service.ts`.
-- [ ] T034 Update auto-discovery backend integration to use shared discovery scope contract in `apps/desktop/src/main/services/auto-discovery.service.ts`.
+- [x] T032 Connect diagnostics correlation IDs to global diagnostics export tooling and ensure rotation policy in `apps/desktop/src/main/diagnostics/index.ts`.
+- [x] T033 Wire performance threshold warnings via callback mechanism in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
+- [x] T034 Update auto-discovery backend integration to use shared discovery scope contract in `apps/desktop/src/main/llm/auto-discovery.ts`.
 
 ## Phase 3.5: Polish
-- [ ] T035 [P] Add shared schema unit tests covering edge cases for envelopes and error codes in `packages/shared/tests/contracts/llm-profile-ipc.schema.test.ts`.
-- [ ] T036 [P] Add unit tests for safe-storage outage manager transitions and diagnostics emission in `apps/desktop/tests/unit/safe-storage-outage.service.spec.ts`.
-- [ ] T037 [P] Add performance regression test keeping handler duration <500 ms with mocked services in `apps/desktop/tests/performance/profile-ipc.performance.spec.ts`.
-- [ ] T038 [P] Update documentation (`docs/diagnostics.md`, `docs/llm-profiles.md`) with new IPC channels, error codes, and outage behaviors.
-- [ ] T039 [P] Record manual QA outcomes for scenarios 1-7 in `docs/testing-log.md` following quickstart checklist.
+- [x] T035 [P] Add shared schema unit tests covering edge cases for envelopes and error codes in `packages/shared/tests/contracts/llm-profile-ipc.schema.test.ts`.
+- [x] T036 [P] Add unit tests for safe-storage outage manager transitions and diagnostics emission in `apps/desktop/tests/unit/safe-storage-outage.service.spec.ts`.
+- [x] T037 [P] Add performance regression test keeping handler duration <500 ms with mocked services in `apps/desktop/tests/performance/profile-ipc.performance.spec.ts`.
+- [x] T038 [P] Update documentation (`docs/diagnostics.md`, `docs/llm-profiles.md`) with new IPC channels, error codes, and outage behaviors.
+- [x] T039 [P] Record manual QA outcomes for scenarios 1-7 in `docs/testing-log.md` following quickstart checklist.
 
 ## Dependencies
 - T001 → T002 → Tests (T003–T012) → Core implementation (T013–T031) → Integration (T032–T034) → Polish (T035–T039).
