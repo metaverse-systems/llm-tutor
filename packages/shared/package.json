@@ -15,6 +15,17 @@
       "import": "./dist/llm/index.js",
       "require": "./dist-cjs/llm/index.js",
       "types": "./dist/llm/index.d.ts"
+    },
+    "./dist/theme.css": {
+      "default": "./dist/theme.css"
+    },
+    "./dist/theme.tokens.json": {
+      "default": "./dist/theme.tokens.json"
+    },
+    "./src/contracts/llm-profile-ipc": {
+      "import": "./dist/contracts/llm-profile-ipc.js",
+      "require": "./dist-cjs/contracts/llm-profile-ipc.js",
+      "types": "./dist/contracts/llm-profile-ipc.d.ts"
     }
   },
   "scripts": {

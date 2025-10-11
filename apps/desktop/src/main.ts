@@ -1,3 +1,9 @@
+import {
+  ProfileSummarySchema,
+  type DraftProfile,
+  type ProfileListFilter
+} from "@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc";
+import type { HandlerDetails } from "electron";
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -8,6 +14,12 @@ import {
   type DiagnosticsIpcRegistration
 } from "./ipc/diagnostics";
 import { DiagnosticsManager } from "./main/diagnostics";
+import { ProfileIpcDiagnosticsRecorder } from "./main/diagnostics/profile-ipc.recorder";
+import {
+  createProfileIpcRouter,
+  type ProfileIpcRouterRegistration,
+  type ProfileServiceHandlers
+} from "./main/ipc";
 import {
   AutoDiscoveryService,
   type AutoDiscoveryProfileService,
@@ -24,6 +36,7 @@ import {
   registerLLMHandlers,
   type LlmIpcRegistration
 } from "./main/llm/ipc-handlers";
+import { SafeStorageOutageService } from "./main/services/safe-storage-outage.service";
 import {
   EncryptionService,
   type EncryptionFallbackEvent,
@@ -40,7 +53,7 @@ import {
 } from "../../backend/src/services/llm/profile-vault.js";
 import {
   ProfileService,
-  type CreateProfilePayload as ServiceCreateProfilePayload,
+  type CreateProfilePayload as ServiceCreateProfilePayload
 } from "../../backend/src/services/llm/profile.service.js";
 import { TestPromptService } from "../../backend/src/services/llm/test-prompt.service.js";
 
@@ -64,6 +77,9 @@ let diagnosticsIpc: DiagnosticsIpcRegistration | null = null;
 let llmRegistration: LlmIpcRegistration | null = null;
 let firstLaunchCoordinator: FirstLaunchAutoDiscoveryCoordinator | null = null;
 let diagnosticsEventLogger: DiagnosticsLogger | null = null;
+let profileIpcRouter: ProfileIpcRouterRegistration | null = null;
+let profileDiagnosticsRecorder: ProfileIpcDiagnosticsRecorder | null = null;
+let safeStorageOutageService: SafeStorageOutageService | null = null;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -77,23 +93,8 @@ app.on("second-instance", () => {
     }
     mainWindow.focus();
     diagnosticsIpc?.emitInitialState();
-    return;
   }
-
-  createWindow();
 });
-
-interface WindowOpenDetails {
-  url: string;
-}
-
-function getResourcesPath(): string {
-  if (app.isPackaged) {
-    return (process as NodeJS.Process & { resourcesPath: string }).resourcesPath;
-  }
-
-  return path.resolve(__dirname, "..", "..");
-}
 
 function resolveRendererHtml(): string {
   if (isDev && rendererDevServerUrl) {
@@ -121,6 +122,14 @@ function resolveBackendEntry(): string | null {
   }
 
   return null;
+}
+
+function getResourcesPath(): string {
+  if (app.isPackaged) {
+    return (process as NodeJS.Process & { resourcesPath: string }).resourcesPath;
+  }
+
+  return path.resolve(__dirname, "..", "..");
 }
 
 function getDiagnosticsLogDirectory(): string | null {
@@ -193,7 +202,7 @@ function createWindow(): void {
     void mainWindow.loadURL(targetUrl);
   }
 
-  mainWindow.webContents.setWindowOpenHandler((details: WindowOpenDetails) => {
+  mainWindow.webContents.setWindowOpenHandler((details: HandlerDetails) => {
     void shell.openExternal(details.url);
     return { action: "deny" };
   });
@@ -261,6 +270,82 @@ async function setupLlmSubsystem(): Promise<void> {
     autoDiscoveryService,
     profileVaultService,
     encryptionService,
+    logger
+  });
+
+  if (!safeStorageOutageService) {
+    safeStorageOutageService = new SafeStorageOutageService();
+  }
+
+  const encryptionStatus = encryptionService.getStatus();
+  safeStorageOutageService.setAvailability(encryptionStatus.encryptionAvailable);
+
+  if (!profileDiagnosticsRecorder) {
+    profileDiagnosticsRecorder = new ProfileIpcDiagnosticsRecorder();
+  }
+
+  const profileServiceHandlers: ProfileServiceHandlers = {
+    listProfiles: async (filter?: ProfileListFilter) => {
+  const result = await profileService.listProfiles();
+      const summaries = result.profiles.map((profile) =>
+        ProfileSummarySchema.parse({
+          id: String(profile.id),
+          name: String(profile.name),
+          providerType: String(profile.providerType),
+          endpointUrl: String(profile.endpointUrl),
+          isActive: Boolean(profile.isActive),
+          consentTimestamp: profile.consentTimestamp != null ? Number(profile.consentTimestamp) : null,
+          lastModified: Number(profile.modifiedAt)
+        })
+      );
+
+      const allowedProviderTypes = filter?.providerTypes?.length
+        ? new Set(filter.providerTypes)
+        : null;
+      const filteredSummaries = allowedProviderTypes
+        ? summaries.filter((summary) => allowedProviderTypes.has(summary.providerType))
+        : summaries;
+
+      return {
+        profiles: filteredSummaries,
+        diagnostics: filter?.includeDiagnostics ? [] : undefined
+      };
+    },
+    createProfile: async (draftProfile: DraftProfile) => {
+      const payload: ServiceCreateProfilePayload = {
+        name: draftProfile.name,
+        providerType: draftProfile.providerType,
+        endpointUrl: draftProfile.endpointUrl,
+        apiKey: draftProfile.apiKey,
+        modelId: draftProfile.modelId ?? null,
+        consentTimestamp: draftProfile.consentTimestamp ?? null
+      };
+
+  const result = await profileService.createProfile(payload);
+
+      return {
+        profile: ProfileSummarySchema.parse({
+          id: String(result.profile.id),
+          name: String(result.profile.name),
+          providerType: String(result.profile.providerType),
+          endpointUrl: String(result.profile.endpointUrl),
+          isActive: Boolean(result.profile.isActive),
+          consentTimestamp: result.profile.consentTimestamp != null
+            ? Number(result.profile.consentTimestamp)
+            : null,
+          lastModified: Number(result.profile.modifiedAt)
+        }),
+        warning: result.warning
+      };
+    }
+  };
+
+  profileIpcRouter?.dispose();
+  profileIpcRouter = createProfileIpcRouter({
+    ipcMain,
+    profileService: profileServiceHandlers,
+    diagnosticsRecorder: profileDiagnosticsRecorder,
+    safeStorageOutageService,
     logger
   });
 
@@ -375,7 +460,15 @@ void app
   })
   .catch((error) => {
     console.error("Failed to initialize Electron app", error);
-    dialog.showErrorBox("LLM Tutor", "Unable to start the desktop shell. Check the logs for details.");
+    dialog.showErrorBox(
+      "LLM Tutor",
+      "Unable to start the desktop shell. Check the logs for details."
+    );
+    diagnosticsEventLogger = null;
+    profileIpcRouter?.dispose();
+    profileIpcRouter = null;
+    profileDiagnosticsRecorder = null;
+    safeStorageOutageService = null;
     app.quit();
   });
 
@@ -398,4 +491,8 @@ app.on("quit", () => {
   llmRegistration = null;
   firstLaunchCoordinator = null;
   diagnosticsEventLogger = null;
+  profileIpcRouter?.dispose();
+  profileIpcRouter = null;
+  profileDiagnosticsRecorder = null;
+  safeStorageOutageService = null;
 });

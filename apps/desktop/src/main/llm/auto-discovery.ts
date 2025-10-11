@@ -1,3 +1,4 @@
+import type { DiscoveryScope } from "../../../../../packages/shared/src/contracts/llm-profile-ipc";
 import type { LLMProfile, ProviderType } from "../../../../../packages/shared/src/llm/schemas";
 
 const DEFAULT_PORTS = [8080, 8000, 11434] as const;
@@ -125,7 +126,13 @@ export class AutoDiscoveryService {
 		this.now = options.now ?? (() => Date.now());
 	}
 
-	async discover(force = false): Promise<DiscoveryResult> {
+	async discover(scopeOrForce?: DiscoveryScope | boolean): Promise<DiscoveryResult> {
+		// Support legacy boolean parameter for backward compatibility
+		const scope: DiscoveryScope | null = typeof scopeOrForce === "boolean" 
+			? null 
+			: scopeOrForce ?? null;
+		const force = typeof scopeOrForce === "boolean" ? scopeOrForce : false;
+
 		if (!force) {
 			const cached = this.getCachedResult();
 			if (cached) {
@@ -137,7 +144,7 @@ export class AutoDiscoveryService {
 			return this.pendingDiscovery;
 		}
 
-		this.pendingDiscovery = this.executeDiscovery({ force }).finally(() => {
+		this.pendingDiscovery = this.executeDiscovery({ force, scope }).finally(() => {
 			this.pendingDiscovery = null;
 		});
 
@@ -158,9 +165,22 @@ export class AutoDiscoveryService {
 		return { ...this.lastResult.result };
 	}
 
-	private async executeDiscovery(options: { force: boolean }): Promise<DiscoveryResult> {
+	private async executeDiscovery(options: { force: boolean; scope: DiscoveryScope | null }): Promise<DiscoveryResult> {
 		const startedAt = this.now();
-		const results = await Promise.allSettled(this.ports.map((port) => this.probePort(port)));
+		
+		// Use scope timeout if provided, otherwise use default
+		const effectiveTimeout = options.scope?.timeoutMs ?? this.timeoutMs;
+		
+		// For now, we only support local discovery (llama.cpp/Ollama probing)
+		// Remote discovery (Azure) could be implemented in the future
+		const strategy = options.scope?.strategy ?? "local";
+		if (strategy === "remote") {
+			this.logger.warn?.("Remote discovery strategy not yet implemented, falling back to local");
+		}
+		
+		const results = await Promise.allSettled(
+			this.ports.map((port) => this.probePort(port, effectiveTimeout))
+		);
 
 		const successfulProbe = results
 			.filter((entry): entry is PromiseFulfilledResult<ProbeResult> => entry.status === "fulfilled")
@@ -255,9 +275,10 @@ export class AutoDiscoveryService {
 		};
 	}
 
-	private async probePort(port: number): Promise<ProbeResult> {
+	private async probePort(port: number, timeoutMs?: number): Promise<ProbeResult> {
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+		const effectiveTimeout = timeoutMs ?? this.timeoutMs;
+		const timeout = setTimeout(() => controller.abort(), effectiveTimeout);
 		const url = buildProbeUrl({ hostname: this.hostname, port, path: this.healthPath });
 
 		try {

@@ -12,6 +12,7 @@ import {
 	parseConsentEventLog,
 	serializeConsentEventLog
 } from "@metaverse-systems/llm-tutor-shared";
+import type { DiagnosticsBreadcrumb } from "@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc";
 import { app, dialog, shell, type BrowserWindow } from "electron";
 import { fork, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -26,6 +27,10 @@ import {
 	type PreferencesVaultOptions,
 	type PreferencesVaultUpdate
 } from "./preferences/preferencesVault";
+import {
+	ProfileIpcDiagnosticsRecorder,
+	type ProfileIpcDiagnosticsRecorderOptions
+} from "./profile-ipc.recorder.js";
 import { DIAGNOSTICS_EVENTS_FILE_NAME } from "../../../../backend/src/infra/logging/index.js";
 
 export type BackendLifecycleState = "stopped" | "starting" | "running" | "error";
@@ -108,6 +113,8 @@ interface DiagnosticsManagerEvents {
 	"snapshot-updated": (snapshot: DiagnosticsSnapshotPayload | null) => void;
 	"preferences-updated": (payload: DiagnosticsPreferenceRecordPayload) => void;
 	"preferences-storage-health": (payload: StorageHealthAlertPayload | null) => void;
+	"profile-ipc-breadcrumb": (breadcrumb: DiagnosticsBreadcrumb) => void;
+	"performance-threshold-warning": (warning: { channel: string; durationMs: number; budgetMs: number }) => void;
 }
 
 type EventKeys = keyof DiagnosticsManagerEvents;
@@ -154,6 +161,7 @@ export interface DiagnosticsManagerOptions {
 	getMainWindow?: () => BrowserWindow | null;
 	diagnosticsApiOrigin?: string;
 	createPreferencesVault?: (options: PreferencesVaultOptions) => PreferencesVault;
+	profileIpcRecorderOptions?: ProfileIpcDiagnosticsRecorderOptions;
 }
 
 export interface DiagnosticsErrorPayload {
@@ -182,6 +190,8 @@ export class DiagnosticsManager extends TypedEventEmitter {
 	private readonly diagnosticsApiOrigin: string;
 	private readonly fetchTimeoutMs = 5000;
 	private readonly preferencesVault: PreferencesVault;
+	private readonly profileIpcRecorder: ProfileIpcDiagnosticsRecorder;
+	private profileIpcBreadcrumbDisposer: (() => void) | null = null;
 	private latestPreferences: DiagnosticsPreferenceRecordPayload | null = null;
 	private latestStorageHealth: StorageHealthAlertPayload | null = null;
 	private preferenceSyncTask: Promise<void> = Promise.resolve();
@@ -232,6 +242,11 @@ export class DiagnosticsManager extends TypedEventEmitter {
 			this.preferencesVault.on("updated", this.handleVaultUpdated),
 			this.preferencesVault.on("storage-health", this.handleVaultStorageHealth)
 		];
+		this.profileIpcRecorder = new ProfileIpcDiagnosticsRecorder(options.profileIpcRecorderOptions);
+		this.profileIpcBreadcrumbDisposer = this.profileIpcRecorder.onBreadcrumb((breadcrumb) => {
+			this.emit("profile-ipc-breadcrumb", breadcrumb);
+			void this.writeProfileIpcBreadcrumb(breadcrumb);
+		});
 		app.on("browser-window-created", this.handleBrowserWindowCreated);
 		const initialWindow = this.options.getMainWindow?.();
 		if (initialWindow && !initialWindow.isDestroyed()) {
@@ -258,6 +273,10 @@ export class DiagnosticsManager extends TypedEventEmitter {
 
 	async shutdown(): Promise<void> {
 		this.isShuttingDown = true;
+		if (this.profileIpcBreadcrumbDisposer) {
+			this.profileIpcBreadcrumbDisposer();
+			this.profileIpcBreadcrumbDisposer = null;
+		}
 		for (const dispose of this.preferenceDisposers) {
 			try {
 				dispose();
@@ -278,6 +297,10 @@ export class DiagnosticsManager extends TypedEventEmitter {
 
 	getDiagnosticsDirectory(): string {
 		return this.ensureDiagnosticsDirectory();
+	}
+
+	getProfileIpcRecorder(): ProfileIpcDiagnosticsRecorder {
+		return this.profileIpcRecorder;
 	}
 
 	getState(): DiagnosticsManagerState {
@@ -1162,6 +1185,24 @@ export class DiagnosticsManager extends TypedEventEmitter {
 		this.latestStorageHealth = next ? { ...next } : null;
 		if (changed) {
 			this.emit("preferences-storage-health", this.latestStorageHealth);
+		}
+	}
+
+	private async writeProfileIpcBreadcrumb(breadcrumb: DiagnosticsBreadcrumb): Promise<void> {
+		const directory = this.getDiagnosticsDirectory();
+		const target = path.join(directory, DIAGNOSTICS_EVENTS_FILE_NAME);
+		
+		try {
+			const event = {
+				type: "llm_profile_ipc",
+				timestamp: breadcrumb.createdAt,
+				breadcrumb
+			};
+			const line = JSON.stringify(event) + "\n";
+			const { appendFileSync } = await import("node:fs");
+			appendFileSync(target, line, "utf-8");
+		} catch (error) {
+			this.options.getLogger?.().warn?.("Failed to write profile IPC breadcrumb to diagnostics", error);
 		}
 	}
 
