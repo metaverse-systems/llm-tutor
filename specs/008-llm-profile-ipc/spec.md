@@ -11,15 +11,14 @@
 2. Renderer formats a validated IPC request aligned with contracts/api.md and submits it to the main process bridge.
 3. IPC handler authenticates the channel, validates payload schema, and routes to the appropriate profile service.
 4. Under 500 ms (excluding remote LLM calls), the handler returns a structured success or error response with diagnostic breadcrumbs recorded locally.
-5. If encryption via safeStorage is unavailable, the handler applies documented fallback storage policy and notifies diagnostics.
+5. If encryption via safeStorage is unavailable, the handler blocks profile write/update operations, returns guarded errors to the renderer, and continually notifies diagnostics until secure storage resumes.
 6. dispose() is invoked during app teardown to unregister channels and flush any pending diagnostics events.
 ```
 
 ---
-
 ## ⚡ Quick Guidelines
 - Keep renderer-to-main communication predictable and observable for profile management staff.
-- Protect learner data by defaulting to local storage, with clear disclosures for any remote LLM interactions initiated by discovery flows.
+- Protect learner data by defaulting to local storage, with clear disclosures for any remote LLM interactions initiated by discovery flows, and by halting sensitive writes whenever encryption guarantees lapse.
 - Maintain accessibility expectations by ensuring responses can be surfaced in assistive-friendly UI messages.
 - Preserve auditability: every request/response pair must produce diagnostics metadata for later review without exposing sensitive prompts in production logs.
 
@@ -36,10 +35,16 @@
 
 ---
 
+## Clarifications
+
+### Session 2025-10-11
+- Q: How should the fallback vault protect sensitive profile data when safeStorage is unavailable? → A: Block profile write/update operations until secure storage returns.
+- Q: Which persona(s) may create, update, delete, or activate LLM profiles through the IPC layer? → A: All operators with desktop access.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### Primary User Story
-An instructional technologist managing LLM tutor profiles uses the desktop app to review available profiles, duplicate or adjust them, validate prompts, and activate the correct profile so learners receive the right curriculum experience without downtime.
+An instructional technologist managing LLM tutor profiles—and other authorized operators with desktop access—use the desktop app to review available profiles, duplicate or adjust them, validate prompts, and activate the correct profile so learners receive the right curriculum experience without downtime.
 
 ### Acceptance Scenarios
 1. **Given** a technologist viewing the profile list, **When** they request a refresh, **Then** the renderer receives the complete set of profiles within 500 ms (excluding remote network waits) and displays any diagnostics notes for degraded encryption.
@@ -47,17 +52,17 @@ An instructional technologist managing LLM tutor profiles uses the desktop app t
 3. **Given** a technologist testing prompt behavior, **When** the Test action encounters a downstream service failure, **Then** the handler surfaces a `SERVICE_FAILURE` code while preserving diagnostic traces without exposing raw prompt data in production builds.
 
 ### Edge Cases
-- What happens when safeStorage is unavailable or becomes unavailable mid-session? Handlers must switch to the fallback vault, alert diagnostics, and continue profile operations without crashing the renderer.
+- What happens when safeStorage is unavailable or becomes unavailable mid-session? Handlers must block profile write/update operations, continue to serve read-only requests, surface guarded error responses, and alert diagnostics until secure storage is restored.
 - How does the system handle simultaneous requests to activate different profiles? Responses must serialize activations to enforce a single active profile and return `CONFLICT_ACTIVE_PROFILE` when an activation is superseded.
 - What occurs if auto-discovery finds corrupt or duplicate profiles? The handler must respond with `DISCOVERY_CONFLICT` and provide remediation steps while keeping corrupted entries quarantined.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
-- **FR-001**: IPC bridge MUST expose seven contract-defined channels (list, create, update, delete, activate, test, discover) with payload schemas enforced before dispatching to services.
+- **FR-001**: IPC bridge MUST expose seven contract-defined channels (list, create, update, delete, activate, test, discover) with payload schemas enforced before dispatching to services and permit access only to authenticated operators with desktop privileges.
 - **FR-002**: Each handler MUST respond within 500 ms excluding remote network latency, returning structured success bodies or structured errors with standardized codes (e.g., `PROFILE_NOT_FOUND`, `VALIDATION_ERROR`, `VAULT_READ_ERROR`).
 - **FR-003**: Bridge MUST translate service-level exceptions from ProfileService, TestPromptService, and AutoDiscoveryService into user-facing messages that omit debug internals in production while retaining sufficient diagnostics context for support teams.
-- **FR-004**: When platform encryption via safeStorage is unavailable, handlers MUST fall back to the documented local vault policy, emit a diagnostics event, and continue serving profile requests without data loss.
+- **FR-004**: When platform encryption via safeStorage is unavailable, handlers MUST block profile write/update operations, emit recurring diagnostics events, and queue follow-up retries so that sensitive data is never persisted without hardware-backed protection.
 - **FR-005**: Diagnostics integration MUST record request metadata, response codes, and performance timing while filtering sensitive prompt content and preserving accessibility of status messaging.
 - **FR-006**: dispose() MUST unregister all IPC channels, flush buffered diagnostics, and confirm that no renderer listeners remain, preventing stale callbacks on app shutdown or reload.
 - **FR-007**: Contract, integration, and end-to-end tests MUST cover request/response schema validation, error propagation, encryption fallback behavior, and complete renderer-to-main-to-service flows.
