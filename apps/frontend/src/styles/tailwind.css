@@ -937,6 +937,7 @@
     border: 0;
   }
 
+  .settings__dialog,
   .settings__placeholder-dialog {
     position: fixed;
     inset: 0;
@@ -948,6 +949,7 @@
     z-index: 60;
   }
 
+  .settings__dialog::before,
   .settings__placeholder-dialog::before {
     content: "";
     position: absolute;
@@ -956,31 +958,105 @@
     opacity: 0.72;
   }
 
+  .settings__dialog-card,
   .settings__placeholder-card {
     position: relative;
     z-index: 1;
-    width: min(30rem, 100%);
+    width: min(36rem, 100%);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
     color: var(--text-primary);
   }
 
+  .settings__dialog-card h2,
   .settings__placeholder-card h2 {
     margin: 0;
     font-size: 1.4rem;
   }
 
+  .settings__dialog-card p,
   .settings__placeholder-card p {
     margin: 0;
     color: var(--text-muted);
     line-height: 1.6;
   }
 
+  .settings__dialog-actions,
   .settings__placeholder-actions {
     display: flex;
     justify-content: flex-end;
     gap: var(--spacing-sm);
+  }
+
+  .settings__dialog-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2xs);
+  }
+
+  .settings__dialog-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .settings__dialog-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .settings__dialog-form label {
+    font-weight: 500;
+  }
+
+  .settings__dialog-form input,
+  .settings__dialog-form select {
+    width: 100%;
+  }
+
+  .settings__field-error {
+    color: var(--state-danger);
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .settings__field-hint {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .settings__consent {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .settings__consent legend {
+    padding: 0 var(--spacing-2xs);
+    font-weight: 600;
+  }
+
+  .settings__consent-option {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    font-size: 0.95rem;
+  }
+
+  .settings__consent-option input {
+    margin-top: 0.3rem;
+  }
+
+  .settings__form-error {
+    border: 1px solid var(--state-danger);
+    background: color-mix(in srgb, var(--state-danger) 12%, transparent);
+    color: var(--state-danger);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
   }
 
   @keyframes settings-skeleton-shimmer {

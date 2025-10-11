@@ -1,6 +1,7 @@
 import type { LLMProfile, TestPromptResult } from "@metaverse-systems/llm-tutor-shared";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
+import { ProfileForm } from "../../components/LLMProfiles/ProfileForm";
 import { useLLMProfiles } from "../../hooks/useLLMProfiles";
 
 interface TestConnectionState {
@@ -71,10 +72,12 @@ function formatLatency(latency: number | null | undefined): string {
 
 export const LLMProfiles: React.FC = () => {
   const {
-  profiles,
+    profiles,
     loading,
     error,
     encryptionAvailable,
+    createProfile,
+    updateProfile,
     fetchProfiles,
     deleteProfile,
     activateProfile,
@@ -87,6 +90,21 @@ export const LLMProfiles: React.FC = () => {
   const [discoveryStatus, setDiscoveryStatus] = useState<DiscoveryStatus>(INITIAL_DISCOVERY_STATUS);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<LLMProfile | null>(null);
+  const dialogReturnFocusRef = useRef<HTMLElement | null>(null);
+
+  const stashFocus = useCallback(() => {
+    dialogReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }, []);
+
+  const restoreFocus = useCallback(() => {
+    const node = dialogReturnFocusRef.current;
+    dialogReturnFocusRef.current = null;
+    if (node) {
+      window.requestAnimationFrame(() => {
+        node.focus();
+      });
+    }
+  }, []);
 
   const sortedProfiles = useMemo(() => {
     return [...profiles].sort((a, b) => {
@@ -193,16 +211,37 @@ export const LLMProfiles: React.FC = () => {
   }, [discoverProfiles, updateAriaStatus]);
 
   const openCreateDialog = useCallback(() => {
+    stashFocus();
+    setEditingProfile(null);
     setIsCreateDialogOpen(true);
-  }, []);
+  }, [stashFocus]);
 
-  const closeCreateDialog = useCallback(() => {
+  const closeFormDialog = useCallback(() => {
     setIsCreateDialogOpen(false);
-  }, []);
+    setEditingProfile(null);
+    restoreFocus();
+  }, [restoreFocus]);
 
   const openEditDialog = useCallback((profile: LLMProfile) => {
+    stashFocus();
+    setIsCreateDialogOpen(false);
     setEditingProfile(profile);
-  }, []);
+  }, [stashFocus]);
+
+  const handleFormSubmitted = useCallback(
+    (profile: LLMProfile, kind: "created" | "updated") => {
+      const verb = kind === "created" ? "Created" : "Updated";
+      updateAriaStatus(`${verb} ${profile.name}`);
+      setIsCreateDialogOpen(false);
+      setEditingProfile(null);
+      restoreFocus();
+    },
+    [restoreFocus, updateAriaStatus]
+  );
+
+  const handleFormCanceled = useCallback(() => {
+    closeFormDialog();
+  }, [closeFormDialog]);
 
   return (
     <main className="settings" aria-busy={loading} data-testid="llm-profiles-page">
@@ -390,35 +429,26 @@ export const LLMProfiles: React.FC = () => {
       </div>
 
       {isCreateDialogOpen ? (
-        <div className="settings__placeholder-dialog" role="dialog" aria-modal="true" aria-label="Create profile placeholder">
-          <div className="settings__placeholder-card app-card">
-            <h2>Profile creation coming soon</h2>
-            <p>
-              The add/edit experience lives in upcoming tasks. For now, profiles can be created via the Electron shell or auto-discovery workflows.
-            </p>
-            <div className="settings__placeholder-actions">
-              <button type="button" className="app-button--primary" onClick={closeCreateDialog}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <ProfileForm
+          mode="create"
+          createProfile={createProfile}
+          updateProfile={updateProfile}
+          onRequestClose={handleFormCanceled}
+          onSubmitted={handleFormSubmitted}
+          onError={updateAriaStatus}
+        />
       ) : null}
 
       {editingProfile ? (
-        <div className="settings__placeholder-dialog" role="dialog" aria-modal="true" aria-label="Edit profile placeholder">
-          <div className="settings__placeholder-card app-card">
-            <h2>{`Editing ${editingProfile.name}`}</h2>
-            <p>
-              The inline editor will ship with the ProfileForm component (Task T026). Until then, edit profiles via the backend diagnostics tools.
-            </p>
-            <div className="settings__placeholder-actions">
-              <button type="button" className="app-button" onClick={() => setEditingProfile(null)}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <ProfileForm
+          mode="edit"
+          profile={editingProfile}
+          createProfile={createProfile}
+          updateProfile={updateProfile}
+          onRequestClose={handleFormCanceled}
+          onSubmitted={handleFormSubmitted}
+          onError={updateAriaStatus}
+        />
       ) : null}
     </main>
   );

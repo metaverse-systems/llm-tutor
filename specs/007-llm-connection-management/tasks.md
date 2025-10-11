@@ -726,10 +726,15 @@
 ---
 
 ### T026 [P]: Build Profile form component (Add/Edit)
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/frontend/src/components/LLMProfiles/ProfileForm.tsx`  
 **Dependencies**: T024  
 **Parallel**: ✅
+
+**Notes**:
+- Implemented accessible modal form with dynamic validation for provider type, endpoint rules, model requirements, and remote consent gating.
+- Replaced placeholder dialogs in `apps/frontend/src/pages/settings/LLMProfiles.tsx`, adding focus trapping, success announcements, and optimistic close handling.
+- Added component-level Vitest coverage in `apps/frontend/tests/components/LLMProfiles/ProfileForm.test.tsx`, expanded `vitest.config.ts`, and updated Tailwind styles to support the new dialog.
 
 **Steps**:
 1. Create `apps/frontend/src/components/LLMProfiles/ProfileForm.tsx`
@@ -748,9 +753,9 @@
 9. Run: `npm --workspace @metaverse-systems/llm-tutor-frontend run test`
 
 **Acceptance Criteria**:
-- [ ] Component tests pass
-- [ ] Form validation enforces all rules from data-model.md
-- [ ] Accessibility: Labels, error messages, focus management
+- [x] Component tests pass
+- [x] Form validation enforces all rules from data-model.md
+- [x] Accessibility: Labels, error messages, focus management
 
 **References**: contracts/api.md (Create/Update payloads), spec.md (AR-002)
 
