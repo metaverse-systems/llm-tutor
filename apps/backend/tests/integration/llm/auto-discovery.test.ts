@@ -50,11 +50,6 @@ describe("LLM integration: auto-discovery via HTTP /discover endpoint", () => {
 		const module = await import("../../../src/api/diagnostics/index.js");
 		const instance = await module.createDiagnosticsApp();
 		app = instance;
-		
-		// Clear any existing profiles from vault
-		const vaultModule = await import("../../../src/services/llm/profile-vault.js");
-		const vault = vaultModule.loadProfileVault();
-		await vault.clearAll();
 	});
 
 	afterEach(async () => {
