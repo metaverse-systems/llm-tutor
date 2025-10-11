@@ -1,9 +1,17 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { z } from "zod";
 import {
   LLMProfileSchema,
-  type LLMProfile
+  type LLMProfile,
+  type ProfileVault
 } from "@metaverse-systems/llm-tutor-shared/llm";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { Buffer } from "node:buffer";
+import * as http from "node:http";
+import * as https from "node:https";
+import { z } from "zod";
+
+import { EncryptionService } from "../../infra/encryption/index.js";
+import type { DiagnosticsLogger } from "../../infra/logging/diagnostics-logger.js";
+import { ProfileVaultService, type ProfileVaultStore } from "../../services/llm/profile-vault.js";
 import {
   ProfileService,
   type CreateProfilePayload,
@@ -13,12 +21,6 @@ import {
   API_KEY_PLACEHOLDER
 } from "../../services/llm/profile.service.js";
 import { TestPromptService } from "../../services/llm/test-prompt.service.js";
-import { ProfileVaultService } from "../../services/llm/profile-vault.js";
-import { EncryptionService } from "../../infra/encryption/index.js";
-import { Buffer } from "node:buffer";
-import * as http from "node:http";
-import * as https from "node:https";
-import type { DiagnosticsLogger } from "../../infra/logging/diagnostics-logger.js";
 
 // Request/Response schemas
 const createProfileRequestSchema = z.object({
@@ -70,6 +72,29 @@ const discoverRequestSchema = z.object({
 // Discovery ports for local llama.cpp/Ollama
 const LOCAL_DISCOVERY_PORTS = [8080, 8000, 11434];
 
+// Helper to safely extract error information
+function getErrorInfo(error: unknown): { code?: string; message: string; name?: string; details?: unknown } {
+  if (error instanceof Error) {
+    const errorWithCode = error as Error & { code?: string; details?: unknown };
+    return {
+      code: errorWithCode.code,
+      message: error.message,
+      name: error.name,
+      details: errorWithCode.details
+    };
+  }
+  if (typeof error === "object" && error !== null) {
+    const errorObj = error as Record<string, unknown>;
+    return {
+      code: typeof errorObj.code === "string" ? errorObj.code : undefined,
+      message: typeof errorObj.message === "string" ? errorObj.message : String(error),
+      name: typeof errorObj.name === "string" ? errorObj.name : undefined,
+      details: errorObj.details
+    };
+  }
+  return { message: String(error) };
+}
+
 // Simple fetch wrapper using http/https module for nock compatibility
 function createHttpFetch(): typeof fetch {
   return async function httpFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
@@ -93,7 +118,7 @@ function createHttpFetch(): typeof fetch {
           resolve(new Response(data, {
             status: res.statusCode,
             statusText: res.statusMessage,
-            headers: res.headers as any
+            headers: res.headers as unknown as HeadersInit
           }));
         });
       });
@@ -128,6 +153,7 @@ export interface RegisterProfileRoutesOptions {
 /**
  * Register LLM profile HTTP routes
  */
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function registerProfileRoutes(
   app: FastifyInstance,
   options: RegisterProfileRoutesOptions = {}
@@ -138,11 +164,11 @@ export async function registerProfileRoutes(
   const diagnosticsLogger = options.diagnosticsLogger ?? null;
   
   if (!profileService || !testPromptService) {
-    const inMemoryVaultStore = {
-      data: null as any,
+    const inMemoryVaultStore: ProfileVaultStore = {
+      data: null as ProfileVault | undefined,
       get() { return this.data; },
-      set(value: any) { this.data = value; },
-      clear() { this.data = null; }
+      set(value: ProfileVault) { this.data = value; },
+      clear() { this.data = undefined; }
     };
 
     const vaultService = options.vaultService || new ProfileVaultService({ store: inMemoryVaultStore });
@@ -190,12 +216,14 @@ export async function registerProfileRoutes(
         },
         timestamp: Date.now()
       });
-    } catch (error: any) {
-      if (error.code === "VAULT_READ_ERROR") {
+    } catch (error: unknown) {
+      const { code, message, details: _details } = getErrorInfo(error);
+      
+      if (code === "VAULT_READ_ERROR") {
         return reply.code(500).send({
           success: false,
           error: "VAULT_READ_ERROR",
-          message: error.message,
+          message,
           timestamp: Date.now()
         });
       }
@@ -203,7 +231,7 @@ export async function registerProfileRoutes(
       return reply.code(500).send({
         success: false,
         error: "INTERNAL_ERROR",
-        message: error.message || "Internal server error",
+        message: message || "Internal server error",
         timestamp: Date.now()
       });
     }
@@ -233,22 +261,24 @@ export async function registerProfileRoutes(
         },
         timestamp: Date.now()
       });
-    } catch (error: any) {
-      if (error.code === "VALIDATION_ERROR") {
+    } catch (error: unknown) {
+      const { code, message, details } = getErrorInfo(error);
+      
+      if (code === "VALIDATION_ERROR") {
         return reply.code(400).send({
           success: false,
           error: "VALIDATION_ERROR",
-          message: error.message,
-          details: error.details,
+          message: message,
+          details,
           timestamp: Date.now()
         });
       }
       
-      if (error.code === "VAULT_WRITE_ERROR") {
+      if (code === "VAULT_WRITE_ERROR") {
         return reply.code(500).send({
           success: false,
           error: "VAULT_WRITE_ERROR",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
@@ -256,7 +286,7 @@ export async function registerProfileRoutes(
       return reply.code(500).send({
         success: false,
         error: "INTERNAL_ERROR",
-        message: error.message || "Internal server error",
+        message: message || "Internal server error",
         timestamp: Date.now()
       });
     }
@@ -285,31 +315,33 @@ export async function registerProfileRoutes(
         },
         timestamp: Date.now()
       });
-    } catch (error: any) {
-      if (error.code === "PROFILE_NOT_FOUND") {
+    } catch (error: unknown) {
+      const { code, message, details: _details } = getErrorInfo(error);
+      
+      if (code === "PROFILE_NOT_FOUND") {
         return reply.code(404).send({
           success: false,
           error: "PROFILE_NOT_FOUND",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
       
-      if (error.code === "VALIDATION_ERROR") {
+      if (code === "VALIDATION_ERROR") {
         return reply.code(400).send({
           success: false,
           error: "VALIDATION_ERROR",
-          message: error.message,
-          details: error.details,
+          message: message,
+          details,
           timestamp: Date.now()
         });
       }
       
-      if (error.code === "VAULT_WRITE_ERROR") {
+      if (code === "VAULT_WRITE_ERROR") {
         return reply.code(500).send({
           success: false,
           error: "VAULT_WRITE_ERROR",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
@@ -317,7 +349,7 @@ export async function registerProfileRoutes(
       return reply.code(500).send({
         success: false,
         error: "INTERNAL_ERROR",
-        message: error.message || "Internal server error",
+        message: message || "Internal server error",
         timestamp: Date.now()
       });
     }
@@ -347,30 +379,32 @@ export async function registerProfileRoutes(
         },
         timestamp: Date.now()
       });
-    } catch (error: any) {
-      if (error.code === "PROFILE_NOT_FOUND") {
+    } catch (error: unknown) {
+      const { code, message, details: _details } = getErrorInfo(error);
+      
+      if (code === "PROFILE_NOT_FOUND") {
         return reply.code(404).send({
           success: false,
           error: "PROFILE_NOT_FOUND",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
       
-      if (error.code === "ALTERNATE_NOT_FOUND") {
+      if (code === "ALTERNATE_NOT_FOUND") {
         return reply.code(409).send({
           success: false,
           error: "ALTERNATE_NOT_FOUND",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
       
-      if (error.code === "VAULT_WRITE_ERROR") {
+      if (code === "VAULT_WRITE_ERROR") {
         return reply.code(500).send({
           success: false,
           error: "VAULT_WRITE_ERROR",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
@@ -378,7 +412,7 @@ export async function registerProfileRoutes(
       return reply.code(500).send({
         success: false,
         error: "INTERNAL_ERROR",
-        message: error.message || "Internal server error",
+        message: message || "Internal server error",
         timestamp: Date.now()
       });
     }
@@ -406,21 +440,23 @@ export async function registerProfileRoutes(
         },
         timestamp: Date.now()
       });
-    } catch (error: any) {
-      if (error.code === "PROFILE_NOT_FOUND") {
+    } catch (error: unknown) {
+      const { code, message, details: _details } = getErrorInfo(error);
+      
+      if (code === "PROFILE_NOT_FOUND") {
         return reply.code(404).send({
           success: false,
           error: "PROFILE_NOT_FOUND",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
       
-      if (error.code === "VAULT_WRITE_ERROR") {
+      if (code === "VAULT_WRITE_ERROR") {
         return reply.code(500).send({
           success: false,
           error: "VAULT_WRITE_ERROR",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
@@ -428,7 +464,7 @@ export async function registerProfileRoutes(
       return reply.code(500).send({
         success: false,
         error: "INTERNAL_ERROR",
-        message: error.message || "Internal server error",
+        message: message || "Internal server error",
         timestamp: Date.now()
       });
     }
@@ -453,30 +489,32 @@ export async function registerProfileRoutes(
         data: result,
         timestamp: Date.now()
       });
-    } catch (error: any) {
-      if (error.code === "PROFILE_NOT_FOUND") {
+    } catch (error: unknown) {
+      const { code, message, details: _details } = getErrorInfo(error);
+      
+      if (code === "PROFILE_NOT_FOUND") {
         return reply.code(404).send({
           success: false,
           error: "PROFILE_NOT_FOUND",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
       
-      if (error.code === "NO_ACTIVE_PROFILE") {
+      if (code === "NO_ACTIVE_PROFILE") {
         return reply.code(409).send({
           success: false,
           error: "NO_ACTIVE_PROFILE",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
       
-      if (error.code === "TIMEOUT") {
+      if (code === "TIMEOUT") {
         return reply.code(504).send({
           success: false,
           error: "TIMEOUT",
-          message: error.message,
+          message: message,
           timestamp: Date.now()
         });
       }
@@ -484,7 +522,7 @@ export async function registerProfileRoutes(
       return reply.code(500).send({
         success: false,
         error: "INTERNAL_ERROR",
-        message: error.message || "Internal server error",
+        message: message || "Internal server error",
         timestamp: Date.now()
       });
     }
@@ -546,7 +584,7 @@ export async function registerProfileRoutes(
               }
               // Don't break - continue probing all ports
             }
-          } catch (error) {
+          } catch {
             // Continue to next port
             continue;
           }
@@ -578,7 +616,9 @@ export async function registerProfileRoutes(
         },
         timestamp: Date.now()
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const { name, message } = getErrorInfo(error);
+      
       // Record error diagnostics event
       if (diagnosticsLogger) {
         await diagnosticsLogger.record({
@@ -591,8 +631,8 @@ export async function registerProfileRoutes(
           probedPorts: [],
           durationMs: Date.now() - startTime,
           error: {
-            name: error.name || "Error",
-            message: error.message || "Discovery failed"
+            name: name || "Error",
+            message: message || "Discovery failed"
           }
         });
       }
@@ -600,7 +640,7 @@ export async function registerProfileRoutes(
       return reply.code(500).send({
         success: false,
         error: "DISCOVERY_ERROR",
-        message: error.message || "Discovery failed",
+        message: message || "Discovery failed",
         timestamp: Date.now()
       });
     }

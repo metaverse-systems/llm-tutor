@@ -22,6 +22,7 @@ import {
 	type DiagnosticsSnapshotStore,
 	type RefreshRateLimiter
 } from "./routes.js";
+import { createDiagnosticsLogger } from "../../infra/logging/diagnostics-logger.js";
 import {
 	createInMemoryDiagnosticsPreferenceAdapter,
 	type DiagnosticsPreferenceAdapter
@@ -34,7 +35,6 @@ import {
 	DiagnosticsSnapshotService
 } from "../../services/diagnostics/index.js";
 import { registerProfileRoutes } from "../llm/profile.routes.js";
-import { createDiagnosticsLogger } from "../../infra/logging/diagnostics-logger.js";
 
 const DEFAULT_STORAGE_DIR = "/tmp/llm-tutor/diagnostics";
 

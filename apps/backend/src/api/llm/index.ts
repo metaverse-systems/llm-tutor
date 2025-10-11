@@ -1,10 +1,13 @@
+import type { ProfileVault } from "@metaverse-systems/llm-tutor-shared/llm";
+import { Buffer } from "node:buffer";
+
+import type { LlmContractTestHarness, ProfileVaultSeed } from "../../../tests/contract/llm/helpers.js";
+import { EncryptionService } from "../../infra/encryption/index.js";
 import { ProfileVaultService, ProfileVaultReadError, ProfileVaultWriteError, type ProfileVaultStore } from "../../services/llm/profile-vault.js";
 import { ProfileService } from "../../services/llm/profile.service.js";
 import { TestPromptService } from "../../services/llm/test-prompt.service.js";
-import { EncryptionService } from "../../infra/encryption/index.js";
-import type { ProfileVault } from "@metaverse-systems/llm-tutor-shared/llm";
-import type { LlmContractTestHarness, ProfileVaultSeed } from "../../../tests/contract/llm/helpers.js";
-import { Buffer } from "node:buffer";
+
+
 
 interface TestState {
 	vault: ProfileVault | null;
