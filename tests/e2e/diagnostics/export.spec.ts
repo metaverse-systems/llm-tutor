@@ -365,6 +365,124 @@ async function waitForDiagnosticsBridge(window: Page, timeoutMs = 30_000) {
   );
 }
 
+async function waitForLlmBridge(window: Page, timeoutMs = 30_000) {
+  await window.waitForFunction(
+    () => {
+      const api = (window as unknown as {
+        llmAPI?: {
+          createProfile?: unknown;
+          updateProfile?: unknown;
+          deleteProfile?: unknown;
+          discoverProfiles?: unknown;
+        };
+      }).llmAPI;
+
+      return Boolean(
+        api?.createProfile &&
+        api?.updateProfile &&
+        api?.deleteProfile &&
+        api?.discoverProfiles
+      );
+    },
+    { timeout: timeoutMs }
+  );
+}
+
+async function createSampleLlmEvents(window: Page) {
+  await waitForLlmBridge(window);
+
+  const result = await window.evaluate(async () => {
+    const api = (window as unknown as {
+      llmAPI?: {
+        createProfile: (payload: Record<string, unknown>) => Promise<unknown>;
+        updateProfile: (payload: Record<string, unknown>) => Promise<unknown>;
+        deleteProfile: (payload: Record<string, unknown>) => Promise<unknown>;
+        discoverProfiles: (payload?: Record<string, unknown>) => Promise<unknown>;
+      };
+    }).llmAPI;
+
+    if (!api) {
+      throw new Error("LLM bridge is unavailable");
+    }
+
+    const suffix = Date.now().toString(36);
+    const profileName = `Playwright Profile ${suffix}`;
+
+    const createResult = (await api.createProfile({
+      name: profileName,
+      providerType: "llama.cpp",
+      endpointUrl: "http://127.0.0.1:4319",
+      apiKey: "",
+      modelId: null,
+      consentTimestamp: null
+    })) as {
+      success: boolean;
+      message?: string;
+      data?: { profile: { id: string } };
+    };
+
+    if (!createResult.success || !createResult.data?.profile?.id) {
+      throw new Error(`Failed to create diagnostics profile: ${createResult.message ?? "unknown error"}`);
+    }
+
+    const profileId = createResult.data.profile.id;
+
+    const updateResult = (await api.updateProfile({
+      id: profileId,
+      name: `${profileName} Updated`
+    })) as { success: boolean; message?: string };
+
+    if (!updateResult.success) {
+      throw new Error(`Failed to update diagnostics profile: ${updateResult.message ?? "unknown error"}`);
+    }
+
+    const discoveryResult = (await api.discoverProfiles({ force: true })) as {
+      success: boolean;
+      message?: string;
+      data?: unknown;
+    };
+
+    if (!discoveryResult.success) {
+      throw new Error(`Auto-discovery invocation failed: ${discoveryResult.message ?? "unknown error"}`);
+    }
+
+    const deleteResult = (await api.deleteProfile({ id: profileId })) as {
+      success: boolean;
+      message?: string;
+      data?: { deletedId: string };
+    };
+
+    if (!deleteResult.success || deleteResult.data?.deletedId !== profileId) {
+      throw new Error(`Failed to delete diagnostics profile: ${deleteResult.message ?? "unknown error"}`);
+    }
+
+    return {
+      profileId,
+      deletedId: deleteResult.data?.deletedId ?? null
+    };
+  });
+
+  expect(result.profileId).toBeTruthy();
+  expect(result.deletedId).toBe(result.profileId);
+
+  await sleep(250);
+}
+
+type JsonlEntry = Record<string, unknown>;
+
+function parseJsonl(content: string): JsonlEntry[] {
+  return content
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as JsonlEntry);
+}
+
+function isLlmDiagnosticsEvent(entry: JsonlEntry): entry is JsonlEntry & { type: string } {
+  const typeValue = (entry as { type?: unknown }).type;
+  return typeof typeValue === "string" && typeValue.startsWith("llm_");
+}
+
 test.describe("Electron diagnostics export", () => {
   test.beforeEach(async () => {
     await startRendererPreview();
@@ -451,6 +569,8 @@ test.describe("Electron diagnostics export", () => {
         keyboardNavigationVerified: true
       });
 
+      await createSampleLlmEvents(window);
+
       const landingCta = window.getByTestId("landing-diagnostics-cta");
       await expect(landingCta).toBeVisible();
       await landingCta.focus();
@@ -472,6 +592,30 @@ test.describe("Electron diagnostics export", () => {
 
       const fileContents = await fs.readFile(downloadedFile, "utf-8");
       expect(fileContents.trim()).not.toHaveLength(0);
+
+      const jsonlEntries = parseJsonl(fileContents);
+      expect(jsonlEntries.length).toBeGreaterThan(0);
+
+      const [snapshotEntry, ...eventCandidateEntries] = jsonlEntries;
+      expect(snapshotEntry).toBeDefined();
+      expect(Object.prototype.hasOwnProperty.call(snapshotEntry, "type")).toBe(false);
+
+  const llmEvents = eventCandidateEntries.filter(isLlmDiagnosticsEvent);
+      expect(llmEvents.length).toBeGreaterThanOrEqual(3);
+  const eventTypes = llmEvents.map((entry) => entry.type);
+      expect(eventTypes).toEqual(
+        expect.arrayContaining([
+          "llm_profile_created",
+          "llm_profile_updated",
+          "llm_profile_deleted",
+          "llm_autodiscovery"
+        ])
+      );
+
+      const containsApiKey = llmEvents.some((entry) =>
+        Object.prototype.hasOwnProperty.call(entry, "apiKey")
+      );
+      expect(containsApiKey).toBe(false);
 
       const { snapshotPath, logPath, logContents, logEntries } = await collectExportArtifacts(exportDir);
       expect(snapshotPath, "snapshot JSONL should be present").not.toBeNull();

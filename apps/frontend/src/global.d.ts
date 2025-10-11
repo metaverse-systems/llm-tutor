@@ -6,6 +6,8 @@ import type {
   DiagnosticsExportRequestPayload
 } from "@metaverse-systems/llm-tutor-shared";
 
+import type { LlmApiBridge } from "./types/llm-api";
+
 export {}; // Ensures this file is treated as a module
 
 interface SerializableBackendProcessState {
@@ -76,6 +78,7 @@ declare global {
       diagnosticsSnapshot: () => Promise<unknown>;
       diagnostics: DiagnosticsPreloadApi;
     };
+    llmAPI?: LlmApiBridge;
   }
 }
 

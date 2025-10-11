@@ -10,7 +10,13 @@ export default defineConfig({
       "src/**/*.test.{ts,tsx}",
       "src/**/*.spec.{ts,tsx}",
       "tests/unit/**/*.test.{ts,tsx}",
-      "tests/unit/**/*.spec.{ts,tsx}"
+      "tests/unit/**/*.spec.{ts,tsx}",
+      "tests/hooks/**/*.test.{ts,tsx}",
+      "tests/hooks/**/*.spec.{ts,tsx}",
+      "tests/components/**/*.test.{ts,tsx}",
+      "tests/components/**/*.spec.{ts,tsx}",
+      "tests/pages/**/*.test.{ts,tsx}",
+      "tests/pages/**/*.spec.{ts,tsx}"
     ],
     css: true
   }

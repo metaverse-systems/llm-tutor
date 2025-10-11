@@ -26,6 +26,7 @@ import {
 	type PreferencesVaultOptions,
 	type PreferencesVaultUpdate
 } from "./preferences/preferencesVault";
+import { DIAGNOSTICS_EVENTS_FILE_NAME } from "../../../../backend/src/infra/logging/index.js";
 
 export type BackendLifecycleState = "stopped" | "starting" | "running" | "error";
 
@@ -638,11 +639,13 @@ export class DiagnosticsManager extends TypedEventEmitter {
 		});
 
 		try {
+			const diagnosticsDirectory = this.getDiagnosticsDirectory();
 			const child = fork(entry, [], {
 				stdio: "inherit",
 				env: {
 					...process.env,
-					LLM_TUTOR_MODE: app.isPackaged ? "production" : "development"
+					LLM_TUTOR_MODE: app.isPackaged ? "production" : "development",
+					LLM_TUTOR_DIAGNOSTICS_DIR: diagnosticsDirectory
 				}
 			});
 
@@ -1080,13 +1083,49 @@ export class DiagnosticsManager extends TypedEventEmitter {
 		const generatedAt = new Date(generatedAtRaw);
 		const timestamp = Number.isNaN(generatedAt.getTime()) ? new Date() : generatedAt;
 		const filename = this.buildExportFilename(timestamp);
-		const body = `${JSON.stringify(this.latestSnapshot)}\n`;
+		const snapshotLine = JSON.stringify(this.latestSnapshot);
+		const eventLines = this.loadDiagnosticsEventLines();
+		const body = `${[snapshotLine, ...eventLines].join("\n")}\n`;
 
 		return {
 			filename,
 			contentType: "application/x-ndjson",
 			body
 		};
+	}
+
+	private loadDiagnosticsEventLines(): string[] {
+		const directory = this.getDiagnosticsDirectory();
+		const target = path.join(directory, DIAGNOSTICS_EVENTS_FILE_NAME);
+		if (!existsSync(target)) {
+			return [];
+		}
+
+		try {
+			const contents = readFileSync(target, "utf-8");
+			const lines: string[] = [];
+			for (const rawLine of contents.split(/\r?\n/u)) {
+				const trimmed = rawLine.trim();
+				if (!trimmed) {
+					continue;
+				}
+
+				try {
+					const parsed = JSON.parse(trimmed) as unknown;
+					lines.push(JSON.stringify(parsed));
+				} catch (error) {
+					this.options
+						.getLogger?.()
+						.warn?.("Skipping malformed diagnostics event during fallback export", error);
+				}
+			}
+			return lines;
+		} catch (error) {
+			this.options
+				.getLogger?.()
+				.warn?.("Failed to read diagnostics events for fallback export", error);
+			return [];
+		}
 	}
 
 	private extractFilename(response: Response): string | null {

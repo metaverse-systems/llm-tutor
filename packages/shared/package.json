@@ -3,25 +3,40 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "src/index.ts",
+  "main": "dist-cjs/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist-cjs/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./llm": {
+      "import": "./dist/llm/index.js",
+      "require": "./dist-cjs/llm/index.js",
+      "types": "./dist/llm/index.d.ts"
+    }
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+  "build": "npm run build:esm && npm run build:cjs",
+  "build:esm": "tsc -p tsconfig.build.json",
+  "build:cjs": "tsc -p tsconfig.build.cjs.json && node ./scripts/write-cjs-package-json.mjs",
     "prepare": "npm run build:tokens",
-  "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest run",
     "test:e2e": "echo 'Shared package exposes no e2e targets.'",
     "test:a11y": "echo 'Shared package has no accessibility surface.'",
     "format:css": "node ../../scripts/format-css-workspace.cjs src",
-  "tailwind:build": "tailwindcss -c ../../tailwind.config.cjs -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --minify",
-  "tailwind:watch": "tailwindcss -c ../../tailwind.config.cjs -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --watch",
-  "build:tokens": "npm run build && node ./dist/styles/generateThemeAssets.js"
+    "tailwind:build": "tailwindcss -c ../../tailwind.config.cjs -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --minify",
+    "tailwind:watch": "tailwindcss -c ../../tailwind.config.cjs -i ./src/styles/tailwind.css -o ./.tailwind/shared.css --watch",
+    "build:tokens": "npm run build && node ./dist/styles/generateThemeAssets.js"
   },
   "dependencies": {
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",

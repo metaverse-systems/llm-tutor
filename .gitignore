@@ -8,6 +8,8 @@ yarn-error.log*
 # Build outputs
 dist/
 **/dist/
+dist-cjs/
+**/dist-cjs/
 .tailwind/
 **/.tailwind/
 **/tailwind.generated.css

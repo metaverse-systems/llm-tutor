@@ -6,7 +6,7 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import { registerDiagnosticsPreferenceRoutes } from "./preferences/routes.js";
-import { createDiagnosticsExport } from "../../infra/logging/index.js";
+import { createDiagnosticsExport, DIAGNOSTICS_EVENTS_FILE_NAME } from "../../infra/logging/index.js";
 import {
   type DiagnosticsPreferenceAdapter
 } from "../../infra/preferences/index.js";
@@ -111,7 +111,9 @@ export async function registerDiagnosticsRoutes(
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const exportResult = await createDiagnosticsExport({
         store,
-        now
+        now,
+        eventsDirectory: process.env.LLM_TUTOR_DIAGNOSTICS_DIR ?? null,
+        eventsFileName: DIAGNOSTICS_EVENTS_FILE_NAME
       });
 
       if (!exportResult) {

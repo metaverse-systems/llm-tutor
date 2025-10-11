@@ -3,6 +3,7 @@ export * from "./diagnostics/factories.js";
 export * from "./hooks/useThemeMode.js";
 export * from "./styles/tokens.js";
 export * from "./utils/uuid.js";
+export * from "./llm/index.js";
 
 export interface ProjectSummary {
   name: string;

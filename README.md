@@ -36,6 +36,10 @@ llm-tutor/
 
 > The repository scaffold will evolve as the first feature plan is executed; keep this section current as directories are added.
 
+## Documentation
+
+- [LLM Profile Management](./docs/llm-profiles.md) – Deep dive into profile storage, IPC contracts, diagnostics, and troubleshooting introduced in feature plan 007.
+
 ## Getting Started
 
 ### Prerequisites

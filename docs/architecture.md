@@ -28,7 +28,92 @@ runtime architecture and highlights the responsibilities of each tier.
 
 > Update this matrix as tooling is installed during Phase 3 execution.
 
-## 3. High-Level Data Flow
+## 3. LLM Profile Management
+
+The LLM profile management module orchestrates how learners connect to local and remote
+providers while keeping secrets on-device. It spans the backend services, Electron main
+process, preload bridge, and renderer UI.
+
+### 3.1 Module map
+
+- **Backend services** (`apps/backend/src/services/llm/`)
+	- `ProfileService` mediates CRUD, activation, and diagnostics logging for LLM profiles.
+	- `TestPromptService` executes connection checks against provider endpoints and truncates
+		responses before returning them to the UI.
+	- `EncryptionService` wraps `electron-safeStorage` to encrypt API keys and emits
+		diagnostics when the OS keychain is unavailable.
+	- `profile-vault.ts` persists the profile vault to `llm-profiles.json` via `electron-store`.
+- **Electron main** (`apps/desktop/src/main/llm/`)
+	- `registerLLMHandlers` exposes IPC endpoints such as `llm:profiles:list`,
+		`llm:profiles:create`, and `llm:profiles:discover`.
+	- `AutoDiscoveryService` probes local ports at startup to seed a "Local llama.cpp" profile
+		on first launch.
+	- `first-launch.ts` coordinates discovery so it runs once without blocking window creation.
+- **Preload bridge** (`apps/desktop/src/preload/llm-bridge.ts`) exposes a typed `llmAPI`
+	object to the renderer while keeping IPC surface area auditable.
+- **Renderer UI**
+	- `apps/frontend/src/hooks/useLLMProfiles.ts` provides optimistic state management for
+		create/update/delete/test flows.
+	- `apps/frontend/src/pages/settings/LLMProfiles.tsx` and related dialogs render profile
+		cards, consent prompts, discovery triggers, and connection status badges.
+
+### 3.2 Data & control flow
+
+```mermaid
+flowchart LR
+		subgraph Renderer
+				UI["Settings → LLMProfiles.tsx"]
+				Hook["useLLMProfiles hook"]
+		end
+		subgraph Preload
+				Bridge["llm-bridge.ts\nwindow.llmAPI"]
+		end
+		subgraph Main
+				Handlers["registerLLMHandlers\nElectron main"]
+				Discovery["AutoDiscoveryService"]
+		end
+		subgraph Backend
+				ProfileService
+				TestPromptService
+				Vault["profile-vault.ts\n(electron-store)"]
+				Encryption["EncryptionService\n(safeStorage)"]
+		end
+
+		UI --> Hook --> Bridge --> Handlers --> ProfileService
+		ProfileService --> Vault
+		ProfileService --> Encryption
+		TestPromptService --> ProfileService
+		Hook -. Test Connection .-> Bridge
+		Discovery --> Handlers
+		Discovery --> ProfileService
+```
+
+1. The renderer invokes `window.llmAPI` methods to list, create, update, delete, activate,
+	 or test profiles. `useLLMProfiles` performs optimistic updates and reconciles with server
+	 responses.
+2. The preload bridge forwards requests through typed IPC channels guarded by
+	 `registerLLMHandlers` in the Electron main process.
+3. Backend services validate payloads with shared Zod schemas, encrypt API keys when the
+	 OS keychain is available, and persist the vault through `electron-store`.
+4. `EncryptionService` falls back to plaintext storage only when necessary and logs
+	 `llm_encryption_unavailable` diagnostics events so exports surface the risk.
+5. `AutoDiscoveryService` runs during first-launch orchestration, probing supported ports
+	 and creating an active local profile when successful. Its results hydrate the same vault
+	 to keep renderer state in sync.
+6. Test prompt requests route through `TestPromptService`, which maps provider-specific
+	 errors to user-friendly codes and logs structured telemetry.
+
+### 3.3 Diagnostics & observability
+
+- All CRUD, activation, discovery, and test prompt operations emit redacted JSONL events
+	(e.g., `llm_profile_created`, `llm_autodiscovery`) that the diagnostics exporter bundles
+	alongside snapshot payloads.
+- Vault updates enforce the "exactly one active profile" invariant and reject remote
+	providers that lack recorded consent.
+- The renderer surfaces consent dialogs and encrypted-badge indicators so learners can
+	audit what information is stored locally.
+
+## 4. High-Level Data Flow
 
 1. **App Launch** – Electron main process starts, registers protocols, verifies local LLM
 	availability, initialises the diagnostics preference vault from `electron-store`, and spawns the backend service process.
@@ -47,7 +132,7 @@ runtime architecture and highlights the responsibilities of each tier.
 7. **Feedback Loop** – Results return to the renderer, which updates UI state and pushes
 	telemetry to the local audit log for transparency.
 
-## 4. Packaging & Distribution
+## 5. Packaging & Distribution
 
 - **Bundling** – The Electron build step packages the backend (Node.js services), renderer
 	assets, preload scripts, and configuration defaults into platform-specific installers.
@@ -58,7 +143,7 @@ runtime architecture and highlights the responsibilities of each tier.
 - **Diagnostics** – The Electron menu exposes a diagnostics console that summarizes local
 	LLM connectivity, database health, and recent AI operations for troubleshooting.
 
-## 5. Privacy & Accessibility Enforcement
+## 6. Privacy & Accessibility Enforcement
 
 - **IPC Security** – Preload layer whitelists renderer capabilities; sensitive operations
 	(filesystem, process control) stay confined to the main process.
@@ -69,7 +154,7 @@ runtime architecture and highlights the responsibilities of each tier.
 	pipelines as the browser build (axe/Lighthouse). Electron main process exposes system
 	shortcuts for high-contrast mode, reduced motion, and screen reader announcements.
 
-## 6. Future Design Considerations
+## 7. Future Design Considerations
 
 - **Service Modularization** – As curriculum, tutoring, assessment, and analytics mature,
 	split backend services into modules with explicit APIs to keep the codebase maintainable.
@@ -86,21 +171,21 @@ This architecture description will evolve as implementation details solidify. Ea
 feature plan should reference the constitution, update this document with concrete
 components and diagrams, and note any cross-cutting concerns introduced by Electron.
 
-## 7. Diagnostics Observability
+## 8. Diagnostics Observability
 
-### 7.1 Snapshot & Preference Lifecycle
+### 8.1 Snapshot & Preference Lifecycle
 
 - **Collection** – The backend `snapshot.service` hydrates `DiagnosticsSnapshotPayload` by combining Fastify health checks, llama.cpp probe results, disk usage stats, and persisted accessibility preferences/consent events from the vault. The service emits structured JSONL entries into the per-user diagnostics directory.
 - **Transport** – Fastify exposes `GET /internal/diagnostics/summary` and `POST /internal/diagnostics/refresh`, which Electron’s main process proxies via IPC channels defined in `apps/desktop/src/ipc/diagnostics.ts`.
 - **Renderer Sync** – The preload bridge (`createDiagnosticsBridge`) pushes updates into the renderer hook `useDiagnostics`, which debounces polling, merges retention warnings, maintains optimistic preference state, and normalizes process events. Preference updates propagate back through `diagnostics:preferences:update` IPC to the vault.
 
-### 7.2 Export & Retention Flow
+### 8.2 Export & Retention Flow
 
 - **Retention Guardrails** – `retention.ts` runs on an interval to prune snapshots older than 30 days and raises warnings when JSONL payloads exceed 500 MB. Warnings surface through IPC and render as toast alerts with accessible messaging.
 - **Export UX** – Triggering an export from the diagnostics panel invokes Electron’s `exportDiagnosticsSnapshot`, opens a save dialog, writes the JSONL payload, and returns success metadata back through the preload bridge.
 - **Testing Hooks** – Contract, integration, accessibility, unit, and Electron smoke suites cover these paths, and reports are archived under `docs/reports/diagnostics/`.
 
-### 7.3 Remote LLM Opt-In & Storage Health
+### 8.3 Remote LLM Opt-In & Storage Health
 
 1. **Toggle Location** – The renderer surfaces remote-provider opt-in under diagnostics > “LLM Connectivity”. Users must explicitly enable the flag before any network traffic occurs.
 2. **Consent Dialog** – Enabling remote providers launches a modal summarizing data handling, tenancy requirements, and the URLs that will be contacted. Users must confirm before preferences persist.
