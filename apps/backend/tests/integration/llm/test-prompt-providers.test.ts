@@ -1,17 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { FastifyInstance } from "fastify";
 import nock from "nock";
 import { z } from "zod";
 import {
 	LLMProfileSchema,
-	ProfileVaultSchema,
 	TestPromptResultSchema
 } from "@metaverse-systems/llm-tutor-shared/llm";
-
-import {
-	loadLlmContractTestHarness,
-	type LlmContractTestHarness,
-	type ProfileVaultSeed
-} from "../../contract/llm/helpers.js";
 
 const successEnvelopeSchema = z
 	.object({
@@ -57,29 +51,53 @@ const azureProfile = LLMProfileSchema.parse({
 	modifiedAt: now - 15_000
 });
 
-describe("LLM integration: test prompt providers", () => {
-	let harness: LlmContractTestHarness;
+describe("LLM integration: test prompt providers via HTTP routes", () => {
+	let app: FastifyInstance | null = null;
 
 	beforeEach(async () => {
 		nock.cleanAll();
 		nock.disableNetConnect();
-		harness = await loadLlmContractTestHarness();
-		await harness.clearVault();
+		
+		// Import and create backend app with profile routes
+		const module = await import("../../../src/api/diagnostics/index.js");
+		const instance = await module.createDiagnosticsApp();
+		app = instance;
+		
+		// Clear any existing profiles from vault
+		const vaultModule = await import("../../../src/services/llm/profile-vault.js");
+		const vault = vaultModule.loadProfileVault();
+		await vault.clearAll();
 	});
 
 	afterEach(async () => {
 		nock.cleanAll();
 		nock.enableNetConnect();
-		await harness.close();
+		if (app) {
+			await app.close();
+			app = null;
+		}
 	});
 
-	it("returns a successful result for llama.cpp with latency measurement", async () => {
-		const vault: ProfileVaultSeed = ProfileVaultSchema.parse({
-			profiles: [llamaProfile],
-			encryptionAvailable: true,
-			version: "1.0.0"
+	it("returns a successful result for llama.cpp with latency measurement via HTTP", async () => {
+		if (!app) throw new Error("App not initialized");
+		
+		// Create llama.cpp profile via POST
+		const createResponse = await app.inject({
+			method: "POST",
+			url: "/api/llm/profiles",
+			payload: {
+				profile: {
+					name: llamaProfile.name,
+					providerType: llamaProfile.providerType,
+					endpointUrl: llamaProfile.endpointUrl,
+					apiKey: llamaProfile.apiKey,
+					modelId: llamaProfile.modelId,
+					consentTimestamp: llamaProfile.consentTimestamp
+				},
+				context: { operatorId: "test-user" }
+			}
 		});
-		await harness.seedVault(vault);
+		const createdProfile = LLMProfileSchema.parse(JSON.parse(createResponse.body).data.profile);
 
 		const longResponse = "a".repeat(600);
 
@@ -112,14 +130,19 @@ describe("LLM integration: test prompt providers", () => {
 				}
 			});
 
-		const response = await harness.invoke("llm:profiles:test", {
-			profileId: llamaProfile.id,
-			promptText: "Hello, can you respond?"
+		// POST to test endpoint
+		const response = await app.inject({
+			method: "POST",
+			url: `/api/llm/profiles/${createdProfile.id}/test`,
+			payload: {
+				promptOverride: "Hello, can you respond?"
+			}
 		});
+		expect(response.statusCode).toBe(200);
 
-		const result = successEnvelopeSchema.parse(response);
+		const result = successEnvelopeSchema.parse(JSON.parse(response.body));
 		expect(result.data.success).toBe(true);
-		expect(result.data.profileId).toBe(llamaProfile.id);
+		expect(result.data.profileId).toBe(createdProfile.id);
 		expect(result.data.providerType).toBe("llama.cpp");
 		expect(result.data.latencyMs).toBeGreaterThanOrEqual(200);
 		expect(result.data.totalTimeMs).toBeGreaterThanOrEqual(result.data.latencyMs ?? 0);
@@ -128,13 +151,26 @@ describe("LLM integration: test prompt providers", () => {
 		expect(result.data.errorCode).toBeNull();
 	});
 
-	it("maps Azure 401 responses to error results", async () => {
-		const vault: ProfileVaultSeed = ProfileVaultSchema.parse({
-			profiles: [azureProfile],
-			encryptionAvailable: true,
-			version: "1.0.0"
+	it("maps Azure 401 responses to error results via HTTP", async () => {
+		if (!app) throw new Error("App not initialized");
+		
+		// Create Azure profile via POST
+		const createResponse = await app.inject({
+			method: "POST",
+			url: "/api/llm/profiles",
+			payload: {
+				profile: {
+					name: azureProfile.name,
+					providerType: azureProfile.providerType,
+					endpointUrl: azureProfile.endpointUrl,
+					apiKey: azureProfile.apiKey,
+					modelId: azureProfile.modelId,
+					consentTimestamp: azureProfile.consentTimestamp
+				},
+				context: { operatorId: "test-user" }
+			}
 		});
-		await harness.seedVault(vault);
+		const createdProfile = LLMProfileSchema.parse(JSON.parse(createResponse.body).data.profile);
 
 		nock("https://workspace.openai.azure.com")
 			.post("/openai/deployments/gpt-4/chat/completions")
@@ -148,12 +184,17 @@ describe("LLM integration: test prompt providers", () => {
 				}
 			});
 
-		const response = await harness.invoke("llm:profiles:test", {
-			profileId: azureProfile.id,
-			promptText: "Hello, can you respond?"
+		// POST to test endpoint
+		const response = await app.inject({
+			method: "POST",
+			url: `/api/llm/profiles/${createdProfile.id}/test`,
+			payload: {
+				promptOverride: "Hello, can you respond?"
+			}
 		});
+		expect(response.statusCode).toBe(200);
 
-		const result = failureEnvelopeSchema.parse(response);
+		const result = failureEnvelopeSchema.parse(JSON.parse(response.body));
 		expect(result.data.success).toBe(false);
 		expect(result.data.errorCode).toBe("401");
 		expect(result.data.errorMessage).toContain("invalid subscription key");
@@ -161,24 +202,43 @@ describe("LLM integration: test prompt providers", () => {
 		expect(result.data.latencyMs).toBeNull();
 	});
 
-	it("records timeout errors when providers do not respond", async () => {
-		const vault: ProfileVaultSeed = ProfileVaultSchema.parse({
-			profiles: [llamaProfile],
-			encryptionAvailable: true,
-			version: "1.0.0"
+	it("records timeout errors when providers do not respond via HTTP (30s timeout)", async () => {
+		if (!app) throw new Error("App not initialized");
+		
+		// Create llama.cpp profile via POST
+		const createResponse = await app.inject({
+			method: "POST",
+			url: "/api/llm/profiles",
+			payload: {
+				profile: {
+					name: llamaProfile.name,
+					providerType: llamaProfile.providerType,
+					endpointUrl: llamaProfile.endpointUrl,
+					apiKey: llamaProfile.apiKey,
+					modelId: llamaProfile.modelId,
+					consentTimestamp: llamaProfile.consentTimestamp
+				},
+				context: { operatorId: "test-user" }
+			}
 		});
-		await harness.seedVault(vault);
+		const createdProfile = LLMProfileSchema.parse(JSON.parse(createResponse.body).data.profile);
 
 		nock("http://localhost:8080")
 			.post("/v1/completions")
 			.replyWithError({ code: "ETIMEDOUT", message: "Request timed out" });
 
-		const response = await harness.invoke("llm:profiles:test", {
-			profileId: llamaProfile.id,
-			promptText: "Please hang"
+		// POST to test endpoint with custom timeout
+		const response = await app.inject({
+			method: "POST",
+			url: `/api/llm/profiles/${createdProfile.id}/test`,
+			payload: {
+				promptOverride: "Please hang",
+				timeoutMs: 2000 // Use shorter timeout for faster test
+			}
 		});
+		expect(response.statusCode).toBe(200);
 
-		const result = failureEnvelopeSchema.parse(response);
+		const result = failureEnvelopeSchema.parse(JSON.parse(response.body));
 		expect(result.data.success).toBe(false);
 		expect(result.data.errorCode).toBe("TIMEOUT");
 		expect(result.data.errorMessage).toContain("timed out");

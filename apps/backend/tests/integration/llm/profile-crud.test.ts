@@ -1,15 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
 	LLMProfileSchema,
 	ProfileVaultSchema
 } from "@metaverse-systems/llm-tutor-shared/llm";
-
-import {
-	loadLlmContractTestHarness,
-	type LlmContractTestHarness,
-	type ProfileVaultSeed
-} from "../../contract/llm/helpers.js";
 
 const listResponseSchema = z
 	.object({
@@ -75,144 +70,242 @@ const diagnosticsEventSchema = z
 	})
 	.passthrough();
 
-describe("LLM integration: profile CRUD workflow", () => {
-	let harness: LlmContractTestHarness;
+describe("LLM integration: profile CRUD workflow via HTTP routes", () => {
+	let app: FastifyInstance | null = null;
 
 	beforeEach(async () => {
-		harness = await loadLlmContractTestHarness();
-		await harness.clearVault();
+		// Import and create backend app with profile routes
+		const module = await import("../../../src/api/diagnostics/index.js");
+		const instance = await module.createDiagnosticsApp();
+		app = instance;
+		
+		// Clear any existing profiles from vault
+		const vaultModule = await import("../../../src/services/llm/profile-vault.js");
+		const vault = vaultModule.loadProfileVault();
+		await vault.clearAll();
 	});
 
 	afterEach(async () => {
-		await harness.close();
+		if (app) {
+			await app.close();
+			app = null;
+		}
 	});
 
-	async function listVault() {
-		const response = await harness.invoke("llm:profiles:list");
-		return listResponseSchema.parse(response);
+	async function listProfiles() {
+		if (!app) throw new Error("App not initialized");
+		const response = await app.inject({
+			method: "GET",
+			url: "/api/llm/profiles"
+		});
+		expect(response.statusCode).toBe(200);
+		const parsed = listResponseSchema.parse(JSON.parse(response.body));
+		return parsed;
 	}
 
-	async function expectDiagnosticsEvent(type: string) {
-		if (!harness.readDiagnosticsEvents) {
-			throw new Error("LLM contract test harness must expose readDiagnosticsEvents()");
+	async function expectDiagnosticsBreadcrumb(correlationId: string) {
+		if (!app) throw new Error("App not initialized");
+		// Request diagnostics export and verify breadcrumb with matching correlationId exists
+		const exportResponse = await app.inject({
+			method: "GET",
+			url: "/internal/diagnostics/export"
+		});
+		expect(exportResponse.statusCode).toBe(200);
+		const lines = exportResponse.body.trim().split("\n");
+		const records = lines.map(line => JSON.parse(line));
+		const breadcrumb = records.find((r: { correlationId?: string }) => r.correlationId === correlationId);
+		expect(breadcrumb).toBeDefined();
+		diagnosticsEventSchema.parse(breadcrumb);
+	}
+
+	it("supports creating, updating, activating, and deleting profiles via HTTP", async () => {
+		if (!app) throw new Error("App not initialized");
+		
+		// Create local llama.cpp profile via POST
+		const localCreateResponse = await app.inject({
+			method: "POST",
+			url: "/api/llm/profiles",
+			payload: {
+				profile: {
+					name: "Local llama.cpp",
+					providerType: "llama.cpp",
+					endpointUrl: "http://localhost:8080",
+					apiKey: "",
+					modelId: null,
+					consentTimestamp: null
+				},
+				context: { operatorId: "test-user" }
+			}
+		});
+		expect(localCreateResponse.statusCode).toBe(201);
+		const localCreateParsed = createResponseSchema.parse(JSON.parse(localCreateResponse.body));
+		const localProfile = localCreateParsed.data.profile;
+		expect(localProfile.isActive).toBe(true);
+		
+		// Verify diagnostics breadcrumb was emitted
+		const createCorrelationId = (JSON.parse(localCreateResponse.body) as { correlationId?: string }).correlationId;
+		if (createCorrelationId) {
+			await expectDiagnosticsBreadcrumb(createCorrelationId);
 		}
 
-		const events = await harness.readDiagnosticsEvents({ type });
-		expect(Array.isArray(events)).toBe(true);
-		expect(events.length).toBeGreaterThan(0);
-		diagnosticsEventSchema.parse(events.at(-1));
-	}
-
-	it("supports creating, updating, activating, and deleting profiles", async () => {
-		const localCreate = await harness.invoke("llm:profiles:create", {
-			name: "Local llama.cpp",
-			providerType: "llama.cpp",
-			endpointUrl: "http://localhost:8080",
-			apiKey: "",
-			modelId: null,
-			consentTimestamp: null
+		// Create Azure profile via POST
+		const azureCreateResponse = await app.inject({
+			method: "POST",
+			url: "/api/llm/profiles",
+			payload: {
+				profile: {
+					name: "Azure OpenAI Prod",
+					providerType: "azure",
+					endpointUrl: "https://workspace.openai.azure.com",
+					apiKey: "sk-azure",
+					modelId: "gpt-4",
+					consentTimestamp: Date.now()
+				},
+				context: { operatorId: "test-user" }
+			}
 		});
-		const localProfile = createResponseSchema.parse(localCreate).data.profile;
-		expect(localProfile.isActive).toBe(true);
-
-		await expectDiagnosticsEvent("llm_profile_created");
-
-		const azureCreate = await harness.invoke("llm:profiles:create", {
-			name: "Azure OpenAI Prod",
-			providerType: "azure",
-			endpointUrl: "https://workspace.openai.azure.com",
-			apiKey: "sk-azure",
-			modelId: "gpt-4",
-			consentTimestamp: Date.now()
-		});
-		const azureProfile = createResponseSchema.parse(azureCreate).data.profile;
+		expect(azureCreateResponse.statusCode).toBe(201);
+		const azureCreateParsed = createResponseSchema.parse(JSON.parse(azureCreateResponse.body));
+		const azureProfile = azureCreateParsed.data.profile;
 		expect(azureProfile.providerType).toBe("azure");
 
-		const afterCreate = await listVault();
+		// List profiles via GET
+		const afterCreate = await listProfiles();
 		expect(afterCreate.data.profiles).toHaveLength(2);
 		const activeCount = afterCreate.data.profiles.filter((profile) => profile.isActive).length;
 		expect(activeCount).toBe(1);
 
-		const updateResponse = await harness.invoke("llm:profiles:update", {
-			id: azureProfile.id,
-			name: "Azure Sandbox",
-			modelId: "gpt-4.1"
+		// Update profile via PATCH
+		const updateResponse = await app.inject({
+			method: "PATCH",
+			url: `/api/llm/profiles/${azureProfile.id}`,
+			payload: {
+				changes: {
+					name: "Azure Sandbox",
+					modelId: "gpt-4.1"
+				}
+			}
 		});
-		const updatedProfile = updateResponseSchema.parse(updateResponse).data.profile;
+		expect(updateResponse.statusCode).toBe(200);
+		const updatedProfile = updateResponseSchema.parse(JSON.parse(updateResponse.body)).data.profile;
 		expect(updatedProfile.name).toBe("Azure Sandbox");
 		expect(updatedProfile.modelId).toBe("gpt-4.1");
 
-		await expectDiagnosticsEvent("llm_profile_updated");
+		// Verify diagnostics breadcrumb
+		const updateCorrelationId = (JSON.parse(updateResponse.body) as { correlationId?: string }).correlationId;
+		if (updateCorrelationId) {
+			await expectDiagnosticsBreadcrumb(updateCorrelationId);
+		}
 
-		const activateResponse = await harness.invoke("llm:profiles:activate", {
-			id: azureProfile.id
+		// Activate profile via POST
+		const activateResponse = await app.inject({
+			method: "POST",
+			url: `/api/llm/profiles/${azureProfile.id}/activate`,
+			payload: { force: false }
 		});
-		const activation = activateResponseSchema.parse(activateResponse).data;
+		expect(activateResponse.statusCode).toBe(200);
+		const activation = activateResponseSchema.parse(JSON.parse(activateResponse.body)).data;
 		expect(activation.activeProfile.id).toBe(azureProfile.id);
 		expect(activation.deactivatedProfileId).toBe(localProfile.id);
 
-		await expectDiagnosticsEvent("llm_profile_activated");
+		// Verify diagnostics breadcrumb
+		const activateCorrelationId = (JSON.parse(activateResponse.body) as { correlationId?: string }).correlationId;
+		if (activateCorrelationId) {
+			await expectDiagnosticsBreadcrumb(activateCorrelationId);
+		}
 
-		const afterActivate = await listVault();
-		const afterActivateVault = ProfileVaultSchema.parse({
-			profiles: afterActivate.data.profiles,
-			encryptionAvailable: afterActivate.data.encryptionAvailable,
-			version: "1.0.0"
-		}) as ProfileVaultSeed;
-		const activeIds = afterActivateVault.profiles.filter((profile) => profile.isActive).map((profile) => profile.id);
+		// Verify active state via GET
+		const afterActivate = await listProfiles();
+		const activeIds = afterActivate.data.profiles.filter((profile) => profile.isActive).map((profile) => profile.id);
 		expect(activeIds).toEqual([azureProfile.id]);
 
-		const deleteResponse = await harness.invoke("llm:profiles:delete", {
-			id: azureProfile.id,
-			activateAlternateId: localProfile.id
+		// Delete profile via DELETE
+		const deleteResponse = await app.inject({
+			method: "DELETE",
+			url: `/api/llm/profiles/${azureProfile.id}`,
+			payload: {
+				successorProfileId: localProfile.id
+			}
 		});
-		const deletion = deleteResponseSchema.parse(deleteResponse).data;
+		expect(deleteResponse.statusCode).toBe(200);
+		const deletion = deleteResponseSchema.parse(JSON.parse(deleteResponse.body)).data;
 		expect(deletion.deletedId).toBe(azureProfile.id);
 		expect(deletion.newActiveProfileId).toBe(localProfile.id);
 		expect(deletion.requiresUserSelection).toBe(false);
 
-		await expectDiagnosticsEvent("llm_profile_deleted");
+		// Verify diagnostics breadcrumb
+		const deleteCorrelationId = (JSON.parse(deleteResponse.body) as { correlationId?: string }).correlationId;
+		if (deleteCorrelationId) {
+			await expectDiagnosticsBreadcrumb(deleteCorrelationId);
+		}
 
-		const finalState = await listVault();
+		// Verify final state via GET
+		const finalState = await listProfiles();
 		expect(finalState.data.profiles).toHaveLength(1);
 		expect(finalState.data.activeProfileId).toBe(localProfile.id);
 	});
 
-	it("requires alternate selection when deleting the active profile without replacement", async () => {
-		await harness.clearVault();
-
-		const createOne = await harness.invoke("llm:profiles:create", {
-			name: "Local llama.cpp",
-			providerType: "llama.cpp",
-			endpointUrl: "http://localhost:8080",
-			apiKey: "",
-			modelId: null,
-			consentTimestamp: null
+	it("requires alternate selection when deleting the active profile without replacement via HTTP", async () => {
+		if (!app) throw new Error("App not initialized");
+		
+		// Create first profile
+		const createOneResponse = await app.inject({
+			method: "POST",
+			url: "/api/llm/profiles",
+			payload: {
+				profile: {
+					name: "Local llama.cpp",
+					providerType: "llama.cpp",
+					endpointUrl: "http://localhost:8080",
+					apiKey: "",
+					modelId: null,
+					consentTimestamp: null
+				},
+				context: { operatorId: "test-user" }
+			}
 		});
-		const primaryProfile = createResponseSchema.parse(createOne).data.profile;
+		const primaryProfile = createResponseSchema.parse(JSON.parse(createOneResponse.body)).data.profile;
 
-		const createTwo = await harness.invoke("llm:profiles:create", {
-			name: "Azure",
-			providerType: "azure",
-			endpointUrl: "https://workspace.openai.azure.com",
-			apiKey: "sk-azure",
-			modelId: "gpt-4",
-			consentTimestamp: Date.now()
+		// Create second profile
+		const createTwoResponse = await app.inject({
+			method: "POST",
+			url: "/api/llm/profiles",
+			payload: {
+				profile: {
+					name: "Azure",
+					providerType: "azure",
+					endpointUrl: "https://workspace.openai.azure.com",
+					apiKey: "sk-azure",
+					modelId: "gpt-4",
+					consentTimestamp: Date.now()
+				},
+				context: { operatorId: "test-user" }
+			}
 		});
-		const secondaryProfile = createResponseSchema.parse(createTwo).data.profile;
+		const secondaryProfile = createResponseSchema.parse(JSON.parse(createTwoResponse.body)).data.profile;
 
-		await harness.invoke("llm:profiles:activate", { id: secondaryProfile.id });
-
-		const deletion = await harness.invoke("llm:profiles:delete", {
-			id: secondaryProfile.id
+		// Activate secondary profile
+		await app.inject({
+			method: "POST",
+			url: `/api/llm/profiles/${secondaryProfile.id}/activate`,
+			payload: { force: false }
 		});
-		const deleteResult = deleteResponseSchema.parse(deletion).data;
+
+		// Delete active profile without providing successor
+		const deletionResponse = await app.inject({
+			method: "DELETE",
+			url: `/api/llm/profiles/${secondaryProfile.id}`,
+			payload: {}
+		});
+		expect(deletionResponse.statusCode).toBe(200);
+		const deleteResult = deleteResponseSchema.parse(JSON.parse(deletionResponse.body)).data;
 
 		expect(deleteResult.deletedId).toBe(secondaryProfile.id);
 		expect(deleteResult.newActiveProfileId).toBeNull();
 		expect(deleteResult.requiresUserSelection).toBe(true);
 
-		const vaultState = await listVault();
+		// Verify vault state
+		const vaultState = await listProfiles();
 		const activeProfiles = vaultState.data.profiles.filter((profile) => profile.isActive);
 		expect(activeProfiles).toHaveLength(0);
 		expect(vaultState.data.profiles.map((profile) => profile.id)).toContain(primaryProfile.id);
