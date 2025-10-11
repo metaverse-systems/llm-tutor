@@ -24,10 +24,10 @@
 - **T008 [P] ✅**: Author failing contract test for POST `/api/llm/profiles/:id/test` verifying timeout at 30 s, provider error mapping, and diagnostics payload. *(apps/backend/tests/contract/llm/test-prompt.contract.test.ts)*
 - **T009 [P] ✅**: Author failing contract test for POST `/api/llm/profiles/discover` ensuring deduplication, conflict flags, and discovery error paths. *(apps/backend/tests/contract/llm/auto-discover.contract.test.ts)*
 
-### Phase 2: Integration Tests (TDD before implementation)
-- **T010 [P]**: Update integration test for profile CRUD workflow to cover new HTTP routes and ensure diagnostics breadcrumbs emitted. *(apps/backend/tests/integration/llm/profile-crud.test.ts)*
-- **T011 [P]**: Update integration test for auto-discovery to exercise `/discover` endpoint and validate conflict deduplication results. *(apps/backend/tests/integration/llm/auto-discovery.test.ts)*
-- **T012 [P]**: Update integration test for provider prompt tests to include timeout, 401 mapping, and latency recording via HTTP routes. *(apps/backend/tests/integration/llm/test-prompt-providers.test.ts)*
+### Phase 2: Integration Tests (TDD before implementation) ✅ COMPLETE
+- **T010 [P] ✅**: Update integration test for profile CRUD workflow to cover new HTTP routes and ensure diagnostics breadcrumbs emitted. *(apps/backend/tests/integration/llm/profile-crud.test.ts)*
+- **T011 [P] ✅**: Update integration test for auto-discovery to exercise `/discover` endpoint and validate conflict deduplication results. *(apps/backend/tests/integration/llm/auto-discovery.test.ts)*
+- **T012 [P] ✅**: Update integration test for provider prompt tests to include timeout, 401 mapping, and latency recording via HTTP routes. *(apps/backend/tests/integration/llm/test-prompt-providers.test.ts)*
 
 ### Phase 3: Core Implementation (Sequential where files overlap)
 - **T013**: Implement Fastify plugin module `apps/backend/src/api/llm/profile.routes.ts` registering all profile endpoints with schema hooks and request validation. *(apps/backend/src/api/llm/profile.routes.ts)*
