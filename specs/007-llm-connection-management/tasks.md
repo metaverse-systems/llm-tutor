@@ -629,7 +629,7 @@
 ---
 
 ### T023: Implement IPC bridge in preload script
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/desktop/src/preload/llm-bridge.ts`  
 **Dependencies**: T022  
 **Parallel**: N/A
@@ -651,45 +651,38 @@
 7. Run: `npm --workspace @metaverse-systems/llm-tutor-desktop run test`
 
 **Acceptance Criteria**:
-- [ ] All methods typed correctly
-- [ ] `window.llmAPI` accessible in renderer
-- [ ] Preload tests pass
+- [x] All methods typed correctly
+- [x] `window.llmAPI` accessible in renderer
+- [x] Preload tests pass
+
+**Notes**:
+- Added `llm-bridge.ts` exposing a strongly typed `llmAPI` surface that wraps the seven LLM IPC channels with payload normalization and shared response types.
+- Registered preload bridge in `preload.ts` and authored companion Vitest coverage (`tests/preload/llm-bridge.spec.ts`) verifying channel routing and window exposure.
+- Desktop workspace test run confirms the new suite passes; Playwright E2E suites remain red as expected pending future tasks.
 
 **References**: contracts/api.md (IPC bridge implementation)
 
 ---
 
 ### T024 [P]: Create useLLMProfiles React hook
-**Status**: ⏳ Pending  
-**File**: `apps/frontend/src/hooks/useLLMProfiles.ts`  
+**Status**: ✅ Completed (2025-10-10)  
+**Files**:  
+- `apps/frontend/src/hooks/useLLMProfiles.ts`  
+- `apps/frontend/src/types/llm-api.ts`  
+- `apps/frontend/tests/hooks/useLLMProfiles.test.tsx`  
 **Dependencies**: T023  
 **Parallel**: ✅ (different workspace)
 
-**Steps**:
-1. Create `apps/frontend/src/hooks/useLLMProfiles.ts`
-2. Implement custom hook with state:
-   - `profiles: LLMProfile[]`
-   - `activeProfile: LLMProfile | null`
-   - `loading: boolean`
-   - `error: string | null`
-   - `encryptionAvailable: boolean`
-3. Implement methods:
-   - `fetchProfiles(): Promise<void>`: Call `window.llmAPI.listProfiles()`
-   - `createProfile(payload): Promise<LLMProfile>`
-   - `updateProfile(id, payload): Promise<LLMProfile>`
-   - `deleteProfile(id, alternateId?): Promise<void>`
-   - `activateProfile(id): Promise<void>`
-   - `testPrompt(profileId?, text?): Promise<TestPromptResult>`
-   - `discoverProfiles(force?): Promise<DiscoveryResult>`
-4. Handle loading/error states
-5. Invalidate cache on mutations
-6. Write unit tests in `apps/frontend/tests/hooks/useLLMProfiles.test.tsx` (React Testing Library)
-7. Run: `npm --workspace @metaverse-systems/llm-tutor-frontend run test`
+**Notes**:
+- Implemented `useLLMProfiles` hook with derived `activeProfile`, shared error/loading state, optimistic state transitions for create/update/delete/activate/discover methods, and cache revalidation through bridge fetches.
+- Added shared LLM IPC response types under `src/types/llm-api.ts` and augmented the global preload bridge definition so the renderer has strong typing for `window.llmAPI`.
+- Authored six Vitest/React Testing Library cases covering initial load, optimistic creation, rollback on failures, discovery refresh, prompt error surfacing, and bridge-unavailable fallback; expanded `vitest.config.ts` includes to pick up the new hooks test suite.
+- Frontend workspace tests (`npm --workspace @metaverse-systems/llm-tutor-frontend run test`) now pass with the new coverage in place.
 
 **Acceptance Criteria**:
-- [ ] Unit tests pass
-- [ ] Optimistic updates implemented
-- [ ] Error handling comprehensive
+- [x] Unit tests pass
+- [x] Optimistic updates implemented
+- [x] Error handling comprehensive
 
 **References**: data-model.md (UI state management)
 

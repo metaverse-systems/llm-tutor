@@ -1,5 +1,6 @@
 import { contextBridge } from "electron";
 
+import "./preload/llm-bridge";
 import { createDiagnosticsBridge } from "./preload/diagnostics";
 
 const diagnostics = createDiagnosticsBridge();
