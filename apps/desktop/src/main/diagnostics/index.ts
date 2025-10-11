@@ -12,6 +12,7 @@ import {
 	parseConsentEventLog,
 	serializeConsentEventLog
 } from "@metaverse-systems/llm-tutor-shared";
+import type { DiagnosticsBreadcrumb } from "@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc";
 import { app, dialog, shell, type BrowserWindow } from "electron";
 import { fork, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -26,12 +27,11 @@ import {
 	type PreferencesVaultOptions,
 	type PreferencesVaultUpdate
 } from "./preferences/preferencesVault";
-import { DIAGNOSTICS_EVENTS_FILE_NAME } from "../../../../backend/src/infra/logging/index.js";
 import {
 	ProfileIpcDiagnosticsRecorder,
 	type ProfileIpcDiagnosticsRecorderOptions
 } from "./profile-ipc.recorder.js";
-import type { DiagnosticsBreadcrumb } from "@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc";
+import { DIAGNOSTICS_EVENTS_FILE_NAME } from "../../../../backend/src/infra/logging/index.js";
 
 export type BackendLifecycleState = "stopped" | "starting" | "running" | "error";
 

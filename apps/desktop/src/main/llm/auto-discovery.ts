@@ -1,5 +1,5 @@
-import type { LLMProfile, ProviderType } from "../../../../../packages/shared/src/llm/schemas";
 import type { DiscoveryScope } from "../../../../../packages/shared/src/contracts/llm-profile-ipc";
+import type { LLMProfile, ProviderType } from "../../../../../packages/shared/src/llm/schemas";
 
 const DEFAULT_PORTS = [8080, 8000, 11434] as const;
 const DEFAULT_TIMEOUT_MS = 2_000;
