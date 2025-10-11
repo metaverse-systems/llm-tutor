@@ -8,16 +8,16 @@
 - [x] T002 Scaffold test directory structure for profile IPC flows in `apps/desktop/tests/{contract,integration,e2e,accessibility}/profile-ipc/` with README placeholders describing required mocks.
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
-- [ ] T003 [P] Author failing contract tests that load `@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc` and assert request/response envelope schemas for all seven channels in `apps/desktop/tests/contract/profile-ipc/llm-profile-ipc.contract.test.ts`.
-- [ ] T004 [P] Write failing integration test covering "List Profiles" scenario (Scenario 1) that stubs `ProfileService` and asserts diagnostics + ≤500 ms duration in `apps/desktop/tests/integration/profile-ipc/list-profiles.integration.test.ts`.
-- [ ] T005 [P] Write failing integration test covering "Create Profile" happy path (Scenario 2) validating sanitized response fields in `apps/desktop/tests/integration/profile-ipc/create-profile.integration.test.ts`.
-- [ ] T006 [P] Write failing integration test for validation error handling (Scenario 3) expecting `VALIDATION_ERROR` copy and remediation text in `apps/desktop/tests/integration/profile-ipc/create-profile-validation.integration.test.ts`.
-- [ ] T007 [P] Write failing integration test simulating safeStorage outage (Scenario 4) expecting `SAFE_STORAGE_UNAVAILABLE` and blocked write log in `apps/desktop/tests/integration/profile-ipc/safe-storage-outage.integration.test.ts`.
-- [ ] T008 [P] Write failing integration test for test prompt telemetry (Scenario 5) verifying latency breakdown and diagnostics in `apps/desktop/tests/integration/profile-ipc/test-prompt.integration.test.ts`.
-- [ ] T009 [P] Write failing integration test for discovery dedup/conflict handling (Scenario 6) in `apps/desktop/tests/integration/profile-ipc/discover-providers.integration.test.ts`.
-- [ ] T010 [P] Write failing integration test verifying `dispose()` cleanup (Scenario 7) ensuring channels unregister in `apps/desktop/tests/integration/profile-ipc/dispose-lifecycle.integration.test.ts`.
-- [ ] T011 [P] Add failing Playwright end-to-end flow exercising list/create/test actions through renderer in `apps/desktop/tests/e2e/profile-ipc/profile-management.spec.ts`.
-- [ ] T012 [P] Add failing accessibility regression test using axe-core to validate error messaging and status banners in `apps/desktop/tests/accessibility/profile-ipc/error-messaging.accessibility.spec.ts`.
+- [x] T003 [P] Author failing contract tests that load `@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc` and assert request/response envelope schemas for all seven channels in `apps/desktop/tests/contract/profile-ipc/llm-profile-ipc.contract.test.ts`.
+- [x] T004 [P] Write failing integration test covering "List Profiles" scenario (Scenario 1) that stubs `ProfileService` and asserts diagnostics + ≤500 ms duration in `apps/desktop/tests/integration/profile-ipc/list-profiles.integration.test.ts`.
+- [x] T005 [P] Write failing integration test covering "Create Profile" happy path (Scenario 2) validating sanitized response fields in `apps/desktop/tests/integration/profile-ipc/create-profile.integration.test.ts`.
+- [x] T006 [P] Write failing integration test for validation error handling (Scenario 3) expecting `VALIDATION_ERROR` copy and remediation text in `apps/desktop/tests/integration/profile-ipc/create-profile-validation.integration.test.ts`.
+- [x] T007 [P] Write failing integration test simulating safeStorage outage (Scenario 4) expecting `SAFE_STORAGE_UNAVAILABLE` and blocked write log in `apps/desktop/tests/integration/profile-ipc/safe-storage-outage.integration.test.ts`.
+- [x] T008 [P] Write failing integration test for test prompt telemetry (Scenario 5) verifying latency breakdown and diagnostics in `apps/desktop/tests/integration/profile-ipc/test-prompt.integration.test.ts`.
+- [x] T009 [P] Write failing integration test for discovery dedup/conflict handling (Scenario 6) in `apps/desktop/tests/integration/profile-ipc/discover-providers.integration.test.ts`.
+- [x] T010 [P] Write failing integration test verifying `dispose()` cleanup (Scenario 7) ensuring channels unregister in `apps/desktop/tests/integration/profile-ipc/dispose-lifecycle.integration.test.ts`.
+- [x] T011 [P] Add failing Playwright end-to-end flow exercising list/create/test actions through renderer in `apps/desktop/tests/e2e/profile-ipc/profile-management.spec.ts`.
+- [x] T012 [P] Add failing accessibility regression test using axe-core to validate error messaging and status banners in `apps/desktop/tests/accessibility/profile-ipc/error-messaging.accessibility.spec.ts`.
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 - [ ] T013 Implement `ProfileIpcChannel`, `ProfileIpcEnvelope`, and `OperatorContext` Zod schemas in `packages/shared/src/contracts/llm-profile-ipc.ts` with exports wired in `packages/shared/src/contracts/index.ts`.

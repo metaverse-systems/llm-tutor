@@ -15,6 +15,11 @@
       "import": "./dist/llm/index.js",
       "require": "./dist-cjs/llm/index.js",
       "types": "./dist/llm/index.d.ts"
+    },
+    "./src/contracts/llm-profile-ipc": {
+      "import": "./src/contracts/llm-profile-ipc.ts",
+      "require": "./src/contracts/llm-profile-ipc.ts",
+      "types": "./src/contracts/llm-profile-ipc.ts"
     }
   },
   "scripts": {
