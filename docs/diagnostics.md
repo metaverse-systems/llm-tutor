@@ -64,7 +64,29 @@ This runbook explains how to validate, operate, and troubleshoot the diagnostics
 - Use the Playwright helper `ensureSnapshotAvailable` to wait for the log file; the scenario fails fast with a clear error if the log is missing after the configured timeout.
 - Verify every export bundles the latest `diagnostics-events.jsonl` entries after the snapshot line. Expect `llm_profile_*`, `llm_autodiscovery`, `llm_test_prompt`, and `llm_profile_ipc` events when the corresponding workflows have run; each entry is stored without API keys or full endpoint URLs.
 - The `llm_profile_ipc` events record diagnostic breadcrumbs for all profile IPC operations (list, create, update, delete, activate, test, discover) with correlation IDs, duration metrics, operator role, and safe storage status. These breadcrumbs are automatically included in diagnostics exports to enable performance analysis and troubleshooting.
+- Starting with feature 009, backend HTTP endpoints (`/api/llm/profiles/*`) also emit diagnostics events (`llm_profile_created`, `llm_profile_updated`, `llm_profile_deleted`, `llm_profile_activated`, `llm_test_prompt`, `llm_autodiscovery`) that are included in exports. These events enable debugging and performance analysis of direct HTTP API usage outside of the Electron IPC layer.
 - Keep the log directory private (mode `0700`) so the export pipeline retains learner-specific context without leaking between system users.
+
+### Backend HTTP Endpoints Diagnostics (Feature 009+)
+
+Backend HTTP routes emit the same diagnostics events as IPC handlers:
+
+- **Event Types**: `llm_profile_created`, `llm_profile_updated`, `llm_profile_deleted`, `llm_profile_activated`, `llm_test_prompt`, `llm_autodiscovery`
+- **Timing**: All routes record operation timestamps and include them in diagnostics payloads
+- **Timeout Enforcement**: 
+  - Test prompt endpoint: 30-second default timeout (configurable via `timeoutMs` parameter)
+  - Discovery endpoint: 3-second default timeout per probe (configurable via `scope.timeoutMs`)
+  - Timeout violations emit diagnostics with `TIMEOUT` error code
+- **Error Mapping**: HTTP status codes map to standardized error codes:
+  - `404` → `PROFILE_NOT_FOUND`
+  - `400` → `VALIDATION_ERROR` or `ALTERNATE_NOT_FOUND`
+  - `409` → `NO_ACTIVE_PROFILE`
+  - `503` → `VAULT_WRITE_ERROR`
+  - `504` → `TIMEOUT`
+  - `500` → `VAULT_READ_ERROR` or `INTERNAL_ERROR`
+- **Diagnostics Logger**: Routes accept an optional `DiagnosticsLogger` instance; when provided, all operations emit events to the diagnostics JSONL stream
+- **Testing**: Contract tests in `apps/backend/tests/contract/llm/*.contract.test.ts` validate diagnostics emission for all endpoints
+- **Performance**: Unit tests in `apps/backend/tests/unit/llm/profile-api-utils.spec.ts` document error handling, timeout enforcement, and diagnostics patterns
 
 ### Troubleshooting automation
 
