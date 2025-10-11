@@ -898,32 +898,74 @@
     color: var(--state-danger);
   }
 
-  .settings__profile-status {
+  .settings__test-connection {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
     padding-top: var(--spacing-sm);
     border-top: 1px solid var(--border-subtle);
+  }
+
+  .settings__test-status {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2xs);
     font-size: 0.9rem;
-  }
-
-  .settings__profile-status strong {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
     color: var(--text-muted);
+    min-height: 1.5rem;
   }
 
-  .settings__latency {
-    display: block;
-    margin-top: var(--spacing-2xs);
-    font-size: 0.8rem;
-    color: var(--text-muted);
+  .settings__test-status-line {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2xs);
   }
 
-  .settings__profile-error {
-    color: var(--state-danger);
+  .settings__test-status-message {
+    font-size: 0.9rem;
+  }
+
+  .settings__test-status-preview {
     margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono-font-family);
+    line-height: 1.5;
+  }
+
+  .settings__test-status-icon {
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .settings__test-status-icon--success {
+    color: var(--state-success);
+  }
+
+  .settings__test-status-icon--error {
+    color: var(--state-danger);
+  }
+
+  .settings__test-status--success {
+    color: var(--state-success);
+  }
+
+  .settings__test-status--error {
+    color: var(--state-danger);
+  }
+
+  .settings__test-status--loading {
+    color: var(--accent-primary);
+  }
+
+  .settings__test-spinner {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 999px;
+    border: 2px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
+    border-top-color: var(--accent-primary);
+    animation: settings-test-spinner var(--motion-rapid-duration, 0.8s) linear infinite;
   }
 
   .settings__sr-status {
@@ -1065,6 +1107,15 @@
     }
     100% {
       background-position: 200% 50%;
+    }
+  }
+
+  @keyframes settings-test-spinner {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
     }
   }
 

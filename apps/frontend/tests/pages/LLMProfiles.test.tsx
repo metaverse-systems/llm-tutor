@@ -157,10 +157,11 @@ describe("LLMProfiles page", () => {
       expect(testPrompt).toHaveBeenCalledWith(profile.id);
     });
 
-    await waitFor(() => {
-      expect(screen.getByText(/connection ok/i)).toBeInTheDocument();
-      expect(screen.getByText(/Latency: 312 ms/)).toBeInTheDocument();
-    });
+    const success = await screen.findByTestId("test-connection-success");
+    expect(success).toHaveTextContent("Connected (312 ms)");
+
+    const preview = await screen.findByTestId("test-connection-preview");
+    expect(preview).toHaveTextContent("Connection ok");
   });
 
   it("confirms deletion via keyboard shortcut", async () => {

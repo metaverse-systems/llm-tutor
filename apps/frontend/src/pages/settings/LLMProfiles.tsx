@@ -1,16 +1,11 @@
-import type { LLMProfile, ProviderType, TestPromptResult } from "@metaverse-systems/llm-tutor-shared";
+import type { LLMProfile, ProviderType } from "@metaverse-systems/llm-tutor-shared";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { ConsentDialog, type ConsentDecision } from "../../components/LLMProfiles/ConsentDialog";
 import { DeleteConfirmDialog } from "../../components/LLMProfiles/DeleteConfirmDialog";
 import { ProfileForm } from "../../components/LLMProfiles/ProfileForm";
+import { TestConnectionButton } from "../../components/LLMProfiles/TestConnectionButton";
 import { useLLMProfiles } from "../../hooks/useLLMProfiles";
-
-interface TestConnectionState {
-  status: "idle" | "loading" | "success" | "error";
-  result?: TestPromptResult;
-  error?: string;
-}
 
 interface DiscoveryStatus {
   status: "idle" | "loading" | "success" | "error";
@@ -59,19 +54,6 @@ function formatTimestamp(timestamp: number | null | undefined): string {
   }
 }
 
-function formatLatency(latency: number | null | undefined): string {
-  if (typeof latency !== "number") {
-    return "–";
-  }
-
-  if (latency < 1000) {
-    return `${latency} ms`;
-  }
-
-  const seconds = latency / 1000;
-  return `${seconds.toFixed(1)} s`;
-}
-
 export const LLMProfiles: React.FC = () => {
   const {
     profiles,
@@ -87,7 +69,6 @@ export const LLMProfiles: React.FC = () => {
     discoverProfiles
   } = useLLMProfiles();
 
-  const [testStates, setTestStates] = useState<Record<string, TestConnectionState>>({});
   const [ariaStatusMessage, setAriaStatusMessage] = useState<string>("");
   const [discoveryStatus, setDiscoveryStatus] = useState<DiscoveryStatus>(INITIAL_DISCOVERY_STATUS);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -189,33 +170,6 @@ export const LLMProfiles: React.FC = () => {
       }
     },
     [deleteDialogProfile, deleteProfile, restoreFocus, updateAriaStatus]
-  );
-
-  const handleTestConnection = useCallback(
-    async (profile: LLMProfile) => {
-      setTestStates((previous) => ({
-        ...previous,
-        [profile.id]: { status: "loading" }
-      }));
-      updateAriaStatus(`Testing ${profile.name}`);
-
-      try {
-        const result = await testPrompt(profile.id);
-        setTestStates((previous) => ({
-          ...previous,
-          [profile.id]: { status: "success", result }
-        }));
-        updateAriaStatus(`Connection succeeded for ${profile.name} in ${formatLatency(result.latencyMs)}`);
-      } catch (testError) {
-        const message = testError instanceof Error ? testError.message : "Test connection failed";
-        setTestStates((previous) => ({
-          ...previous,
-          [profile.id]: { status: "error", error: message }
-        }));
-        updateAriaStatus(message);
-      }
-    },
-    [testPrompt, updateAriaStatus]
   );
 
   const handleDiscover = useCallback(async () => {
@@ -410,10 +364,6 @@ export const LLMProfiles: React.FC = () => {
         {sortedProfiles.length > 0 ? (
           <ul className="settings__profile-list" aria-label="LLM connection profiles">
             {sortedProfiles.map((profile) => {
-              const testState = testStates[profile.id] ?? { status: "idle" };
-              const isTesting = testState.status === "loading";
-              const testResult = testState.result;
-
               return (
                 <li key={profile.id} className="settings__profile-card" data-testid={`llm-profile-${profile.id}`}>
                   <div
@@ -467,16 +417,6 @@ export const LLMProfiles: React.FC = () => {
                     <button
                       type="button"
                       className="app-button"
-                      onClick={() => void handleTestConnection(profile)}
-                      disabled={isTesting}
-                      aria-busy={isTesting}
-                      data-testid={`test-connection-${profile.id}`}
-                    >
-                      {isTesting ? "Testing…" : "Test connection"}
-                    </button>
-                    <button
-                      type="button"
-                      className="app-button"
                       onClick={() => openEditDialog(profile)}
                     >
                       Edit
@@ -495,23 +435,11 @@ export const LLMProfiles: React.FC = () => {
                       Delete
                     </button>
                   </div>
-
-                  <div className="settings__profile-status" role="status" aria-live="polite">
-                    {testState.status === "idle" ? "" : null}
-                    {testState.status === "loading" ? "Testing connection…" : null}
-                    {testState.status === "success" && testResult ? (
-                      <>
-                        <strong>Response</strong>
-                        <p>
-                          {testResult.responseText ?? "No preview available"}
-                          <span className="settings__latency">Latency: {formatLatency(testResult.latencyMs)}</span>
-                        </p>
-                      </>
-                    ) : null}
-                    {testState.status === "error" && testState.error ? (
-                      <p className="settings__profile-error">{testState.error}</p>
-                    ) : null}
-                  </div>
+                  <TestConnectionButton
+                    profile={profile}
+                    testPrompt={testPrompt}
+                    announce={updateAriaStatus}
+                  />
                   </div>
                 </li>
               );

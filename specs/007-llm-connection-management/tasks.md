@@ -812,28 +812,26 @@
 ---
 
 ### T029 [P]: Build test connection button with status display
-**Status**: ⏳ Pending  
-**File**: `apps/frontend/src/components/LLMProfiles/TestConnectionButton.tsx`  
+**Status**: ✅ Completed (2025-10-11)  
+**Files**:  
+- `apps/frontend/src/components/LLMProfiles/TestConnectionButton.tsx`  
+- `apps/frontend/src/pages/settings/LLMProfiles.tsx`  
+- `apps/frontend/src/styles/tailwind.css`  
+- `apps/frontend/tests/components/LLMProfiles/TestConnectionButton.test.tsx`  
+- `apps/frontend/tests/pages/LLMProfiles.test.tsx`
 **Dependencies**: T024  
 **Parallel**: ✅
 
-**Steps**:
-1. Create `apps/frontend/src/components/LLMProfiles/TestConnectionButton.tsx`
-2. Button triggers `testPrompt(profileId)` from hook
-3. Display states:
-   - Idle: "Test Connection"
-   - Loading: Spinner + "Testing..."
-   - Success: Checkmark + "Connected (234ms)" with response preview (truncated 100 chars)
-   - Error: X icon + error message
-4. Use `aria-live="polite"` region to announce results to screen readers
-5. Timeout: 10s
-6. Write component tests
-7. Run: `npm --workspace @metaverse-systems/llm-tutor-frontend run test`
+**Notes**:
+- Implemented a standalone `TestConnectionButton` component with configurable timeout, spinner, success, and error states plus `aria-live` status messaging.
+- Refactored `LLMProfiles` page to consume the new component and removed inline connection state bookkeeping.
+- Added Tailwind styles for the new status UI and authored dedicated Vitest coverage for success, error, truncation, and timeout scenarios.
+- Updated existing page tests to validate the refreshed surface.
 
 **Acceptance Criteria**:
-- [ ] Component tests pass
-- [ ] Loading state announced to screen readers
-- [ ] Error messages user-friendly
+- [x] Component tests pass
+- [x] Loading state announced to screen readers
+- [x] Error messages user-friendly
 
 **References**: spec.md (FR-008, AR-003), contracts/providers.md (error mapping)
 
