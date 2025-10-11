@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { LLMProfile, TestPromptResult } from "@metaverse-systems/llm-tutor-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -163,7 +163,7 @@ describe("LLMProfiles page", () => {
     });
   });
 
-  it("invokes delete handler when Delete key is pressed", async () => {
+  it("confirms deletion via keyboard shortcut", async () => {
     const deleteProfile = vi.fn().mockResolvedValue(undefined);
     const profile = buildProfile({ id: "profile-delete", isActive: false, name: "Temp" });
 
@@ -176,8 +176,37 @@ describe("LLMProfiles page", () => {
     const deleteButton = screen.getByRole("button", { name: "Delete" });
     fireEvent.keyDown(deleteButton, { key: "Delete" });
 
+    const dialog = await screen.findByTestId("delete-confirm-dialog");
+    const dialogDeleteButton = within(dialog).getByRole("button", { name: "Delete" });
+    fireEvent.click(dialogDeleteButton);
+
     await waitFor(() => {
-      expect(deleteProfile).toHaveBeenCalledWith(profile.id);
+      expect(deleteProfile).toHaveBeenCalledWith(profile.id, undefined);
+    });
+  });
+
+  it("requires selecting an alternate profile before deleting the active profile", async () => {
+    const deleteProfile = vi.fn().mockResolvedValue(undefined);
+    const activeProfile = buildProfile({ id: "profile-active", name: "Primary", isActive: true });
+    const alternateProfile = buildProfile({ id: "profile-alt", name: "Backup", isActive: false });
+
+    asMock.mockReturnValue(
+      buildHookResult({ profiles: [activeProfile, alternateProfile], deleteProfile })
+    );
+
+    render(<LLMProfiles />);
+
+    const deleteButton = screen.getAllByRole("button", { name: "Delete" })[0];
+    fireEvent.click(deleteButton);
+
+    const dialog = await screen.findByTestId("delete-confirm-dialog");
+    const select = within(dialog).getByLabelText(/choose a profile to activate/i) as HTMLSelectElement;
+    expect(select.value).toBe(alternateProfile.id);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(deleteProfile).toHaveBeenCalledWith(activeProfile.id, alternateProfile.id);
     });
   });
 

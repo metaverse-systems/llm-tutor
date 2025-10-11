@@ -783,25 +783,29 @@
 ---
 
 ### T028 [P]: Build delete confirmation dialog
-**Status**: ⏳ Pending  
-**File**: `apps/frontend/src/components/LLMProfiles/DeleteConfirmDialog.tsx`  
+**Status**: ✅ Completed (2025-10-11)  
+**Files**:  
+- `apps/frontend/src/components/LLMProfiles/DeleteConfirmDialog.tsx`  
+- `apps/frontend/src/pages/settings/LLMProfiles.tsx`  
+- `apps/frontend/tests/components/LLMProfiles/DeleteConfirmDialog.test.tsx`  
+- `apps/frontend/tests/pages/LLMProfiles.test.tsx`  
 **Dependencies**: T024  
 **Parallel**: ✅
 
 **Steps**:
-1. Create `apps/frontend/src/components/LLMProfiles/DeleteConfirmDialog.tsx`
-2. Modal dialog:
-   - If deleting active profile: Show dropdown to select alternate profile
-   - If deleting inactive profile: Simple confirmation
-   - Actions: "Delete" (danger), "Cancel"
-3. Implement focus trap
-4. On Delete: Call `deleteProfile(id, alternateId?)` from hook
-5. Write component tests
-6. Run: `npm --workspace @metaverse-systems/llm-tutor-frontend run test`
+1. Implemented `DeleteConfirmDialog` as an accessible `alertdialog` with focus trapping, keyboard escape handling, and structured error messaging.
+2. Added dynamic alternate-profile selection that is required (and pre-selected) when deleting the active profile, with guard rails when no alternates exist.
+3. Wired dialog orchestration into `LLMProfiles` settings page including focus restoration, aria-live announcements, and alternate hand-off to `deleteProfile(id, alternateId?)`.
+4. Authored Vitest coverage for the dialog plus new page-level tests validating keyboard invocation and active-profile alternate selection; executed with `npm --workspace @metaverse-systems/llm-tutor-frontend run test -- --run tests/components/LLMProfiles/DeleteConfirmDialog.test.tsx tests/pages/LLMProfiles.test.tsx`.
 
 **Acceptance Criteria**:
-- [ ] Component tests pass
-- [ ] Alternate selection UI only shown for active profile
+- [x] Component tests pass
+- [x] Alternate selection UI only shown for active profile
+
+**Notes**:
+- Confirmation workflow now restores the original trigger focus on cancel/success and surfaces failures without dismissing the modal.
+- Active-profile deletions auto-focus the alternate selector while inactive profiles show a lightweight confirmation copy.
+- Page tests assert delete keyboard shortcut opens the dialog and requires alternate selection when applicable.
 
 **References**: quickstart.md (Scenario 4), spec.md (FR-005)
 

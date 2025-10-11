@@ -2,6 +2,7 @@ import type { LLMProfile, ProviderType, TestPromptResult } from "@metaverse-syst
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { ConsentDialog, type ConsentDecision } from "../../components/LLMProfiles/ConsentDialog";
+import { DeleteConfirmDialog } from "../../components/LLMProfiles/DeleteConfirmDialog";
 import { ProfileForm } from "../../components/LLMProfiles/ProfileForm";
 import { useLLMProfiles } from "../../hooks/useLLMProfiles";
 
@@ -95,6 +96,7 @@ export const LLMProfiles: React.FC = () => {
   const [consentContext, setConsentContext] = useState<{ providerType: ProviderType; providerName: string } | null>(null);
   const [createDefaultProvider, setCreateDefaultProvider] = useState<ProviderType>("llama.cpp");
   const [createDefaultConsentTimestamp, setCreateDefaultConsentTimestamp] = useState<number | null>(null);
+  const [deleteDialogProfile, setDeleteDialogProfile] = useState<LLMProfile | null>(null);
   const dialogReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const stashFocus = useCallback(() => {
@@ -144,17 +146,49 @@ export const LLMProfiles: React.FC = () => {
     [activateProfile, updateAriaStatus]
   );
 
-  const handleDelete = useCallback(
-    async (profile: LLMProfile) => {
+  const openDeleteDialog = useCallback(
+    (profile: LLMProfile) => {
+      stashFocus();
+      setDeleteDialogProfile(profile);
+      updateAriaStatus(`Confirm deletion for ${profile.name}`);
+    },
+    [stashFocus, updateAriaStatus]
+  );
+
+  const closeDeleteDialog = useCallback(() => {
+    setDeleteDialogProfile(null);
+    restoreFocus();
+  }, [restoreFocus]);
+
+  const handleDeleteCancelled = useCallback(() => {
+    if (deleteDialogProfile) {
+      updateAriaStatus(`Cancelled deleting ${deleteDialogProfile.name}`);
+    } else {
+      updateAriaStatus("Deletion cancelled");
+    }
+
+    closeDeleteDialog();
+  }, [closeDeleteDialog, deleteDialogProfile, updateAriaStatus]);
+
+  const handleDeleteConfirmed = useCallback(
+    async (alternateId?: string) => {
+      const target = deleteDialogProfile;
+      if (!target) {
+        return;
+      }
+
       try {
-        await deleteProfile(profile.id);
-        updateAriaStatus(`Deleted ${profile.name}`);
+        await deleteProfile(target.id, alternateId);
+        updateAriaStatus(`Deleted ${target.name}`);
+        setDeleteDialogProfile(null);
+        restoreFocus();
       } catch (deleteError) {
         const message = deleteError instanceof Error ? deleteError.message : "Failed to delete profile";
         updateAriaStatus(message);
+        throw deleteError instanceof Error ? deleteError : new Error(message);
       }
     },
-    [deleteProfile, updateAriaStatus]
+    [deleteDialogProfile, deleteProfile, restoreFocus, updateAriaStatus]
   );
 
   const handleTestConnection = useCallback(
@@ -286,6 +320,13 @@ export const LLMProfiles: React.FC = () => {
   );
 
   const activeConsentContext = isConsentDialogOpen && consentContext ? consentContext : null;
+  const deleteDialogAlternates = useMemo(() => {
+    if (!deleteDialogProfile) {
+      return [] as LLMProfile[];
+    }
+
+    return sortedProfiles.filter((profile) => profile.id !== deleteDialogProfile.id);
+  }, [deleteDialogProfile, sortedProfiles]);
 
   return (
     <main className="settings" aria-busy={loading} data-testid="llm-profiles-page">
@@ -443,11 +484,11 @@ export const LLMProfiles: React.FC = () => {
                     <button
                       type="button"
                       className="app-button--ghost settings__delete-button"
-                      onClick={() => void handleDelete(profile)}
+                      onClick={() => openDeleteDialog(profile)}
                       onKeyDown={(event) => {
                         if (event.key === "Delete") {
                           event.preventDefault();
-                          void handleDelete(profile);
+                          openDeleteDialog(profile);
                         }
                       }}
                     >
@@ -514,6 +555,15 @@ export const LLMProfiles: React.FC = () => {
           providerName={activeConsentContext.providerName}
           onAccept={handleConsentAccepted}
           onCancel={handleConsentCancelled}
+        />
+      ) : null}
+
+      {deleteDialogProfile ? (
+        <DeleteConfirmDialog
+          profile={deleteDialogProfile}
+          alternateProfiles={deleteDialogAlternates}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={handleDeleteCancelled}
         />
       ) : null}
     </main>
