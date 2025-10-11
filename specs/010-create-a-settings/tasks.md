@@ -14,12 +14,12 @@
 ## Task List
 
 ### Phase 3.1: Setup & Shared Types
-- [ ] **T001** Add shared `TelemetryPreference` type to `packages/shared/src/contracts/preferences.ts` with fields: `enabled: boolean`, `consentTimestamp?: number`, default `enabled: false` *(packages/shared/src/contracts/preferences.ts)*
+- [x] **T001** Add shared `TelemetryPreference` type to `packages/shared/src/contracts/preferences.ts` with fields: `enabled: boolean`, `consentTimestamp?: number`, default `enabled: false` *(packages/shared/src/contracts/preferences.ts)*
 
 ### Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
 
-- [ ] **T002 [P]** Draft failing Playwright web spec `apps/frontend/tests/pages/settings/settings-nav.spec.ts` asserting:
+- [x] **T002 [P]** Draft failing Playwright web spec `apps/frontend/tests/pages/settings/settings-nav.spec.ts` asserting:
   - Gear icon activation via keyboard (Tab + Enter) and mouse
   - Focus lands on Settings `<h1>` heading after navigation
   - "Return to previous view" skip link is present and keyboard-operable
@@ -28,9 +28,9 @@
   - axe accessibility checks pass on the Settings container
   *(apps/frontend/tests/pages/settings/settings-nav.spec.ts)*
 
-- [ ] **T003 [P]** Draft failing Playwright Electron spec `apps/desktop/tests/e2e/settings/settings-nav.e2e.spec.ts` mirroring the web scenarios with the desktop test harness, reusing selectors from T002 *(apps/desktop/tests/e2e/settings/settings-nav.e2e.spec.ts)*
+- [x] **T003 [P]** Draft failing Playwright Electron spec `apps/desktop/tests/e2e/settings/settings-nav.e2e.spec.ts` mirroring the web scenarios with the desktop test harness, reusing selectors from T002 *(apps/desktop/tests/e2e/settings/settings-nav.e2e.spec.ts)*
 
-- [ ] **T004 [P]** Add failing Vitest preload suite `apps/desktop/tests/preload/settings-bridge.spec.ts` covering:
+- [x] **T004 [P]** Add failing Vitest preload suite `apps/desktop/tests/preload/settings-bridge.spec.ts` covering:
   - `window.llmTutor.settings` namespace exists
   - `navigateToSettings()` method is callable
   - `telemetry.getState()` returns default opt-out state `{ enabled: false }`
@@ -39,19 +39,19 @@
 
 ### Phase 3.3: Preload & IPC Bridge (ONLY after tests are failing)
 
-- [ ] **T005** Extend desktop preload bridge `apps/desktop/src/preload/llm-bridge.ts` to expose `settings` namespace with:
+- [x] **T005** Extend desktop preload bridge `apps/desktop/src/preload/llm-bridge.ts` to expose `settings` namespace with:
   - `navigateToSettings(): Promise<void>` triggering main process navigation
   - `telemetry.getState(): Promise<TelemetryPreference>` retrieving current state from electron-store
   - `telemetry.setState(update: { enabled: boolean }): Promise<void>` persisting state and recording `consentTimestamp` when enabling
   *(apps/desktop/src/preload/llm-bridge.ts)*
 
-- [ ] **T006** Add IPC handler in `apps/desktop/src/main/ipc/settings-handlers.ts` for:
+- [x] **T006** Add IPC handler in `apps/desktop/src/main/ipc/settings-handlers.ts` for:
   - `settings:navigate` to trigger window route change to `/settings`
   - `settings:telemetry:get` to read telemetry preference from vault
   - `settings:telemetry:set` to persist telemetry preference with validation and consent timestamp recording
   *(apps/desktop/src/main/ipc/settings-handlers.ts)*
 
-- [ ] **T007** Update desktop main navigation module `apps/desktop/src/main/services/navigation.ts` to:
+- [x] **T007** Update desktop main navigation module `apps/desktop/src/main/services/navigation.ts` to:
   - Handle `navigateToSettings` calls and update window URL
   - Store prior focus target reference for restoration when leaving Settings
   - Respect existing IPC budget constraints (≤500 ms latency)
@@ -59,7 +59,7 @@
 
 ### Phase 3.4: Routing & Page Shell
 
-- [ ] **T008** Register `/settings` route in frontend router `apps/frontend/src/index.tsx`:
+- [x] **T008** Register `/settings` route in frontend router `apps/frontend/src/index.tsx`:
   - Add route with lazy-loaded Settings page component
   - Integrate history API for back navigation
   - Ensure scroll restoration consistent with existing pages
@@ -67,7 +67,7 @@
 
 - [ ] **T009** Register `/settings` route in desktop renderer `apps/desktop/src/renderer/index.html` or routing setup matching frontend pattern *(apps/desktop/src/renderer/)*
 
-- [ ] **T010** Build Settings page shell `apps/frontend/src/pages/settings/SettingsPage.tsx`:
+- [x] **T010** Build Settings page shell `apps/frontend/src/pages/settings/SettingsPage.tsx`:
   - Top-level `<h1 id="settings-heading">Settings</h1>` with auto-focus on mount
   - "Return to previous view" skip link with keyboard operability
   - Three section containers: General, LLM Profiles, Diagnostics (with aria-labelledby references)
@@ -76,20 +76,20 @@
 
 ### Phase 3.5: Settings Sections Implementation
 
-- [ ] **T011 [P]** Implement General section `apps/frontend/src/pages/settings/GeneralSection.tsx`:
+- [x] **T011 [P]** Implement General section `apps/frontend/src/pages/settings/GeneralSection.tsx`:
   - Reuse existing theme selector component
   - Add telemetry toggle with opt-out default messaging
   - Wire toggle to preload bridge (`window.llmTutor.settings.telemetry.setState`) for desktop or local state hook for web
   - Display consent timestamp when telemetry is enabled
   *(apps/frontend/src/pages/settings/GeneralSection.tsx)*
 
-- [ ] **T012 [P]** Embed LLM Profiles section `apps/frontend/src/pages/settings/LLMProfilesSection.tsx`:
+- [x] **T012 [P]** Embed LLM Profiles section `apps/frontend/src/pages/settings/LLMProfilesSection.tsx`:
   - Import existing LLM Profiles management component from `apps/frontend/src/pages/settings/LLMProfiles.tsx`
   - Ensure heading hierarchy remains intact (use `<h2>` for section, preserve component's internal structure)
   - Verify responsive layout and accessibility
   *(apps/frontend/src/pages/settings/LLMProfilesSection.tsx)*
 
-- [ ] **T013 [P]** Implement Diagnostics section `apps/frontend/src/pages/settings/DiagnosticsSection.tsx`:
+- [x] **T013 [P]** Implement Diagnostics section `apps/frontend/src/pages/settings/DiagnosticsSection.tsx`:
   - Add export action button wired to existing diagnostics export service
   - Add retention guidance link to diagnostics documentation
   - Provide disabled-state messaging when diagnostics unavailable
@@ -98,7 +98,7 @@
 
 ### Phase 3.6: Header Integration
 
-- [ ] **T014** Add persistent gear icon to global header `apps/frontend/src/components/Header/Header.tsx` (create if not exists):
+- [x] **T014** Add persistent gear icon to global header `apps/frontend/src/components/Header/Header.tsx` (create if not exists):
   - Render gear icon with `id="settings-gear"` and `aria-label="Open settings"`
   - Make keyboard operable (Tab, Enter, Space) and clickable
   - Apply active styling when route matches `/settings`
@@ -109,7 +109,7 @@
 
 ### Phase 3.7: Telemetry Persistence & Synchronization
 
-- [ ] **T016** Add telemetry preference vault integration in `apps/desktop/src/main/services/preferences.ts`:
+- [x] **T016** Add telemetry preference vault integration in `apps/desktop/src/main/services/preferences.ts`:
   - Initialize electron-store with telemetry preference schema
   - Default `enabled: false` on first run
   - Store consent timestamp when enabling
