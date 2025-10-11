@@ -874,10 +874,18 @@
 ---
 
 ### T031: Add LLM diagnostics events to logger
-**Status**: ⏳ Pending  
-**File**: `apps/backend/src/infra/logging/diagnostics-logger.ts`  
+**Status**: ✅ Completed (2025-10-11)  
+**Files**:  
+- `apps/backend/src/infra/logging/diagnostics-logger.ts`  
+- `apps/backend/tests/unit/diagnostics-logger.spec.ts`  
 **Dependencies**: T019, T020, T021  
 **Parallel**: N/A
+
+**Notes**:
+- Added dedicated interfaces for every `llm_*` diagnostics event plus encryption fallback union coverage, ensuring parity with emitted payloads and specs.
+- Implemented deep sanitisation that strips API keys, normalises endpoint URLs to hostnames, and truncates `responseText` values to 500 characters while preserving source objects.
+- Introduced a filesystem-backed logger that writes JSONL lines with directory auto-creation and optional injectable writers for tests.
+- Authored Vitest coverage validating redaction, hostname reduction, truncation behaviour, and on-disk writes.
 
 **Steps**:
 1. Edit `apps/backend/src/infra/logging/diagnostics-logger.ts`
@@ -891,14 +899,14 @@
    - `llm_consent_denied`
    - `llm_encryption_unavailable`
    - `llm_autodiscovery`
-3. Implement redaction: Never log `apiKey` field, log only hostname from `endpointUrl`
-4. Write unit tests verifying redaction
+3. Implement redaction: Never log `apiKey` field, log only hostname from `endpointUrl`, truncate `responseText` to 500 chars
+4. Write unit tests verifying redaction and JSONL writes
 5. Run: `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit`
 
 **Acceptance Criteria**:
-- [ ] Unit tests pass
-- [ ] API keys redacted in all events
-- [ ] Events match data-model.md definitions
+- [x] Unit tests pass
+- [x] API keys redacted in all events
+- [x] Events match data-model.md definitions
 
 **References**: data-model.md (diagnostics integration), spec.md (DR-001, DR-003)
 
