@@ -98,6 +98,272 @@ All IPC methods in feature 008 use a structured envelope format and return respo
 ### `llm:profiles:discover` / `llmProfile:discover`
 
 - **Legacy Request** (feature 007): `{ force?: boolean }`
+- **New Request** (feature 008): Envelope with `{ type: 'discover', scope: { strategy: 'local' | 'remote', timeoutMs?, includeExisting? } }`
+- **Success Response**: `{ discovered: ProfileSummary[], conflicts: ProfileConflictHint[], createdProfiles: ProfileSummary[] }`
+- **Errors**: `VAULT_READ_ERROR`, `VAULT_WRITE_ERROR`, `DISCOVERY_TIMEOUT`
+- **Performance Budget**: Depends on timeoutMs (default 3s per probe port)
+- **Notes**: Feature 008 enforces structured envelopes for reliable correlation IDs and diagnostics linkage. Legacy format (feature 007) is deprecated but remains supported for backward compatibility.
+
+## Backend HTTP API Reference (Feature 009+)
+
+In feature 009, backend HTTP endpoints were added to enable direct testing and integration with non-Electron clients. These endpoints provide the same functionality as the IPC handlers but via Fastify HTTP routes.
+
+### Base URL
+
+All profile endpoints are mounted under `/api/llm/profiles`.
+
+### `GET /api/llm/profiles`
+
+Lists all profiles with redacted API keys.
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "profiles": [ProfileSummary],
+    "encryptionAvailable": boolean,
+    "activeProfileId": string | null
+  },
+  "timestamp": number
+}
+```
+
+**Errors**:
+- `500` - `VAULT_READ_ERROR` or `INTERNAL_ERROR`
+
+**Performance Budget**: ≤500ms
+
+### `POST /api/llm/profiles`
+
+Creates a new profile.
+
+**Request Body**:
+```json
+{
+  "profile": {
+    "name": string,
+    "providerType": "llama.cpp" | "azure" | "custom",
+    "endpointUrl": string,
+    "apiKey": string,
+    "modelId": string | null,
+    "consentTimestamp": number | null
+  },
+  "context": {
+    "operatorId": string (optional)
+  }
+}
+```
+
+**Response** (201 Created):
+```json
+{
+  "success": true,
+  "data": {
+    "profile": ProfileSummary,
+    "warning": string (optional)
+  },
+  "timestamp": number
+}
+```
+
+**Errors**:
+- `400` - `VALIDATION_ERROR`
+- `503` - `VAULT_WRITE_ERROR`
+- `500` - `INTERNAL_ERROR`
+
+### `PATCH /api/llm/profiles/:profileId`
+
+Updates an existing profile.
+
+**Request Body**:
+```json
+{
+  "changes": {
+    "name": string (optional),
+    "endpointUrl": string (optional),
+    "apiKey": string (optional),
+    "modelId": string | null (optional),
+    "consentTimestamp": number | null (optional)
+  }
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "profile": ProfileSummary,
+    "warning": string (optional)
+  },
+  "timestamp": number
+}
+```
+
+**Errors**:
+- `404` - `PROFILE_NOT_FOUND`
+- `400` - `VALIDATION_ERROR`
+- `503` - `VAULT_WRITE_ERROR`
+- `500` - `INTERNAL_ERROR`
+
+### `DELETE /api/llm/profiles/:profileId`
+
+Deletes a profile and optionally activates a successor.
+
+**Request Body**:
+```json
+{
+  "successorProfileId": string (optional, UUID)
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "deletedId": string,
+    "newActiveProfileId": string | null,
+    "requiresUserSelection": boolean
+  },
+  "timestamp": number
+}
+```
+
+**Errors**:
+- `404` - `PROFILE_NOT_FOUND`
+- `400` - `ALTERNATE_NOT_FOUND` (invalid successor)
+- `503` - `VAULT_WRITE_ERROR`
+- `500` - `INTERNAL_ERROR`
+
+### `POST /api/llm/profiles/:profileId/activate`
+
+Activates a profile (deactivates the current active profile).
+
+**Request Body**:
+```json
+{
+  "force": boolean (optional)
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "activeProfile": ProfileSummary,
+    "deactivatedProfileId": string | null
+  },
+  "timestamp": number
+}
+```
+
+**Errors**:
+- `404` - `PROFILE_NOT_FOUND`
+- `503` - `VAULT_WRITE_ERROR`
+- `500` - `INTERNAL_ERROR`
+
+### `POST /api/llm/profiles/:profileId/test`
+
+Tests a prompt against a profile's LLM provider.
+
+**Request Body**:
+```json
+{
+  "promptOverride": string (optional),
+  "timeoutMs": number (optional, default: 30000)
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "success": boolean,
+    "latencyMs": number,
+    "responseText": string (optional, truncated to 500 chars),
+    "errorCode": string (optional)
+  },
+  "timestamp": number
+}
+```
+
+**Errors**:
+- `404` - `PROFILE_NOT_FOUND`
+- `409` - `NO_ACTIVE_PROFILE`
+- `504` - `TIMEOUT` (request exceeded timeoutMs, default 30s)
+- `500` - `INTERNAL_ERROR` or provider network errors
+
+**Performance Budget**: Controlled by `timeoutMs` parameter (default 30s)
+
+### `POST /api/llm/profiles/discover`
+
+Auto-discovers local LLM servers (llama.cpp/Ollama).
+
+**Request Body**:
+```json
+{
+  "scope": {
+    "strategy": "local" | "remote",
+    "timeoutMs": number (optional, default: 3000),
+    "includeExisting": boolean (optional)
+  }
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "discovered": [ProfileSummary],
+    "created": [ProfileSummary],
+    "probedPorts": number[]
+  },
+  "timestamp": number
+}
+```
+
+**Errors**:
+- `500` - `INTERNAL_ERROR` or discovery failures
+
+**Performance Budget**: Depends on timeoutMs and number of ports probed (default 3s per port)
+
+### Error Response Format
+
+All error responses follow this structure:
+
+```json
+{
+  "success": false,
+  "error": "ERROR_CODE",
+  "message": "Human-readable error message",
+  "timestamp": number,
+  "details": object (optional)
+}
+```
+
+### Timeout Enforcement
+
+- **Test Prompt**: Default 30-second timeout (configurable via `timeoutMs` parameter)
+- **Discovery**: Default 3-second timeout per port probe (configurable via `scope.timeoutMs`)
+- Timeout errors return HTTP 504 with `TIMEOUT` error code
+- All timeouts emit diagnostics events with latency measurements
+
+### Diagnostics Integration
+
+All HTTP endpoints emit diagnostics events:
+- `llm_profile_created` - Profile creation
+- `llm_profile_updated` - Profile updates (includes changed fields)
+- `llm_profile_deleted` - Profile deletion
+- `llm_profile_activated` - Profile activation
+- `llm_test_prompt` - Prompt test execution
+- `llm_autodiscovery` - Auto-discovery execution
+
+Events include timestamps, profile IDs, operation metadata, and are automatically included in diagnostics exports.
 - **New Request** (feature 008): Envelope with `{ type: 'discover', scope: { strategy: 'local'|'remote', timeoutMs?: number, includeExisting?: boolean } }`
 - **Success Response**: `{ providers: DiscoveredProvider[] }`
 - **Errors**: `DISCOVERY_ERROR`
