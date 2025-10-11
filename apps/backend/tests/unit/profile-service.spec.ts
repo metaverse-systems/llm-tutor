@@ -195,9 +195,9 @@ describe("ProfileService", () => {
 			createLocalProfileInput({ apiKey: "", endpointUrl: "http://localhost:8080" })
 		);
 
-		expect(ctx.encryptMock).toHaveBeenCalledWith(" ");
+		expect(ctx.encryptMock).toHaveBeenCalledWith("");
 		expect(result.profile.apiKey).toBe(API_KEY_PLACEHOLDER);
-		expect(ctx.vaultService.loadVault().profiles[0].apiKey).toBe("encrypted:: ");
+		expect(ctx.vaultService.loadVault().profiles[0].apiKey).toBe("encrypted::");
 	});
 
 	it("rejects remote providers without consent", async () => {

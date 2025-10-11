@@ -51,6 +51,14 @@ const createProfilePayloadSchema = z
 				path: ["consentTimestamp"]
 			});
 		}
+
+		if (REMOTE_PROVIDERS.has(value.providerType) && value.apiKey.trim().length === 0) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: "apiKey is required for remote providers",
+				path: ["apiKey"]
+			});
+		}
 	});
 
 const updateProfilePayloadSchema = z
@@ -546,10 +554,7 @@ function normalizeEndpoint(value: string): string {
 
 function normalizeApiKey(providerType: ProviderType, value: string): string {
 	const trimmed = value.trim();
-	if (!REMOTE_PROVIDERS.has(providerType)) {
-		return trimmed.length === 0 ? " " : value;
-	}
-	return trimmed.length === 0 ? value : trimmed;
+	return trimmed;
 }
 
 function normalizeModelId(value: string | null): string | null {

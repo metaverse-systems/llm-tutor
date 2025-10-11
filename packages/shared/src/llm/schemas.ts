@@ -27,7 +27,6 @@ export const LLMProfileSchema = z
     endpointUrl: z.string().url({ message: 'endpointUrl must be a valid URL' }),
     apiKey: z
       .string({ required_error: 'apiKey is required' })
-      .min(1, 'apiKey must be at least 1 character')
       .max(500, 'apiKey must be at most 500 characters'),
     modelId: trimmedString(1, 200, 'modelId').nullable(),
     isActive: z.boolean({ required_error: 'isActive is required' }),
@@ -91,6 +90,14 @@ export const LLMProfileSchema = z
           path: ['endpointUrl'],
         });
       }
+    }
+
+    if (isRemoteProvider && data.apiKey.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Remote providers require an API key',
+        path: ['apiKey'],
+      });
     }
 
     if (data.providerType === 'azure') {

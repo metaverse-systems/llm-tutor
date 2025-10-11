@@ -132,4 +132,34 @@ describe("ProfileService validation", () => {
 			}
 		);
 	});
+
+	  it("allows llama.cpp profiles without an API key", async () => {
+	    const service = createProfileService();
+
+	    const result = await service.createProfile({
+	      ...baseLocalPayload,
+	      apiKey: ""
+	    });
+
+	    expect(result.profile).toMatchObject({
+	      providerType: "llama.cpp",
+	      apiKey: expect.any(String)
+	    });
+	  });
+
+	  it("requires API keys for remote providers", async () => {
+	    const service = createProfileService();
+
+	    await expectValidationError(
+	      () =>
+	        service.createProfile({
+	          ...baseAzurePayload,
+	          apiKey: ""
+	        }),
+	      (error) => {
+	        const fieldErrors = extractFieldErrors(error);
+	        expect(fieldErrors.apiKey?.[0]).toMatch(/api ?key is required/i);
+	      }
+	    );
+	  });
 });

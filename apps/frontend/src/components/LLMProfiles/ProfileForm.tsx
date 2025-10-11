@@ -22,7 +22,7 @@ const profileFormSchema = z
       .string()
       .min(1, { message: "Endpoint URL is required" })
       .max(MAX_ENDPOINT_LENGTH, { message: "Endpoint URL is too long" }),
-    apiKey: z.string().min(1, { message: "API key is required" }).max(500, { message: "API key must be 500 characters or less" }),
+    apiKey: z.string().max(500, { message: "API key must be 500 characters or less" }),
     modelId: z
       .string()
       .max(200, { message: "Model or deployment name must be 200 characters or less" })
@@ -41,6 +41,8 @@ const profileFormSchema = z
 
     const host = parsedUrl.hostname.toLowerCase();
 
+    const trimmedApiKey = data.apiKey.trim();
+
     if (data.providerType === "llama.cpp") {
       const isLocalHost = host === "localhost" || host === "127.0.0.1" || host.startsWith("127.");
 
@@ -52,6 +54,14 @@ const profileFormSchema = z
         });
       }
     } else {
+      if (trimmedApiKey.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["apiKey"],
+          message: "Enter an API key for remote providers"
+        });
+      }
+
       if (parsedUrl.protocol !== "https:") {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -266,11 +276,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     setIsSubmitting(true);
     setFormError(null);
 
+    const trimmedApiKey = values.apiKey.trim();
+
     const candidate = {
       name: values.name.trim(),
       providerType: values.providerType,
       endpointUrl: values.endpointUrl.trim(),
-      apiKey: values.apiKey,
+      apiKey: trimmedApiKey,
       modelId: values.modelId.trim() || undefined,
       consent: values.providerType === "llama.cpp" ? true : values.consent
     } as const;
@@ -425,7 +437,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
           </div>
 
           <div className="app-stack-sm">
-            <label htmlFor="profile-api-key">API key *</label>
+            <label htmlFor="profile-api-key">
+              API key {values.providerType === "llama.cpp" ? "(optional)" : "*"}
+            </label>
             <input
               ref={apiKeyInputRef}
               id="profile-api-key"
@@ -434,15 +448,21 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
               onChange={(event) => handleChange("apiKey", event.target.value)}
               aria-invalid={Boolean(errors.apiKey)}
               aria-describedby={errors.apiKey ? "profile-api-key-error" : undefined}
-              required
+              required={values.providerType !== "llama.cpp"}
             />
             {errors.apiKey ? (
               <p id="profile-api-key-error" className="settings__field-error">
                 {errors.apiKey}
               </p>
-            ) : mode === "edit" ? (
-              <p className="settings__field-hint">Enter a new key to replace the stored value.</p>
-            ) : null}
+            ) : (
+              <p className="settings__field-hint">
+                {values.providerType === "llama.cpp"
+                  ? "Optional for local llama.cpp profiles"
+                  : mode === "edit"
+                    ? "Enter a new key to replace the stored value."
+                    : "Required for remote providers"}
+              </p>
+            )}
           </div>
 
           <div className="app-stack-sm">

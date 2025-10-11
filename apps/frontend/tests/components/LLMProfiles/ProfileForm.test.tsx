@@ -63,8 +63,6 @@ describe("ProfileForm", () => {
 
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "Local llama.cpp" } });
     fireEvent.change(screen.getByLabelText(/endpoint url/i), { target: { value: "http://localhost:11434" } });
-    fireEvent.change(screen.getByLabelText(/api key/i), { target: { value: "secret-key" } });
-
     fireEvent.submit(screen.getByTestId("profile-form"));
 
     await waitFor(() => {
@@ -76,7 +74,7 @@ describe("ProfileForm", () => {
       name: "Local llama.cpp",
       providerType: "llama.cpp",
       endpointUrl: "http://localhost:11434",
-      apiKey: "secret-key",
+      apiKey: "",
       modelId: null,
       consentTimestamp: null
     });
@@ -85,6 +83,72 @@ describe("ProfileForm", () => {
       expect.objectContaining({ id: "profile-local", name: "Local llama.cpp" }),
       "created"
     );
+  });
+
+  it("allows local profiles without an API key", async () => {
+    const createProfile = vi.fn().mockResolvedValue(
+      buildProfile({
+        id: "profile-local",
+        name: "Local llama.cpp",
+        providerType: "llama.cpp",
+        endpointUrl: "http://localhost:8080",
+        apiKey: "",
+        modelId: null,
+        consentTimestamp: null
+      })
+    );
+
+    render(
+      <ProfileForm
+        mode="create"
+        createProfile={createProfile}
+        updateProfile={vi.fn()}
+        onRequestClose={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "Local llama.cpp" } });
+    fireEvent.change(screen.getByLabelText(/endpoint url/i), { target: { value: "http://localhost:8080" } });
+
+    fireEvent.submit(screen.getByTestId("profile-form"));
+
+    await waitFor(() => {
+      expect(createProfile).toHaveBeenCalledWith({
+        name: "Local llama.cpp",
+        providerType: "llama.cpp",
+        endpointUrl: "http://localhost:8080",
+        apiKey: "",
+        modelId: null,
+        consentTimestamp: null
+      });
+    });
+  });
+
+  it("shows validation error when remote provider is missing API key", async () => {
+    const createProfile = vi.fn();
+
+    render(
+      <ProfileForm
+        mode="create"
+        createProfile={createProfile}
+        updateProfile={vi.fn()}
+        onRequestClose={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/provider/i), { target: { value: "azure" } });
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "Azure workspace" } });
+    fireEvent.change(screen.getByLabelText(/endpoint url/i), {
+      target: { value: "https://my-instance.openai.azure.com" }
+    });
+
+    fireEvent.submit(screen.getByTestId("profile-form"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/enter an api key for remote providers/i)).toBeInTheDocument();
+    });
+
+    expect(createProfile).not.toHaveBeenCalled();
   });
 
   it("requires consent for Azure providers", async () => {

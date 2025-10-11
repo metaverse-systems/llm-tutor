@@ -37,6 +37,15 @@ describe('LLMProfileSchema', () => {
     expect(() => LLMProfileSchema.parse(validProfile)).not.toThrow();
   });
 
+  it('allows llama.cpp profiles without API keys', () => {
+    const profile = {
+      ...validProfile,
+      apiKey: '',
+    };
+
+    expect(() => LLMProfileSchema.parse(profile)).not.toThrow();
+  });
+
   it('rejects invalid UUID', () => {
     const profile = { ...validProfile, id: 'not-a-uuid' };
     expect(() => LLMProfileSchema.parse(profile)).toThrow(/uuid/i);
@@ -97,6 +106,18 @@ describe('LLMProfileSchema', () => {
       modelId: 'gpt-4',
     };
     expect(() => LLMProfileSchema.parse(profile)).toThrow(/must use a \*\.openai\.azure\.com endpoint/);
+  });
+
+  it('rejects remote profiles without API keys', () => {
+    const profile = {
+      ...validProfile,
+      providerType: 'custom' as const,
+      endpointUrl: 'https://custom.example.com',
+      consentTimestamp: Date.now(),
+      apiKey: '   ',
+    };
+
+    expect(() => LLMProfileSchema.parse(profile)).toThrow(/remote providers require an api key/i);
   });
 
   it('rejects profiles with blank modelId strings', () => {
