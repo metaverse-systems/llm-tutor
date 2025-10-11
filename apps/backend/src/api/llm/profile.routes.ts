@@ -18,6 +18,7 @@ import { EncryptionService } from "../../infra/encryption/index.js";
 import { Buffer } from "node:buffer";
 import * as http from "node:http";
 import * as https from "node:https";
+import type { DiagnosticsLogger } from "../../infra/logging/diagnostics-logger.js";
 
 // Request/Response schemas
 const createProfileRequestSchema = z.object({
@@ -121,6 +122,7 @@ export interface RegisterProfileRoutesOptions {
   vaultService?: ProfileVaultService;
   encryptionService?: EncryptionService;
   fetchImpl?: typeof fetch;
+  diagnosticsLogger?: DiagnosticsLogger | null;
 }
 
 /**
@@ -133,6 +135,7 @@ export async function registerProfileRoutes(
   // Initialize services (use provided or create defaults)
   let profileService = options.profileService;
   let testPromptService = options.testPromptService;
+  const diagnosticsLogger = options.diagnosticsLogger ?? null;
   
   if (!profileService || !testPromptService) {
     const inMemoryVaultStore = {
@@ -489,6 +492,7 @@ export async function registerProfileRoutes(
 
   // POST /api/llm/profiles/discover - Auto-discover local LLM servers
   app.post("/discover", async (request: FastifyRequest, reply: FastifyReply) => {
+    const startTime = Date.now();
     try {
       const body = discoverRequestSchema.parse(request.body);
       
@@ -549,6 +553,20 @@ export async function registerProfileRoutes(
         }
       }
       
+      // Record diagnostics event
+      if (diagnosticsLogger) {
+        await diagnosticsLogger.record({
+          type: "llm_autodiscovery",
+          timestamp: Date.now(),
+          discovered: discoveredUrl !== null,
+          discoveredUrl,
+          profileCreated,
+          profileId,
+          probedPorts,
+          durationMs: Date.now() - startTime
+        });
+      }
+      
       return reply.code(200).send({
         success: true,
         data: {
@@ -561,6 +579,24 @@ export async function registerProfileRoutes(
         timestamp: Date.now()
       });
     } catch (error: any) {
+      // Record error diagnostics event
+      if (diagnosticsLogger) {
+        await diagnosticsLogger.record({
+          type: "llm_autodiscovery",
+          timestamp: Date.now(),
+          discovered: false,
+          discoveredUrl: null,
+          profileCreated: false,
+          profileId: null,
+          probedPorts: [],
+          durationMs: Date.now() - startTime,
+          error: {
+            name: error.name || "Error",
+            message: error.message || "Discovery failed"
+          }
+        });
+      }
+      
       return reply.code(500).send({
         success: false,
         error: "DISCOVERY_ERROR",
