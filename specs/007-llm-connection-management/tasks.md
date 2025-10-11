@@ -513,7 +513,7 @@
 ---
 
 ### T020: Implement TestPromptService with provider integration
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-14)  
 **File**: `apps/backend/src/services/llm/test-prompt.service.ts`  
 **Dependencies**: T019  
 **Parallel**: N/A
@@ -535,14 +535,19 @@
 6. Run: `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit`
 
 **Acceptance Criteria**:
-- [ ] Unit tests pass
-- [ ] TTFB latency measured correctly
-- [ ] Response text truncated to 500 chars
-- [ ] Error mapping matches contracts/providers.md
-- [ ] Contract test T009 now passes ✅
-- [ ] Integration test T013 now passes ✅
+- [x] Unit tests pass
+- [x] TTFB latency measured correctly
+- [x] Response text truncated to 500 chars
+- [x] Error mapping matches contracts/providers.md
+- [ ] Contract test T009 now passes ✅ *(pending IPC wiring in T022)*
+- [ ] Integration test T013 now passes ✅ *(blocked by open tasks T021-T022)*
 
 **References**: contracts/providers.md (provider contracts), data-model.md (TestPromptService)
+
+**Notes**:
+- Added production implementation covering llama.cpp, Azure OpenAI, and custom providers with timeout safeguards, response sanitization, and diagnostics logging.
+- Authored `apps/backend/tests/unit/test-prompt.service.spec.ts` exercising success, HTTP failure, network error, timeout, and missing-profile scenarios with deterministic latency assertions.
+- Verified service logic with `npm --workspace @metaverse-systems/llm-tutor-backend run lint` and `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit`; contract/integration suites remain pending higher-level handler tasks.
 
 ---
 
