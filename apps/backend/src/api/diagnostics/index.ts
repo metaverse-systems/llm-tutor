@@ -32,6 +32,7 @@ import {
 	type MutableDiagnosticsStorageMetricsCollector,
 	DiagnosticsSnapshotService
 } from "../../services/diagnostics/index.js";
+import { registerProfileRoutes } from "../llm/profile.routes.js";
 
 const DEFAULT_STORAGE_DIR = "/tmp/llm-tutor/diagnostics";
 
@@ -278,6 +279,7 @@ async function buildFastifyApp(
 	};
 
 	await registerDiagnosticsRoutes(app, routes);
+	await app.register(registerProfileRoutes, { prefix: "/api/llm/profiles" });
 	await app.ready();
 	return app;
 }
