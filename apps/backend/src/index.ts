@@ -1,6 +1,7 @@
 import { describeProject } from "@metaverse-systems/llm-tutor-shared";
 
 import { createDiagnosticsApp, type DiagnosticsAppOptions } from "./api/diagnostics/index.js";
+import { registerProfileRoutes } from "./api/llm/profile.routes.js";
 import { createLlmProbe } from "./services/diagnostics/index.js";
 
 const DEFAULT_PORT = 4319;
@@ -21,6 +22,9 @@ async function main(): Promise<void> {
   };
 
   const app = await createDiagnosticsApp({ snapshotServiceOverrides });
+
+  app.register(registerProfileRoutes, { prefix: "/api/llm/profiles" });
+  await app.ready();
 
   const effectivePort = Number.isFinite(port) ? port : DEFAULT_PORT;
 

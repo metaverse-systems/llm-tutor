@@ -12,8 +12,8 @@
 ## Task List
 
 ### Phase 0: Environment & Validation Setup
-- **T001**: Ensure backend workspace dependencies are installed (`npm install` from repo root). *(apps/backend)*
-- **T002**: Add Fastify plugin registration stub for profile routes to `apps/backend/src/index.ts`, wiring new `/api/llm/profiles` namespace without logic. *(apps/backend/src/index.ts)*
+- **T001 ✅**: Ensure backend workspace dependencies are installed (`npm install` from repo root). *(apps/backend)*
+- **T002 ✅**: Add Fastify plugin registration stub for profile routes to `apps/backend/src/index.ts`, wiring new `/api/llm/profiles` namespace without logic. *(apps/backend/src/index.ts)*
 
 ### Phase 1: Contract Tests (TDD, parallel-friendly)
 - **T003 [P]**: Author failing contract test for GET `/api/llm/profiles/` response envelopes validating redaction, diagnostics metadata, and ≤500 ms timing expectation. *(apps/backend/tests/contract/llm/list-profiles.contract.test.ts)*
