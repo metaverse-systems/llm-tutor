@@ -762,29 +762,21 @@
 ---
 
 ### T027 [P]: Build consent dialog component
-**Status**: ⏳ Pending  
+**Status**: ✅ Complete  
 **File**: `apps/frontend/src/components/LLMProfiles/ConsentDialog.tsx`  
 **Dependencies**: T024  
 **Parallel**: ✅
 
 **Steps**:
-1. Create `apps/frontend/src/components/LLMProfiles/ConsentDialog.tsx`
-2. Modal dialog with:
-   - `role="alertdialog"`
-   - Title: "Remote Provider Consent Required"
-   - Body: "This profile connects to {provider}. Your prompts and data will be sent to remote servers. Do you consent?"
-   - Actions: "Accept" (primary), "Cancel" (secondary)
-3. Implement focus trap: Tab cycles within dialog, Escape closes
-4. On Accept: Set `consentGranted: true`, record `consentTimestamp`, log diagnostics event `llm_consent_granted`
-5. On Cancel: Set `consentGranted: false`, log `llm_consent_denied`
-6. Styled with theme tokens
-7. Write component tests
-8. Run: `npm --workspace @metaverse-systems/llm-tutor-frontend run test`
+1. Added `apps/frontend/src/components/LLMProfiles/ConsentDialog.tsx` implementing an accessible `alertdialog` with focus trap and diagnostics logging via the renderer bridge.
+2. Wired consent flow into `LLMProfiles` settings page with a dedicated “Add remote provider” trigger that launches the dialog, pre-selects the provider type, and pipes the consent timestamp into `ProfileForm` defaults.
+3. Persisted consent baselines in `ProfileForm` so remote profiles reuse timestamps when reopening the modal.
+4. Authored Vitest coverage in `tests/pages/LLMProfiles.test.tsx` for accept/decline paths and verified the suite with `npm --workspace @metaverse-systems/llm-tutor-frontend run test -- run tests/pages/LLMProfiles.test.tsx`.
 
 **Acceptance Criteria**:
-- [ ] Component tests pass
-- [ ] Focus trap works correctly
-- [ ] Diagnostics events logged
+- [x] Component tests pass
+- [x] Focus trap works correctly
+- [x] Diagnostics events logged
 
 **References**: spec.md (FR-007, AR-005), data-model.md (ConsentRecord)
 

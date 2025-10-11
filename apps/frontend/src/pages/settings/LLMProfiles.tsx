@@ -1,6 +1,7 @@
-import type { LLMProfile, TestPromptResult } from "@metaverse-systems/llm-tutor-shared";
+import type { LLMProfile, ProviderType, TestPromptResult } from "@metaverse-systems/llm-tutor-shared";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { ConsentDialog, type ConsentDecision } from "../../components/LLMProfiles/ConsentDialog";
 import { ProfileForm } from "../../components/LLMProfiles/ProfileForm";
 import { useLLMProfiles } from "../../hooks/useLLMProfiles";
 
@@ -90,6 +91,10 @@ export const LLMProfiles: React.FC = () => {
   const [discoveryStatus, setDiscoveryStatus] = useState<DiscoveryStatus>(INITIAL_DISCOVERY_STATUS);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<LLMProfile | null>(null);
+  const [isConsentDialogOpen, setIsConsentDialogOpen] = useState(false);
+  const [consentContext, setConsentContext] = useState<{ providerType: ProviderType; providerName: string } | null>(null);
+  const [createDefaultProvider, setCreateDefaultProvider] = useState<ProviderType>("llama.cpp");
+  const [createDefaultConsentTimestamp, setCreateDefaultConsentTimestamp] = useState<number | null>(null);
   const dialogReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const stashFocus = useCallback(() => {
@@ -213,12 +218,23 @@ export const LLMProfiles: React.FC = () => {
   const openCreateDialog = useCallback(() => {
     stashFocus();
     setEditingProfile(null);
+    setCreateDefaultProvider("llama.cpp");
+    setCreateDefaultConsentTimestamp(null);
     setIsCreateDialogOpen(true);
   }, [stashFocus]);
+
+  const openRemoteProviderDialog = useCallback(() => {
+    stashFocus();
+    setConsentContext({ providerType: "azure", providerName: "Azure OpenAI" });
+    setIsConsentDialogOpen(true);
+    updateAriaStatus("Consent required to add remote provider");
+  }, [stashFocus, updateAriaStatus]);
 
   const closeFormDialog = useCallback(() => {
     setIsCreateDialogOpen(false);
     setEditingProfile(null);
+    setCreateDefaultProvider("llama.cpp");
+    setCreateDefaultConsentTimestamp(null);
     restoreFocus();
   }, [restoreFocus]);
 
@@ -234,6 +250,8 @@ export const LLMProfiles: React.FC = () => {
       updateAriaStatus(`${verb} ${profile.name}`);
       setIsCreateDialogOpen(false);
       setEditingProfile(null);
+      setCreateDefaultProvider("llama.cpp");
+      setCreateDefaultConsentTimestamp(null);
       restoreFocus();
     },
     [restoreFocus, updateAriaStatus]
@@ -242,6 +260,32 @@ export const LLMProfiles: React.FC = () => {
   const handleFormCanceled = useCallback(() => {
     closeFormDialog();
   }, [closeFormDialog]);
+
+  const handleConsentAccepted = useCallback(
+    (decision: ConsentDecision) => {
+      setIsConsentDialogOpen(false);
+      setConsentContext(null);
+      setCreateDefaultProvider(decision.providerType);
+      setCreateDefaultConsentTimestamp(decision.timestamp);
+      setIsCreateDialogOpen(true);
+      updateAriaStatus(`Consent granted for ${decision.providerName}`);
+    },
+    [updateAriaStatus]
+  );
+
+  const handleConsentCancelled = useCallback(
+    (decision: ConsentDecision) => {
+      setIsConsentDialogOpen(false);
+      setConsentContext(null);
+      setCreateDefaultProvider("llama.cpp");
+      setCreateDefaultConsentTimestamp(null);
+      updateAriaStatus(`Consent declined for ${decision.providerName}`);
+      restoreFocus();
+    },
+    [restoreFocus, updateAriaStatus]
+  );
+
+  const activeConsentContext = isConsentDialogOpen && consentContext ? consentContext : null;
 
   return (
     <main className="settings" aria-busy={loading} data-testid="llm-profiles-page">
@@ -255,6 +299,14 @@ export const LLMProfiles: React.FC = () => {
         <div className="settings__actions" role="toolbar" aria-label="Profile actions">
           <button type="button" className="app-button--primary" onClick={openCreateDialog} data-testid="add-profile-button">
             Add profile
+          </button>
+          <button
+            type="button"
+            className="app-button"
+            onClick={openRemoteProviderDialog}
+            data-testid="add-remote-provider-button"
+          >
+            Add remote provider
           </button>
           <button
             type="button"
@@ -307,6 +359,9 @@ export const LLMProfiles: React.FC = () => {
             </p>
             <button type="button" className="app-button--primary" onClick={openCreateDialog}>
               Add profile
+            </button>
+            <button type="button" className="app-button" onClick={openRemoteProviderDialog}>
+              Add remote provider
             </button>
           </div>
         ) : null}
@@ -436,6 +491,8 @@ export const LLMProfiles: React.FC = () => {
           onRequestClose={handleFormCanceled}
           onSubmitted={handleFormSubmitted}
           onError={updateAriaStatus}
+          defaultProviderType={createDefaultProvider}
+          defaultConsentTimestamp={createDefaultConsentTimestamp}
         />
       ) : null}
 
@@ -448,6 +505,15 @@ export const LLMProfiles: React.FC = () => {
           onRequestClose={handleFormCanceled}
           onSubmitted={handleFormSubmitted}
           onError={updateAriaStatus}
+        />
+      ) : null}
+
+      {activeConsentContext ? (
+        <ConsentDialog
+          providerType={activeConsentContext.providerType}
+          providerName={activeConsentContext.providerName}
+          onAccept={handleConsentAccepted}
+          onCancel={handleConsentCancelled}
         />
       ) : null}
     </main>

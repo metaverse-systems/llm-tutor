@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { LLMProfile, TestPromptResult } from "@metaverse-systems/llm-tutor-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -72,10 +73,12 @@ const buildHookResult = (overrides?: Partial<UseLLMProfilesResult>): UseLLMProfi
 describe("LLMProfiles page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (window as unknown as { llmTutor?: unknown }).llmTutor = undefined;
   });
 
   afterEach(() => {
     cleanup();
+    (window as unknown as { llmTutor?: unknown }).llmTutor = undefined;
   });
 
   it("shows loading skeleton while profiles are loading", () => {
@@ -202,6 +205,80 @@ describe("LLMProfiles page", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("discovery-status")).toHaveTextContent(/Discovered llama.cpp/i);
+    });
+  });
+
+  it("prompts for consent before creating a remote provider profile", async () => {
+    const getState = vi.fn().mockResolvedValue({
+      preferences: { remoteProvidersEnabled: false },
+      latestSnapshot: null
+    });
+    const updatePreferences = vi.fn().mockResolvedValue(undefined);
+
+    (window as unknown as { llmTutor?: { diagnostics?: unknown } }).llmTutor = {
+      diagnostics: { getState, updatePreferences }
+    };
+
+    const createProfile = vi.fn().mockResolvedValue(
+      buildProfile({ id: "profile-remote", providerType: "azure", consentTimestamp: Date.now(), name: "Azure" })
+    );
+
+    asMock.mockReturnValue(
+      buildHookResult({
+        profiles: [],
+        createProfile
+      })
+    );
+
+    render(<LLMProfiles />);
+
+  fireEvent.click(screen.getByTestId("add-remote-provider-button"));
+
+    expect(await screen.findByTestId("consent-dialog")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("consent-accept-button"));
+
+    await waitFor(() => {
+      expect(updatePreferences).toHaveBeenCalled();
+    });
+
+    const form = await screen.findByTestId("profile-form-dialog");
+    expect(form).toBeInTheDocument();
+
+    const providerSelect = screen.getByLabelText("Provider *") as HTMLSelectElement;
+    expect(providerSelect.value).toBe("azure");
+  });
+
+  it("restores focus and skips profile creation when consent is declined", async () => {
+    const updatePreferences = vi.fn().mockResolvedValue(undefined);
+    (window as unknown as { llmTutor?: { diagnostics?: unknown } }).llmTutor = {
+      diagnostics: { updatePreferences }
+    };
+
+    asMock.mockReturnValue(buildHookResult());
+
+    render(<LLMProfiles />);
+
+  const remoteButton = screen.getByTestId("add-remote-provider-button");
+    remoteButton.focus();
+
+    fireEvent.click(remoteButton);
+
+    const dialog = await screen.findByTestId("consent-dialog");
+    expect(dialog).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("consent-cancel-button"));
+
+    await waitFor(() => {
+      expect(updatePreferences).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("profile-form-dialog")).not.toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(remoteButton);
     });
   });
 });

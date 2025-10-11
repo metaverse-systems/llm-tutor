@@ -111,6 +111,8 @@ export interface ProfileFormProps {
   onRequestClose: () => void;
   onSubmitted?: (profile: LLMProfile, kind: SubmitKind) => void;
   onError?: (message: string) => void;
+  defaultProviderType?: ProviderType;
+  defaultConsentTimestamp?: number | null;
 }
 
 interface FieldErrorState {
@@ -138,7 +140,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
   updateProfile,
   onRequestClose,
   onSubmitted,
-  onError
+  onError,
+  defaultProviderType,
+  defaultConsentTimestamp
 }) => {
   if (mode === "edit" && !profile) {
     throw new Error("ProfileForm in edit mode requires a profile");
@@ -159,13 +163,19 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
       };
     }
 
-    return { ...DEFAULT_VALUES };
-  }, [mode, profile]);
+    const provider = defaultProviderType ?? DEFAULT_VALUES.providerType;
+    return {
+      ...DEFAULT_VALUES,
+      providerType: provider,
+      consent: provider === "llama.cpp" ? false : true
+    };
+  }, [defaultProviderType, mode, profile]);
 
   const [values, setValues] = useState<ProfileFormValues>(initialValues);
   const [errors, setErrors] = useState<FieldErrorState>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const consentBaselineRef = useRef<number | null>(defaultConsentTimestamp ?? null);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const providerInputRef = useRef<HTMLSelectElement>(null);
@@ -179,7 +189,8 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     setErrors({});
     setFormError(null);
     setIsSubmitting(false);
-  }, [initialValues]);
+    consentBaselineRef.current = defaultConsentTimestamp ?? null;
+  }, [defaultConsentTimestamp, initialValues]);
 
   useEffect(() => {
     nameInputRef.current?.focus();
@@ -295,7 +306,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
             ? null
             : mode === "edit" && profile?.consentTimestamp
               ? profile.consentTimestamp
-              : Date.now()
+              : consentBaselineRef.current ?? Date.now()
       } as const;
 
       let savedProfile: LLMProfile | null = null;
