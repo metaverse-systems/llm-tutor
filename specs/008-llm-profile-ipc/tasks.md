@@ -21,10 +21,10 @@
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 - [x] T013 Implement `ProfileIpcChannel`, `ProfileIpcEnvelope`, and `OperatorContext` Zod schemas in `packages/shared/src/contracts/llm-profile-ipc.ts` with exports wired in `packages/shared/src/contracts/index.ts`.
-- [ ] T014 Define `ProfileOperationRequest` union plus `ProfileListFilter`, `DraftProfile`, and `DiscoveryScope` schemas in `packages/shared/src/contracts/llm-profile-ipc.ts`.
-- [ ] T015 Implement `ProfileOperationResponse`, `ProfileErrorCode` enum, and shared response envelope helpers in `packages/shared/src/contracts/llm-profile-ipc.ts`.
-- [ ] T016 Add channel-specific response payload schemas (list/create/update/delete/activate/test/discover) and sanitization helpers in `packages/shared/src/contracts/llm-profile-ipc.ts`.
-- [ ] T017 Add `DiagnosticsBreadcrumb` and `SafeStorageOutageState` schemas plus correlation ID utilities in `packages/shared/src/contracts/llm-profile-ipc.ts` and export them for reuse.
+- [x] T014 Define `ProfileOperationRequest` union plus `ProfileListFilter`, `DraftProfile`, and `DiscoveryScope` schemas in `packages/shared/src/contracts/llm-profile-ipc.ts`.
+- [x] T015 Implement `ProfileOperationResponse`, `ProfileErrorCode` enum, and shared response envelope helpers in `packages/shared/src/contracts/llm-profile-ipc.ts`.
+- [x] T016 Add channel-specific response payload schemas (list/create/update/delete/activate/test/discover) and sanitization helpers in `packages/shared/src/contracts/llm-profile-ipc.ts`.
+- [x] T017 Add `DiagnosticsBreadcrumb` and `SafeStorageOutageState` schemas plus correlation ID utilities in `packages/shared/src/contracts/llm-profile-ipc.ts` and export them for reuse.
 - [ ] T018 Implement safe-storage outage manager service handling state transitions and diagnostics hooks in `apps/desktop/src/main/services/safe-storage-outage.service.ts`.
 - [ ] T019 Implement diagnostics recorder for profile IPC events with rotation + warning thresholds in `apps/desktop/src/main/diagnostics/profile-ipc.recorder.ts`.
 - [ ] T020 Create typed IPC router scaffold registering seven channels and wiring dispose lifecycle in `apps/desktop/src/main/ipc/profile-ipc.router.ts` and integrate with `apps/desktop/src/main/ipc/index.ts`.
