@@ -88,19 +88,63 @@ class ContractTestHarness implements LlmContractTestHarness {
 		this.testPromptService = new TestPromptService({
 			vaultService: this.vaultService,
 			encryptionService,
-			fetchImpl: async () => {
-				return new Response(
-					JSON.stringify({
-						choices: [{ message: { content: "Test response" } }],
-						model: "test-model"
-					}),
-					{
-						status: 200,
-						headers: { "content-type": "application/json" }
+			// Mock fetch for contract tests, but delegate to real fetch for integration tests
+			fetchImpl: async (url: string | URL, init?: RequestInit) => {
+				const urlString = url.toString();
+				const body = init?.body ? JSON.parse(init.body as string) : {};
+				const promptText = body.prompt || body.messages?.[0]?.content || "";
+				const signal = init?.signal;
+				
+				// Simulate timeout for specific prompt - wait for the abort signal
+				if (promptText.includes("Simulate timeout")) {
+					return new Promise((_, reject) => {
+						if (signal) {
+							signal.addEventListener("abort", () => {
+								const error = new Error("The operation was aborted");
+								error.name = "AbortError";
+								reject(error);
+							});
+						}
+						// Never resolve - let the abort signal trigger
+					});
+				}
+				
+				// Simulate error response for specific prompt (only for contract tests without nock)
+				if (promptText.includes("Cause an error") && urlString.includes("localhost:8080")) {
+					// Check if nock is active by seeing if there are pending mocks
+					const nockModule = (globalThis as any).nock;
+					if (!nockModule || !nockModule.activeMocks || nockModule.activeMocks().length === 0) {
+						return new Response(
+							JSON.stringify({ error: { message: "Simulated provider error" } }),
+							{
+								status: 500,
+								headers: { "content-type": "application/json" }
+							}
+						);
 					}
-				);
+				}
+				
+				// For integration tests with nock, delegate to real fetch
+				// For contract tests, return mock response for localhost
+				const hasNockMocks = (globalThis as any).nock?.activeMocks?.()?.length > 0;
+				if (!hasNockMocks && urlString.includes("localhost:8080")) {
+					// Mock successful response for contract tests
+					return new Response(
+						JSON.stringify({
+							choices: [{ text: "Test response from llama.cpp" }],
+							model: "llama-2-7b"
+						}),
+						{
+							status: 200,
+							headers: { "content-type": "application/json" }
+						}
+					);
+				}
+				
+				// Delegate to real fetch (for integration tests with nock)
+				return globalThis.fetch(url, init);
 			},
-			timeoutMs: 30000,
+			timeoutMs: 1000, // Short timeout for tests
 			diagnosticsRecorder: null
 		});
 	}
