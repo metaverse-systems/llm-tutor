@@ -30,15 +30,15 @@
 - [x] T020 Create typed IPC router scaffold registering seven channels and wiring dispose lifecycle in `apps/desktop/src/main/ipc/profile-ipc.router.ts` and integrate with `apps/desktop/src/main/ipc/index.ts`.
 - [x] T021 Implement `llmProfile:list` handler with payload validation, service call, diagnostics emission, and ≤500 ms budget enforcement in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
 - [x] T022 Implement `llmProfile:create` handler with safeStorage gating, sanitization, and error mapping in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
-- [ ] T023 Implement `llmProfile:update` handler handling partial changes, conflict detection, and diagnostics metadata in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
-- [ ] T024 Implement `llmProfile:delete` handler enforcing successor selection and structured conflicts in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
-- [ ] T025 Implement `llmProfile:activate` handler managing serialized activation and conflict codes in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
-- [ ] T026 Implement `llmProfile:test` handler measuring service duration vs handler overhead and sanitizing prompt output in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
-- [ ] T027 Implement `llmProfile:discover` handler executing parallel probes with deduplication and conflict detection in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
-- [ ] T028 Integrate safe-storage outage manager with ProfileService operations to block writes and queue retries in `apps/desktop/src/main/services/profile.service.ts`.
-- [ ] T029 Update renderer contextBridge client exposing typed IPC methods and structured error handling in `apps/desktop/src/renderer/services/profile-ipc.client.ts`.
-- [ ] T030 Update renderer profile management UI to surface accessible status messaging, remediation hints, and high-contrast safeStorage warnings in `apps/desktop/src/renderer/components/Settings/ProfileManager.tsx` (and related view models).
-- [ ] T031 Wire diagnostics recorder into existing diagnostics pipeline and JSONL writer in `apps/desktop/src/main/diagnostics/index.ts`.
+- [x] T023 Implement `llmProfile:update` handler handling partial changes, conflict detection, and diagnostics metadata in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
+- [x] T024 Implement `llmProfile:delete` handler enforcing successor selection and structured conflicts in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
+- [x] T025 Implement `llmProfile:activate` handler managing serialized activation and conflict codes in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
+- [x] T026 Implement `llmProfile:test` handler measuring service duration vs handler overhead and sanitizing prompt output in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
+- [x] T027 Implement `llmProfile:discover` handler executing parallel probes with deduplication and conflict detection in `apps/desktop/src/main/ipc/profile-ipc.router.ts`.
+- [x] T028 Integrate safe-storage outage manager with ProfileService operations to block writes and queue retries in `apps/desktop/src/main/services/profile.service.ts`.
+- [x] T029 Update renderer contextBridge client exposing typed IPC methods and structured error handling in `apps/desktop/src/renderer/services/profile-ipc.client.ts`.
+- [x] T030 Update renderer profile management UI to surface accessible status messaging, remediation hints, and high-contrast safeStorage warnings in `apps/desktop/src/renderer/components/Settings/ProfileManager.tsx` (and related view models).
+- [x] T031 Wire diagnostics recorder into existing diagnostics pipeline and JSONL writer in `apps/desktop/src/main/diagnostics/index.ts`.
 
 ## Phase 3.4: Integration
 - [ ] T032 Connect diagnostics correlation IDs to global diagnostics export tooling and ensure rotation policy in `apps/desktop/src/main/diagnostics/diagnostics-manager.ts`.
