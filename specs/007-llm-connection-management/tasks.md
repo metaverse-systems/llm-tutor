@@ -1053,26 +1053,18 @@
 ---
 
 ### T037 [P]: Update developer documentation
-**Status**: ⏳ Pending  
-**File**: `docs/llm-profiles.md`  
+**Status**: ✅ Completed (2025-10-11)  
+**Files**: `docs/llm-profiles.md`, `README.md`  
 **Dependencies**: T001-T036  
 **Parallel**: ✅
 
-**Steps**:
-1. Create `docs/llm-profiles.md`
-2. Document:
-   - Feature overview (LLM profile management)
-   - Architecture diagram (Services → IPC → UI)
-   - API reference (7 IPC channels with examples)
-   - Storage schema (electron-store vault structure)
-   - Testing guide (unit/contract/integration/E2E/a11y)
-   - Troubleshooting (encryption fallback, auto-discovery)
-3. Link from README.md
-4. Add diagrams using Mermaid
+**Notes**:
+- Authored `docs/llm-profiles.md` covering architecture, IPC contracts, storage schema, diagnostics, testing matrix, and troubleshooting with a Mermaid flow diagram.
+- Added "Documentation" section to `README.md` linking to the new guide.
 
 **Acceptance Criteria**:
-- [ ] Documentation complete and reviewed
-- [ ] Linked from main README
+- [x] Documentation complete and reviewed
+- [x] Linked from main README
 
 ---
 
