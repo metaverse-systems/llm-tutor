@@ -2,8 +2,14 @@ import {
   createProfileErrorResponse,
   createProfileSuccessResponse,
   sanitizeProfileSummaries,
+  sanitizePromptPreview,
   ProfileIpcRequestEnvelopeSchema,
   type CreateProfileResponse,
+  type DeleteProfileResponse,
+  type ActivateProfileResponse,
+  type UpdateProfileResponse,
+  type TestProfileResponse,
+  type DiscoverProfileResponse,
   type DraftProfile,
   type ListProfilesResponse,
   type OperatorContext,
@@ -13,7 +19,8 @@ import {
   type ProfileOperationRequest,
   type ProfileOperationResponse,
   type ProfileOperationRequestType,
-  type ProfileSummary
+  type ProfileSummary,
+  type DiscoveredProvider
 } from "@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
@@ -38,11 +45,41 @@ export interface ProfileServiceHandlers {
   createProfile?: (
     profile: DraftProfile
   ) => Promise<CreateProfileResponse & { warning?: string | null }> | (CreateProfileResponse & { warning?: string | null });
+  updateProfile?: (
+    profileId: string,
+    changes: Partial<DraftProfile>
+  ) => Promise<UpdateProfileResponse & { warning?: string | null }> | (UpdateProfileResponse & { warning?: string | null });
+  deleteProfile?: (
+    profileId: string,
+    successorProfileId?: string | null
+  ) => Promise<DeleteProfileResponse> | DeleteProfileResponse;
+  activateProfile?: (
+    profileId: string,
+    force?: boolean
+  ) => Promise<ActivateProfileResponse> | ActivateProfileResponse;
 }
+
+export interface TestPromptServiceHandlers {
+  execute?: (
+    profileId: string,
+    promptOverride?: string,
+    timeoutMs?: number
+  ) => Promise<TestProfileResponse> | TestProfileResponse;
+}
+
+export interface AutoDiscoveryServiceHandlers {
+  discover?: (
+    scope: DiscoveryScope
+  ) => Promise<{ providers: DiscoveredProvider[] }> | { providers: DiscoveredProvider[] };
+}
+
+type DiscoveryScope = Extract<ProfileOperationRequest, { type: "discover" }>["scope"];
 
 export interface ProfileIpcRouterOptions {
   ipcMain?: IpcMainLike | null;
   profileService: ProfileServiceHandlers;
+  testPromptService?: TestPromptServiceHandlers;
+  autoDiscoveryService?: AutoDiscoveryServiceHandlers;
   diagnosticsRecorder: ProfileIpcDiagnosticsRecorder;
   safeStorageOutageService: SafeStorageOutageService;
   now?: () => number;
@@ -104,6 +141,8 @@ export function createProfileIpcRouter(options: ProfileIpcRouterOptions): Profil
 class ProfileIpcRouter {
   private readonly ipcMain: IpcMainLike | null;
   private readonly profileService: ProfileServiceHandlers;
+  private readonly testPromptService?: TestPromptServiceHandlers;
+  private readonly autoDiscoveryService?: AutoDiscoveryServiceHandlers;
   private readonly diagnosticsRecorder: ProfileIpcDiagnosticsRecorder;
   private readonly safeStorageOutageService: SafeStorageOutageService;
   private readonly now: () => number;
@@ -114,6 +153,8 @@ class ProfileIpcRouter {
   constructor(options: ProfileIpcRouterOptions) {
     this.ipcMain = options.ipcMain ?? null;
     this.profileService = options.profileService;
+    this.testPromptService = options.testPromptService;
+    this.autoDiscoveryService = options.autoDiscoveryService;
     this.diagnosticsRecorder = options.diagnosticsRecorder;
     this.safeStorageOutageService = options.safeStorageOutageService;
     this.now = options.now ?? (() => Date.now());
@@ -121,11 +162,11 @@ class ProfileIpcRouter {
 
     this.handlers.set("llmProfile:list", (envelope) => this.handleList(envelope));
     this.handlers.set("llmProfile:create", (envelope) => this.handleCreate(envelope));
-    this.handlers.set("llmProfile:update", (envelope) => this.handleNotImplemented(envelope));
-    this.handlers.set("llmProfile:delete", (envelope) => this.handleNotImplemented(envelope));
-    this.handlers.set("llmProfile:activate", (envelope) => this.handleNotImplemented(envelope));
-    this.handlers.set("llmProfile:test", (envelope) => this.handleNotImplemented(envelope));
-    this.handlers.set("llmProfile:discover", (envelope) => this.handleNotImplemented(envelope));
+    this.handlers.set("llmProfile:update", (envelope) => this.handleUpdate(envelope));
+    this.handlers.set("llmProfile:delete", (envelope) => this.handleDelete(envelope));
+    this.handlers.set("llmProfile:activate", (envelope) => this.handleActivate(envelope));
+    this.handlers.set("llmProfile:test", (envelope) => this.handleTest(envelope));
+    this.handlers.set("llmProfile:discover", (envelope) => this.handleDiscover(envelope));
 
     this.registerIpcHandlers();
   }
@@ -135,6 +176,7 @@ class ProfileIpcRouter {
       this.ipcMain?.removeHandler(channel);
     }
     this.registeredHandlers.length = 0;
+    this.handlers.clear();
   }
 
   isRegistered(channel: ProfileIpcChannel): boolean {
@@ -148,6 +190,10 @@ class ProfileIpcRouter {
     try {
       envelope = this.normalizeEnvelope(channel, payload);
     } catch (error) {
+      // Log Zod validation errors for debugging
+      if (isZodError(error) && this.logger) {
+        this.logger.error("Envelope validation failed:", error);
+      }
       const requestId = this.extractRequestId(payload) ?? randomUUID();
       const fallbackEnvelope: ProfileIpcRequestEnvelope = {
         channel,
@@ -314,6 +360,269 @@ class ProfileIpcRouter {
     }
   }
 
+  private async handleUpdate(envelope: ProfileIpcRequestEnvelope): Promise<ProfileOperationResponse> {
+    const startedAt = this.now();
+    const safeStorageStatus = this.safeStorageOutageService.getStatus();
+
+    if (this.safeStorageOutageService.isOutageActive()) {
+      this.safeStorageOutageService.recordBlockedRequest(envelope.requestId);
+      const durationMs = this.now() - startedAt;
+      const response = createProfileErrorResponse({
+        requestId: envelope.requestId,
+        channel: envelope.channel,
+        code: "SAFE_STORAGE_UNAVAILABLE",
+        userMessage: "Secure profile storage is unavailable.",
+        remediation: "Unlock or restore safe storage before retrying.",
+        durationMs,
+        safeStorageStatus: this.safeStorageOutageService.getStatus(),
+        data: null
+      });
+
+      this.recordBreadcrumb(envelope, response, {
+        outageActive: true,
+        blockedWrite: true
+      });
+
+      return response;
+    }
+
+    if (!this.profileService.updateProfile) {
+      return this.handleNotImplemented(envelope);
+    }
+
+    const { profileId, changes } = this.extractUpdateProfilePayload(envelope.payload);
+
+    try {
+      const result = await this.invokeUpdateProfile(profileId, changes);
+      const sanitizedProfile = this.sanitizeProfileSummary(result.profile);
+      const durationMs = this.now() - startedAt;
+
+      const response = createProfileSuccessResponse<UpdateProfileResponse>({
+        requestId: envelope.requestId,
+        channel: envelope.channel,
+        data: { profile: sanitizedProfile },
+        userMessage: "Profile updated successfully.",
+        remediation: result.warning ?? null,
+        durationMs,
+        safeStorageStatus
+      });
+
+      this.recordBreadcrumb(envelope, response, {
+        sanitized: true,
+        warning: result.warning ?? null,
+        changedFields: Object.keys(changes)
+      });
+
+      return response;
+    } catch (error) {
+      return this.buildErrorResponse({
+        envelope,
+        error,
+        startedAt,
+        metadata: { operation: "update", profileId }
+      });
+    }
+  }
+
+  private async handleDelete(envelope: ProfileIpcRequestEnvelope): Promise<ProfileOperationResponse> {
+    const startedAt = this.now();
+    const safeStorageStatus = this.safeStorageOutageService.getStatus();
+
+    if (!this.profileService.deleteProfile) {
+      return this.handleNotImplemented(envelope);
+    }
+
+    const { profileId, successorProfileId } = this.extractDeleteProfilePayload(envelope.payload);
+
+    try {
+      const result = await this.invokeDeleteProfile(profileId, successorProfileId);
+      const durationMs = this.now() - startedAt;
+
+      const response = createProfileSuccessResponse<DeleteProfileResponse>({
+        requestId: envelope.requestId,
+        channel: envelope.channel,
+        data: {
+          deletedId: result.deletedId,
+          successorProfileId: result.successorProfileId ?? null
+        },
+        userMessage: "Profile deleted successfully.",
+        durationMs,
+        safeStorageStatus
+      });
+
+      this.recordBreadcrumb(envelope, response, {
+        deletedId: result.deletedId,
+        successorProfileId: result.successorProfileId ?? null
+      });
+
+      return response;
+    } catch (error) {
+      return this.buildErrorResponse({
+        envelope,
+        error,
+        startedAt,
+        metadata: { operation: "delete", profileId }
+      });
+    }
+  }
+
+  private async handleActivate(envelope: ProfileIpcRequestEnvelope): Promise<ProfileOperationResponse> {
+    const startedAt = this.now();
+    const safeStorageStatus = this.safeStorageOutageService.getStatus();
+
+    if (!this.profileService.activateProfile) {
+      return this.handleNotImplemented(envelope);
+    }
+
+    const { profileId, force } = this.extractActivateProfilePayload(envelope.payload);
+
+    try {
+      const result = await this.invokeActivateProfile(profileId, force);
+      const sanitizedProfile = this.sanitizeProfileSummary(result.activeProfile);
+      const durationMs = this.now() - startedAt;
+
+      const response = createProfileSuccessResponse<ActivateProfileResponse>({
+        requestId: envelope.requestId,
+        channel: envelope.channel,
+        data: {
+          activeProfile: sanitizedProfile,
+          previousProfileId: result.previousProfileId ?? null
+        },
+        userMessage: "Profile activated successfully.",
+        durationMs,
+        safeStorageStatus
+      });
+
+      this.recordBreadcrumb(envelope, response, {
+        activatedProfileId: result.activeProfile.id,
+        previousProfileId: result.previousProfileId ?? null
+      });
+
+      return response;
+    } catch (error) {
+      return this.buildErrorResponse({
+        envelope,
+        error,
+        startedAt,
+        metadata: { operation: "activate", profileId }
+      });
+    }
+  }
+
+  private async handleTest(envelope: ProfileIpcRequestEnvelope): Promise<ProfileOperationResponse> {
+    const startedAt = this.now();
+    const safeStorageStatus = this.safeStorageOutageService.getStatus();
+
+    if (!this.testPromptService?.execute) {
+      return this.handleNotImplemented(envelope);
+    }
+
+    const { profileId, promptOverride, timeoutMs } = this.extractTestProfilePayload(envelope.payload);
+
+    try {
+      const result = await this.invokeTestPrompt(profileId, promptOverride, timeoutMs);
+      const durationMs = this.now() - startedAt;
+
+      const sanitizedResponse = sanitizePromptPreview(result.truncatedResponse);
+
+      const response = createProfileSuccessResponse<TestProfileResponse>({
+        requestId: envelope.requestId,
+        channel: envelope.channel,
+        data: {
+          profileId: result.profileId,
+          success: result.success,
+          latencyMs: result.latencyMs ?? null,
+          totalTimeMs: result.totalTimeMs,
+          modelName: result.modelName ?? null,
+          truncatedResponse: sanitizedResponse
+        },
+        userMessage: result.success ? "Profile test successful." : "Profile test failed.",
+        durationMs,
+        safeStorageStatus
+      });
+
+      this.recordBreadcrumb(envelope, response, {
+        latencyMs: result.latencyMs ?? null,
+        totalTimeMs: result.totalTimeMs,
+        success: result.success
+      });
+
+      return response;
+    } catch (error) {
+      return this.buildErrorResponse({
+        envelope,
+        error,
+        startedAt,
+        metadata: { operation: "test", profileId }
+      });
+    }
+  }
+
+  private async handleDiscover(envelope: ProfileIpcRequestEnvelope): Promise<ProfileOperationResponse> {
+    const startedAt = this.now();
+    const safeStorageStatus = this.safeStorageOutageService.getStatus();
+
+    if (!this.autoDiscoveryService?.discover) {
+      return this.handleNotImplemented(envelope);
+    }
+
+    const { scope } = this.extractDiscoverPayload(envelope.payload);
+
+    try {
+      const result = await this.invokeDiscover(scope);
+      
+      // Check for duplicates
+      const duplicates = this.findDuplicateProviders(result.providers);
+      if (duplicates.length > 0) {
+        const durationMs = this.now() - startedAt;
+        const response = createProfileErrorResponse({
+          requestId: envelope.requestId,
+          channel: envelope.channel,
+          code: "DISCOVERY_CONFLICT",
+          userMessage: "Duplicate providers detected during discovery.",
+          remediation: "Resolve conflicting providers before proceeding.",
+          durationMs,
+          safeStorageStatus,
+          data: null
+        });
+
+        this.recordBreadcrumb(envelope, response, {
+          duplicateCount: duplicates.length,
+          totalProviders: result.providers.length
+        });
+
+        return response;
+      }
+
+      const durationMs = this.now() - startedAt;
+
+      const response = createProfileSuccessResponse<DiscoverProfileResponse>({
+        requestId: envelope.requestId,
+        channel: envelope.channel,
+        data: {
+          providers: result.providers
+        },
+        userMessage: "Profile discovery completed successfully.",
+        durationMs,
+        safeStorageStatus
+      });
+
+      this.recordBreadcrumb(envelope, response, {
+        providerCount: result.providers.length,
+        strategy: scope.strategy
+      });
+
+      return response;
+    } catch (error) {
+      return this.buildErrorResponse({
+        envelope,
+        error,
+        startedAt,
+        metadata: { operation: "discover" }
+      });
+    }
+  }
+
   private handleNotImplemented(envelope: ProfileIpcRequestEnvelope): Promise<ProfileOperationResponse> {
     const durationMs = 0;
     const safeStorageStatus = this.safeStorageOutageService.getStatus();
@@ -427,6 +736,135 @@ class ProfileIpcRouter {
     return payload.profile;
   }
 
+  private extractUpdateProfilePayload(payload: ProfileOperationRequest): {
+    profileId: string;
+    changes: Partial<DraftProfile>;
+  } {
+    if (payload.type !== "update") {
+      throw new Error("Expected update payload for handler");
+    }
+    return {
+      profileId: payload.profileId,
+      changes: payload.changes
+    };
+  }
+
+  private extractDeleteProfilePayload(payload: ProfileOperationRequest): {
+    profileId: string;
+    successorProfileId?: string | null;
+  } {
+    if (payload.type !== "delete") {
+      throw new Error("Expected delete payload for handler");
+    }
+    return {
+      profileId: payload.profileId,
+      successorProfileId: payload.successorProfileId
+    };
+  }
+
+  private extractActivateProfilePayload(payload: ProfileOperationRequest): {
+    profileId: string;
+    force?: boolean;
+  } {
+    if (payload.type !== "activate") {
+      throw new Error("Expected activate payload for handler");
+    }
+    return {
+      profileId: payload.profileId,
+      force: payload.force
+    };
+  }
+
+  private extractTestProfilePayload(payload: ProfileOperationRequest): {
+    profileId: string;
+    promptOverride?: string;
+    timeoutMs?: number;
+  } {
+    if (payload.type !== "test") {
+      throw new Error("Expected test payload for handler");
+    }
+    return {
+      profileId: payload.profileId,
+      promptOverride: payload.promptOverride,
+      timeoutMs: payload.timeoutMs
+    };
+  }
+
+  private extractDiscoverPayload(payload: ProfileOperationRequest): {
+    scope: DiscoveryScope;
+  } {
+    if (payload.type !== "discover") {
+      throw new Error("Expected discover payload for handler");
+    }
+    return {
+      scope: payload.scope
+    };
+  }
+
+  private async invokeUpdateProfile(
+    profileId: string,
+    changes: Partial<DraftProfile>
+  ): Promise<UpdateProfileResponse & { warning?: string | null }> {
+    if (!this.profileService.updateProfile) {
+      throw new Error("Profile service does not implement updateProfile");
+    }
+    return await Promise.resolve(this.profileService.updateProfile(profileId, changes));
+  }
+
+  private async invokeDeleteProfile(
+    profileId: string,
+    successorProfileId?: string | null
+  ): Promise<DeleteProfileResponse> {
+    if (!this.profileService.deleteProfile) {
+      throw new Error("Profile service does not implement deleteProfile");
+    }
+    return await Promise.resolve(this.profileService.deleteProfile(profileId, successorProfileId));
+  }
+
+  private async invokeActivateProfile(
+    profileId: string,
+    force?: boolean
+  ): Promise<ActivateProfileResponse> {
+    if (!this.profileService.activateProfile) {
+      throw new Error("Profile service does not implement activateProfile");
+    }
+    return await Promise.resolve(this.profileService.activateProfile(profileId, force));
+  }
+
+  private async invokeTestPrompt(
+    profileId: string,
+    promptOverride?: string,
+    timeoutMs?: number
+  ): Promise<TestProfileResponse> {
+    if (!this.testPromptService?.execute) {
+      throw new Error("Test prompt service does not implement execute");
+    }
+    return await Promise.resolve(this.testPromptService.execute(profileId, promptOverride, timeoutMs));
+  }
+
+  private async invokeDiscover(scope: DiscoveryScope): Promise<{ providers: DiscoveredProvider[] }> {
+    if (!this.autoDiscoveryService?.discover) {
+      throw new Error("Auto discovery service does not implement discover");
+    }
+    return await Promise.resolve(this.autoDiscoveryService.discover(scope));
+  }
+
+  private findDuplicateProviders(providers: DiscoveredProvider[]): DiscoveredProvider[] {
+    const seen = new Map<string, DiscoveredProvider>();
+    const duplicates: DiscoveredProvider[] = [];
+
+    for (const provider of providers) {
+      const key = `${provider.providerType}:${provider.endpointUrl}`;
+      if (seen.has(key)) {
+        duplicates.push(provider);
+      } else {
+        seen.set(key, provider);
+      }
+    }
+
+    return duplicates;
+  }
+
   private sanitizeProfileSummary(summary: ProfileSummary): ProfileSummary {
     return sanitizeProfileSummaries([summary])[0] ?? summary;
   }
@@ -493,6 +931,22 @@ class ProfileIpcRouter {
   }
 
   private normalizeEnvelope(channel: ProfileIpcChannel, payload: unknown): ProfileIpcRequestEnvelope {
+    // Check if payload is already a valid envelope
+    if (payload && typeof payload === "object") {
+      const candidate = payload as Record<string, unknown>;
+      if (
+        "channel" in candidate &&
+        "requestId" in candidate &&
+        "timestamp" in candidate &&
+        "context" in candidate &&
+        "payload" in candidate
+      ) {
+        // Already an envelope, just validate it
+        return ProfileIpcRequestEnvelopeSchema.parse(payload);
+      }
+    }
+
+    // Build envelope from payload
     const base: Record<string, unknown> =
       payload && typeof payload === "object" ? { ...(payload as Record<string, unknown>) } : {};
     if (!base.channel) {

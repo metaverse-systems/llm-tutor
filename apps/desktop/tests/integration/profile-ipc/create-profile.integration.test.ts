@@ -41,7 +41,7 @@ describe("Profile IPC integration: create profile", () => {
   it("sanitizes response fields and records diagnostics", async () => {
     const draftProfile: DraftProfile = {
       name: "LLM Tutor QA",
-      providerType: "openai",
+      providerType: "azure",
       endpointUrl: "https://api.openai.com/v1",
       apiKey: "sk-test-qa",
       modelId: "gpt-4o-mini",
