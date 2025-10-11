@@ -1,0 +1,207 @@
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { LLMProfile, TestPromptResult } from "@metaverse-systems/llm-tutor-shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { LLMProfiles } from "../../src/pages/settings/LLMProfiles";
+import { useLLMProfiles } from "../../src/hooks/useLLMProfiles";
+import type { UseLLMProfilesResult } from "../../src/hooks/useLLMProfiles";
+import type { DiscoveryResult } from "../../src/types/llm-api";
+
+vi.mock("../../src/hooks/useLLMProfiles");
+
+const buildProfile = (overrides?: Partial<LLMProfile>): LLMProfile => {
+  const now = Date.now();
+  return {
+    id: "profile-1",
+    name: "Local llama.cpp",
+    providerType: "llama.cpp",
+    endpointUrl: "http://localhost:8080",
+    apiKey: "***REDACTED***",
+    modelId: null,
+    isActive: true,
+    consentTimestamp: null,
+    createdAt: now,
+    modifiedAt: now,
+    ...overrides
+  };
+};
+
+const baseTestPrompt: TestPromptResult = {
+  profileId: "profile-1",
+  profileName: "Local llama.cpp",
+  providerType: "llama.cpp",
+  success: true,
+  promptText: "Hello",
+  responseText: "Hello world",
+  modelName: "llama-2",
+  latencyMs: 240,
+  totalTimeMs: 260,
+  errorCode: null,
+  errorMessage: null,
+  timestamp: Date.now()
+};
+
+const discoveryIdle: DiscoveryResult = {
+  discovered: false,
+  discoveredUrl: null,
+  profileCreated: false,
+  profileId: null,
+  probedPorts: []
+};
+
+const asMock = vi.mocked(useLLMProfiles);
+
+const buildHookResult = (overrides?: Partial<UseLLMProfilesResult>): UseLLMProfilesResult => {
+  return {
+    profiles: [],
+    activeProfile: null,
+    loading: false,
+    error: null,
+    encryptionAvailable: false,
+    fetchProfiles: vi.fn().mockResolvedValue(undefined),
+    createProfile: vi.fn(),
+    updateProfile: vi.fn(),
+    deleteProfile: vi.fn().mockResolvedValue(undefined),
+    activateProfile: vi.fn().mockResolvedValue(undefined),
+    testPrompt: vi.fn().mockResolvedValue(baseTestPrompt),
+    discoverProfiles: vi.fn().mockResolvedValue(discoveryIdle),
+    ...overrides
+  };
+};
+
+describe("LLMProfiles page", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("shows loading skeleton while profiles are loading", () => {
+    asMock.mockReturnValue(buildHookResult({ loading: true }));
+
+    render(<LLMProfiles />);
+
+    expect(screen.getByRole("status", { name: /loading profiles/i })).toBeInTheDocument();
+  });
+
+  it("renders profile cards with badges and metadata", () => {
+    const profile = buildProfile({
+      id: "profile-a",
+      name: "Azure Prod",
+      providerType: "azure",
+      endpointUrl: "https://workspace.openai.azure.com",
+      modelId: "gpt-4o",
+      isActive: false,
+      consentTimestamp: Date.now()
+    });
+
+    asMock.mockReturnValue(
+      buildHookResult({
+        profiles: [profile, buildProfile({ id: "profile-b", name: "Local" })],
+        encryptionAvailable: true
+      })
+    );
+
+    render(<LLMProfiles />);
+
+    expect(screen.getByText("Azure Prod")).toBeInTheDocument();
+    expect(screen.getByText("Azure OpenAI")).toBeInTheDocument();
+    expect(screen.getAllByText("Encrypted").length).toBeGreaterThan(0);
+    expect(screen.getByText("workspace.openai.azure.com")).toBeInTheDocument();
+  });
+
+  it("activates a profile when the activate button is pressed", async () => {
+    const activateProfile = vi.fn().mockResolvedValue(undefined);
+    const profile = buildProfile({ id: "profile-b", isActive: false, name: "Local Dev" });
+
+    asMock.mockReturnValue(
+      buildHookResult({ profiles: [buildProfile(), profile], activateProfile })
+    );
+
+    render(<LLMProfiles />);
+
+    const activateButton = screen.getByRole("button", { name: "Activate" });
+    fireEvent.click(activateButton);
+
+    await waitFor(() => {
+      expect(activateProfile).toHaveBeenCalledWith(profile.id);
+    });
+  });
+
+  it("runs a connection test and surfaces the response", async () => {
+    const testPrompt = vi.fn().mockResolvedValue({
+      ...baseTestPrompt,
+      profileId: "profile-b",
+      profileName: "Azure Prod",
+      responseText: "Connection ok",
+      latencyMs: 312
+    });
+
+    const profile = buildProfile({ id: "profile-b", name: "Azure Prod", isActive: false, providerType: "azure" });
+
+    asMock.mockReturnValue(
+      buildHookResult({ profiles: [profile], testPrompt })
+    );
+
+    render(<LLMProfiles />);
+
+    const testButton = screen.getByTestId(`test-connection-${profile.id}`);
+    fireEvent.click(testButton);
+
+    await waitFor(() => {
+      expect(testPrompt).toHaveBeenCalledWith(profile.id);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/connection ok/i)).toBeInTheDocument();
+      expect(screen.getByText(/Latency: 312 ms/)).toBeInTheDocument();
+    });
+  });
+
+  it("invokes delete handler when Delete key is pressed", async () => {
+    const deleteProfile = vi.fn().mockResolvedValue(undefined);
+    const profile = buildProfile({ id: "profile-delete", isActive: false, name: "Temp" });
+
+    asMock.mockReturnValue(
+      buildHookResult({ profiles: [profile], deleteProfile })
+    );
+
+    render(<LLMProfiles />);
+
+    const deleteButton = screen.getByRole("button", { name: "Delete" });
+    fireEvent.keyDown(deleteButton, { key: "Delete" });
+
+    await waitFor(() => {
+      expect(deleteProfile).toHaveBeenCalledWith(profile.id);
+    });
+  });
+
+  it("runs auto-discovery when requested", async () => {
+    const discoverProfiles = vi.fn().mockResolvedValue({
+      discovered: true,
+      discoveredUrl: "http://localhost:8080",
+      profileCreated: true,
+      profileId: "profile-1",
+      probedPorts: [8080]
+    } satisfies DiscoveryResult);
+
+    asMock.mockReturnValue(
+      buildHookResult({ discoverProfiles })
+    );
+
+    render(<LLMProfiles />);
+
+    const button = screen.getByRole("button", { name: "Run auto-discovery" });
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(discoverProfiles).toHaveBeenCalledWith(true);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("discovery-status")).toHaveTextContent(/Discovered llama.cpp/i);
+    });
+  });
+});

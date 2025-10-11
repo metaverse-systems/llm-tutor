@@ -700,6 +700,298 @@
     opacity: 0.75;
   }
 
+  .settings {
+    width: 100%;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: var(--spacing-2xl) var(--spacing-xl) var(--spacing-3xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+    background-color: var(--surface-canvas);
+    color: var(--text-primary);
+  }
+
+  @media (min-width: 48rem) {
+    .settings {
+      padding-left: var(--spacing-2xl);
+      padding-right: var(--spacing-2xl);
+    }
+  }
+
+  .settings__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .settings__title {
+    font-family: var(--font-heading-font-family);
+    font-size: 2rem;
+    line-height: 1.25;
+    margin: 0;
+  }
+
+  .settings__subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  .settings__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    align-items: center;
+  }
+
+  .settings__encryption {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .settings__discovery {
+    margin: 0;
+    padding-left: var(--spacing-sm);
+    border-left: 3px solid var(--accent-primary);
+    font-size: 0.9rem;
+  }
+
+  .settings__discovery--loading {
+    color: var(--accent-primary);
+  }
+
+  .settings__discovery--success {
+    border-color: var(--state-success);
+    color: var(--state-success);
+  }
+
+  .settings__discovery--error {
+    border-color: var(--state-danger);
+    color: var(--state-danger);
+  }
+
+  .settings__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+
+  .settings__skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .settings__skeleton-row {
+    height: 5.5rem;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(
+      90deg,
+      var(--surface-muted) 0%,
+      var(--surface-elevated) 50%,
+      var(--surface-muted) 100%
+    );
+    background-size: 200% 100%;
+    animation: settings-skeleton-shimmer 1.2s ease-in-out infinite;
+  }
+
+  .settings__empty {
+    text-align: left;
+    gap: var(--spacing-sm);
+  }
+
+  .settings__empty-title {
+    margin: 0;
+    font-family: var(--font-heading-font-family);
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+
+  .settings__empty-copy {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .settings__profile-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+
+  .settings__profile-card-inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .settings__profile-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  @media (min-width: 40rem) {
+    .settings__profile-header {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  .settings__profile-heading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2xs);
+  }
+
+  .settings__profile-heading h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    line-height: 1.4;
+  }
+
+  .settings__profile-provider {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .settings__profile-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2xs);
+  }
+
+  .settings__profile-meta {
+    display: grid;
+    gap: var(--spacing-sm);
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .settings__profile-meta dt {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .settings__profile-meta dd {
+    margin: 0;
+    font-family: var(--font-mono-font-family);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .settings__profile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+
+  .settings__delete-button {
+    color: var(--state-danger);
+  }
+
+  .settings__profile-status {
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2xs);
+    font-size: 0.9rem;
+  }
+
+  .settings__profile-status strong {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .settings__latency {
+    display: block;
+    margin-top: var(--spacing-2xs);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .settings__profile-error {
+    color: var(--state-danger);
+    margin: 0;
+  }
+
+  .settings__sr-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  .settings__placeholder-dialog {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl);
+    backdrop-filter: blur(6px);
+    z-index: 60;
+  }
+
+  .settings__placeholder-dialog::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: var(--surface-overlay);
+    opacity: 0.72;
+  }
+
+  .settings__placeholder-card {
+    position: relative;
+    z-index: 1;
+    width: min(30rem, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    color: var(--text-primary);
+  }
+
+  .settings__placeholder-card h2 {
+    margin: 0;
+    font-size: 1.4rem;
+  }
+
+  .settings__placeholder-card p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .settings__placeholder-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+  }
+
+  @keyframes settings-skeleton-shimmer {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 200% 50%;
+    }
+  }
+
   .landing__export-secondary {
     border: 1px solid var(--border-subtle);
     background-color: var(--surface-canvas);
