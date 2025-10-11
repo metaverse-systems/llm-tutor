@@ -3,41 +3,106 @@ import { z } from "zod";
 const TODO_MESSAGE =
   "Profile IPC contract schemas are not implemented yet. Complete Phase 3.3 to satisfy tests.";
 
-export const ProfileIpcChannelSchema = z.enum(["__todo__"]);
+const PROFILE_IPC_CHANNELS = [
+  "llmProfile:list",
+  "llmProfile:create",
+  "llmProfile:update",
+  "llmProfile:delete",
+  "llmProfile:activate",
+  "llmProfile:test",
+  "llmProfile:discover"
+] as const;
+
+const OPERATOR_ROLES = [
+  "instructional_technologist",
+  "curriculum_lead",
+  "support_engineer"
+] as const;
+
+const LOCALE_REGEX = /^[a-z]{2,3}(-[A-Z]{2})?$/;
+const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
+
+export const ProfileIpcChannelSchema = z.enum(PROFILE_IPC_CHANNELS);
 export type ProfileIpcChannel = z.infer<typeof ProfileIpcChannelSchema>;
 
 export const OperatorContextSchema = z.object({
-  operatorId: z.string(),
-  operatorRole: z.string(),
-  locale: z.string().default("en-US"),
+  operatorId: z.string().uuid(),
+  operatorRole: z.enum(OPERATOR_ROLES),
+  locale: z
+    .string()
+    .regex(LOCALE_REGEX, "locale must be a valid BCP-47 tag (e.g. en-US)")
+    .default("en-US")
 });
 export type OperatorContext = z.infer<typeof OperatorContextSchema>;
 
 export const ProfileIpcRequestEnvelopeSchema = z.object({
   channel: ProfileIpcChannelSchema,
-  requestId: z.string(),
-  timestamp: z.number(),
+  requestId: z.string().uuid(),
+  timestamp: z
+    .number()
+    .int()
+    .min(0, "timestamp must be a positive epoch value")
+    .refine(
+      (value) => Math.abs(Date.now() - value) <= FIVE_MINUTES_IN_MS,
+      "timestamp must be within ±5 minutes of current time"
+    ),
   context: OperatorContextSchema,
-  payload: z.unknown(),
+  payload: z.unknown()
 });
 export type ProfileIpcRequestEnvelope = z.infer<typeof ProfileIpcRequestEnvelopeSchema>;
 
-export const ProfileErrorCodeSchema = z.enum(["OK"]);
+export const ProfileErrorCodeSchema = z.enum([
+  "OK",
+  "PROFILE_NOT_FOUND",
+  "VALIDATION_ERROR",
+  "CONFLICT_ACTIVE_PROFILE",
+  "SAFE_STORAGE_UNAVAILABLE",
+  "SERVICE_FAILURE",
+  "DISCOVERY_CONFLICT",
+  "VAULT_READ_ERROR",
+  "RATE_LIMITED",
+  "TIMEOUT"
+]);
 export type ProfileErrorCode = z.infer<typeof ProfileErrorCodeSchema>;
 
-export const ProfileIpcResponseEnvelopeSchema = z.object({
-  requestId: z.string(),
-  channel: ProfileIpcChannelSchema,
-  success: z.boolean(),
-  code: ProfileErrorCodeSchema,
-  data: z.unknown().nullable(),
-  userMessage: z.string(),
-  remediation: z.string().nullable().optional(),
-  debug: z.unknown().nullable().optional(),
-  correlationId: z.string(),
-  durationMs: z.number(),
-  safeStorageStatus: z.enum(["available", "unavailable"]),
-});
+const debugDetailsSchema = z
+  .object({
+    message: z.string(),
+    stack: z.string().optional()
+  })
+  .nullable()
+  .optional();
+
+export const ProfileIpcResponseEnvelopeSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    channel: ProfileIpcChannelSchema,
+    success: z.boolean(),
+    code: ProfileErrorCodeSchema,
+    data: z.unknown().nullable(),
+    userMessage: z.string().min(1).max(200),
+    remediation: z.string().min(1).nullable().optional(),
+    debug: debugDetailsSchema,
+    correlationId: z.string().uuid(),
+    durationMs: z.number().int().min(0),
+    safeStorageStatus: z.enum(["available", "unavailable"])
+  })
+  .superRefine((value, ctx) => {
+    if (value.success && value.code !== "OK") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "success responses must use code 'OK'",
+        path: ["code"]
+      });
+    }
+    if (!value.success && value.code === "OK") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "non-success responses must use an error code",
+        path: ["code"]
+      });
+    }
+  });
 export type ProfileIpcResponseEnvelope = z.infer<typeof ProfileIpcResponseEnvelopeSchema>;
 
 export const ProfileListFilterSchema = z.object({

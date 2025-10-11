@@ -20,7 +20,7 @@
 - [x] T012 [P] Add failing accessibility regression test using axe-core to validate error messaging and status banners in `apps/desktop/tests/accessibility/profile-ipc/error-messaging.accessibility.spec.ts`.
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
-- [ ] T013 Implement `ProfileIpcChannel`, `ProfileIpcEnvelope`, and `OperatorContext` Zod schemas in `packages/shared/src/contracts/llm-profile-ipc.ts` with exports wired in `packages/shared/src/contracts/index.ts`.
+- [x] T013 Implement `ProfileIpcChannel`, `ProfileIpcEnvelope`, and `OperatorContext` Zod schemas in `packages/shared/src/contracts/llm-profile-ipc.ts` with exports wired in `packages/shared/src/contracts/index.ts`.
 - [ ] T014 Define `ProfileOperationRequest` union plus `ProfileListFilter`, `DraftProfile`, and `DiscoveryScope` schemas in `packages/shared/src/contracts/llm-profile-ipc.ts`.
 - [ ] T015 Implement `ProfileOperationResponse`, `ProfileErrorCode` enum, and shared response envelope helpers in `packages/shared/src/contracts/llm-profile-ipc.ts`.
 - [ ] T016 Add channel-specific response payload schemas (list/create/update/delete/activate/test/discover) and sanitization helpers in `packages/shared/src/contracts/llm-profile-ipc.ts`.
