@@ -301,9 +301,9 @@ export async function createElectronProfileVaultStore(): Promise<ProfileVaultSto
 		import("electron")
 	]);
 
-	type StoreShape = {
+	interface StoreShape {
 		[PROFILE_VAULT_STORE_KEY]: ProfileVault;
-	};
+	}
 
 	const store = new Store<StoreShape>({
 		name: PROFILE_VAULT_STORE_NAME,

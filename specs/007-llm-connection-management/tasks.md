@@ -478,7 +478,7 @@
 ---
 
 ### T019: Implement ProfileService with CRUD operations
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-12)  
 **File**: `apps/backend/src/services/llm/profile.service.ts`  
 **Dependencies**: T018  
 **Parallel**: N/A
@@ -498,10 +498,15 @@
 7. Run: `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit`
 
 **Acceptance Criteria**:
-- [ ] Unit tests pass (>90% coverage)
-- [ ] API keys redacted in list/read operations
-- [ ] Diagnostics events logged for all CRUD operations
-- [ ] Contract tests T004-T008 now pass ✅
+- [x] Unit tests pass (>90% coverage)
+- [x] API keys redacted in list/read operations
+- [x] Diagnostics events logged for all CRUD operations
+- [x] Contract tests T004-T008 now pass ✅
+
+**Notes**:
+- Implemented full CRUD lifecycle with encryption fallback warnings, duplicate-name detection, and diagnostics events across create, update, delete, and activate flows.
+- Added normalization helpers so list results are sorted active-first, trimmed consistently, and always redact API keys with the shared placeholder.
+- Authored comprehensive unit coverage in `apps/backend/tests/unit/profile-service.spec.ts`, exercising consent validation, encryption failure paths, duplicate warnings, activation hand-offs, and deletion edge cases.
 
 **References**: contracts/api.md (endpoints), data-model.md (ProfileService)
 
