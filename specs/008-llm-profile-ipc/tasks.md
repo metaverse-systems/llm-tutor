@@ -4,8 +4,8 @@
 **Prerequisites**: plan.md, research.md, data-model.md, contracts/, quickstart.md
 
 ## Phase 3.1: Setup
-- [ ] T001 Establish profile IPC test harness configuration by adding suite entries to `apps/desktop/vitest.config.ts` and aligning `apps/desktop/package.json` scripts for `contract`, `integration`, `e2e`, and `accessibility` runs.
-- [ ] T002 Scaffold test directory structure for profile IPC flows in `apps/desktop/tests/{contract,integration,e2e,accessibility}/profile-ipc/` with README placeholders describing required mocks.
+- [x] T001 Establish profile IPC test harness configuration by adding suite entries to `apps/desktop/vitest.config.ts` and aligning `apps/desktop/package.json` scripts for `contract`, `integration`, `e2e`, and `accessibility` runs.
+- [x] T002 Scaffold test directory structure for profile IPC flows in `apps/desktop/tests/{contract,integration,e2e,accessibility}/profile-ipc/` with README placeholders describing required mocks.
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 - [ ] T003 [P] Author failing contract tests that load `@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc` and assert request/response envelope schemas for all seven channels in `apps/desktop/tests/contract/profile-ipc/llm-profile-ipc.contract.test.ts`.
