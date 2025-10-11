@@ -942,10 +942,15 @@
 ---
 
 ### T033 [P]: Unit tests for EncryptionService edge cases
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-11)  
 **File**: `apps/backend/tests/unit/encryption-edge-cases.spec.ts`  
 **Dependencies**: T017  
 **Parallel**: ✅
+
+**Notes**:
+- Added Vitest coverage for empty-string credentials, 500-character API keys, and Unicode secrets to ensure encryption+decryption round trips remain lossless.
+- Simulated Linux keychain unavailability and decrypt failures to verify fallback warnings, diagnostics metadata, and status tracking.
+- Confirmed suite via `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit` (passes).
 
 **Steps**:
 1. Create test file
@@ -958,8 +963,8 @@
 3. Run: `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit`
 
 **Acceptance Criteria**:
-- [ ] All edge cases covered
-- [ ] No crashes on invalid input
+- [x] All edge cases covered
+- [x] No crashes on invalid input
 
 ---
 
