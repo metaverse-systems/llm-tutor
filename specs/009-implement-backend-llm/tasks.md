@@ -29,20 +29,20 @@
 - **T011 [P] ✅**: Update integration test for auto-discovery to exercise `/discover` endpoint and validate conflict deduplication results. *(apps/backend/tests/integration/llm/auto-discovery.test.ts)*
 - **T012 [P] ✅**: Update integration test for provider prompt tests to include timeout, 401 mapping, and latency recording via HTTP routes. *(apps/backend/tests/integration/llm/test-prompt-providers.test.ts)*
 
-### Phase 3: Core Implementation (Sequential where files overlap)
-- **T013**: Implement Fastify plugin module `apps/backend/src/api/llm/profile.routes.ts` registering all profile endpoints with schema hooks and request validation. *(apps/backend/src/api/llm/profile.routes.ts)*
-- **T014**: Create error mapping utility translating service exceptions into `ProfileErrorCode` responses with HTTP status codes. *(apps/backend/src/api/llm/profile-error.mapper.ts)*
-- **T015**: Implement GET `/` handler wiring to `ProfileService.listProfiles`, applying filters, redaction helpers, diagnostics timing, and safe-storage status responses. *(apps/backend/src/api/llm/profile.routes.ts)*
-- **T016**: Implement POST `/` handler orchestrating profile creation, safe-storage gating, diagnostics emission, and correlation IDs. *(apps/backend/src/api/llm/profile.routes.ts)*
-- **T017**: Implement PATCH `/:profileId` handler applying partial updates, conflict detection, and diagnostics metadata. *(apps/backend/src/api/llm/profile.routes.ts)*
-- **T018**: Implement DELETE `/:profileId` handler enforcing successor requirements, alternate validation, and diagnostics logging. *(apps/backend/src/api/llm/profile.routes.ts)*
-- **T019**: Implement POST `/:profileId/activate` handler delivering serialized activation and previous active ID response. *(apps/backend/src/api/llm/profile.routes.ts)*
-- **T020**: Implement POST `/:profileId/test` handler coordinating `TestPromptService`, enforcing 30 s timeout, capturing latency, and sanitizing outputs. *(apps/backend/src/api/llm/profile.routes.ts)*
-- **T021**: Implement POST `/discover` handler invoking discovery service, deduplicating providers, surfacing conflicts, and emitting diagnostics. *(apps/backend/src/api/llm/profile.routes.ts)*
-- **T022**: Integrate plugin into backend bootstrap: update `apps/backend/src/index.ts` to register profile routes and pass required dependencies (profile service, test prompt service, discovery probe). *(apps/backend/src/index.ts)*
-- **T023**: Extend `apps/backend/src/services/llm/profile.service.ts` to expose methods needed by new handlers (filters, successor validation, diagnostics metadata). *(apps/backend/src/services/llm/profile.service.ts)*
-- **T024**: Update `apps/backend/src/services/llm/test-prompt.service.ts` to expose structured telemetry (latency breakdown, error codes) consumed by HTTP handler. *(apps/backend/src/services/llm/test-prompt.service.ts)*
-- **T025**: Add discovery service orchestration module reusing `createLlmProbe` and exposing dedupe helpers for HTTP layer. *(apps/backend/src/services/llm/discovery.service.ts)*
+### Phase 3: Core Implementation (Sequential where files overlap) ✅ COMPLETE
+- **T013 ✅**: Implement Fastify plugin module `apps/backend/src/api/llm/profile.routes.ts` registering all profile endpoints with schema hooks and request validation. *(apps/backend/src/api/llm/profile.routes.ts)*
+- **T014 ✅**: Create error mapping utility translating service exceptions into `ProfileErrorCode` responses with HTTP status codes. *(apps/backend/src/api/llm/profile-error.mapper.ts)*
+- **T015 ✅**: Implement GET `/` handler wiring to `ProfileService.listProfiles`, applying filters, redaction helpers, diagnostics timing, and safe-storage status responses. *(apps/backend/src/api/llm/profile.routes.ts)*
+- **T016 ✅**: Implement POST `/` handler orchestrating profile creation, safe-storage gating, diagnostics emission, and correlation IDs. *(apps/backend/src/api/llm/profile.routes.ts)*
+- **T017 ✅**: Implement PATCH `/:profileId` handler applying partial updates, conflict detection, and diagnostics metadata. *(apps/backend/src/api/llm/profile.routes.ts)*
+- **T018 ✅**: Implement DELETE `/:profileId` handler enforcing successor requirements, alternate validation, and diagnostics logging. *(apps/backend/src/api/llm/profile.routes.ts)*
+- **T019 ✅**: Implement POST `/:profileId/activate` handler delivering serialized activation and previous active ID response. *(apps/backend/src/api/llm/profile.routes.ts)*
+- **T020 ✅**: Implement POST `/:profileId/test` handler coordinating `TestPromptService`, enforcing 30 s timeout, capturing latency, and sanitizing outputs. *(apps/backend/src/api/llm/profile.routes.ts)*
+- **T021 ✅**: Implement POST `/discover` handler invoking discovery service, deduplicating providers, surfacing conflicts, and emitting diagnostics. *(apps/backend/src/api/llm/profile.routes.ts)*
+- **T022 ✅**: Integrate plugin into backend bootstrap: update `apps/backend/src/index.ts` to register profile routes and pass required dependencies (profile service, test prompt service, discovery probe). *(apps/backend/src/index.ts)*
+- **T023 ✅**: Extend `apps/backend/src/services/llm/profile.service.ts` to expose methods needed by new handlers (filters, successor validation, diagnostics metadata). *(apps/backend/src/services/llm/profile.service.ts)*
+- **T024 ✅**: Update `apps/backend/src/services/llm/test-prompt.service.ts` to expose structured telemetry (latency breakdown, error codes) consumed by HTTP handler. *(apps/backend/src/services/llm/test-prompt.service.ts)*
+- **T025 ✅**: Add discovery service orchestration module reusing `createLlmProbe` and exposing dedupe helpers for HTTP layer. *(apps/backend/src/services/llm/discovery.service.ts)*
 
 ### Phase 4: Diagnostics & Telemetry
 - **T026 [P]**: Add diagnostics recorder integration ensuring each handler emits breadcrumb with correlation ID, result code, duration, and safe-storage status. *(apps/backend/src/api/llm/profile.routes.ts & diagnostics utilities)*
