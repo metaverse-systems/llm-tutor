@@ -13,6 +13,7 @@ import type {
 } from "@metaverse-systems/llm-tutor-shared";
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
+import { randomUUID } from "node:crypto";
 
 import {
 	registerDiagnosticsRoutes,
@@ -21,6 +22,7 @@ import {
 	type DiagnosticsSnapshotStore,
 	type RefreshRateLimiter
 } from "./routes.js";
+import { createDiagnosticsLogger } from "../../infra/logging/diagnostics-logger.js";
 import {
 	createInMemoryDiagnosticsPreferenceAdapter,
 	type DiagnosticsPreferenceAdapter
@@ -32,6 +34,7 @@ import {
 	type MutableDiagnosticsStorageMetricsCollector,
 	DiagnosticsSnapshotService
 } from "../../services/diagnostics/index.js";
+import { registerProfileRoutes } from "../llm/profile.routes.js";
 
 const DEFAULT_STORAGE_DIR = "/tmp/llm-tutor/diagnostics";
 
@@ -278,6 +281,20 @@ async function buildFastifyApp(
 	};
 
 	await registerDiagnosticsRoutes(app, routes);
+	
+	// Create diagnostics logger for LLM operations using a unique temporary directory
+	const diagnosticsDir = `/tmp/llm-tutor-test-diagnostics-${randomUUID()}`;
+	const diagnosticsLogger = createDiagnosticsLogger({
+		logDirectory: diagnosticsDir
+	});
+	
+	// Set environment variable for export to find events
+	process.env.LLM_TUTOR_DIAGNOSTICS_DIR = diagnosticsDir;
+	
+	await app.register(registerProfileRoutes, { 
+		prefix: "/api/llm/profiles",
+		diagnosticsLogger 
+	});
 	await app.ready();
 	return app;
 }
