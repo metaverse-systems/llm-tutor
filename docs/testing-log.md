@@ -5,6 +5,16 @@ _Operator:_ Automation via GitHub Copilot agent
 
 ## Unified theme enforcement sweep
 
+### Step 0 – Profile vault persistence validation
+
+```bash
+npm run --workspace @metaverse-systems/llm-tutor-shared build
+npm run --workspace @metaverse-systems/llm-tutor-backend build
+npm run --workspace @metaverse-systems/llm-tutor-backend test:unit
+```
+
+Outcome: ✅ Shared workspace emits fresh declaration maps, backend TypeScript build succeeds under bundler resolution, and the ProfileVault + Encryption unit suites (18 specs) pass against the new electron-store-backed persistence layer.
+
 ### Step 1 – Consolidated lint + theme orchestration
 
 ```bash

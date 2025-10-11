@@ -410,7 +410,7 @@
 ## Phase 3.3: Core Implementation (ONLY after tests T004-T016 are failing)
 
 ### T017: Implement EncryptionService with electron-safeStorage
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/src/infra/encryption/index.ts`  
 **Dependencies**: T003 (schema tests pass), T004-T016 failing  
 **Parallel**: N/A
@@ -427,16 +427,21 @@
 6. Run: `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit`
 
 **Acceptance Criteria**:
-- [ ] Unit tests pass (mock electron safeStorage)
-- [ ] Graceful fallback to plaintext when keychain unavailable (Linux headless)
-- [ ] Diagnostics event logged on fallback
+- [x] Unit tests pass (mock electron safeStorage)
+- [x] Graceful fallback to plaintext when keychain unavailable (Linux headless)
+- [x] Diagnostics event logged on fallback
+
+**Notes**:
+- Added dependency-free `SafeStorageAdapter` interface so Electron `safeStorage` can be injected at runtime while tests supply mocks.
+- Exposed fallback diagnostics payloads (`llm_encryption_unavailable`) with structured metadata for future logger integration.
+- Introduced backend `test:unit` npm script targeting `tests/unit` to keep encryption coverage fast and isolated.
 
 **References**: data-model.md (EncryptionService), research.md (electron-safeStorage behavior)
 
 ---
 
 ### T018: Implement ProfileVault persistence with electron-store
-**Status**: ⏳ Pending  
+**Status**: ✅ Completed (2025-10-10)  
 **File**: `apps/backend/src/services/llm/profile-vault.ts`  
 **Dependencies**: T017  
 **Parallel**: N/A
@@ -459,9 +464,14 @@
 6. Run: `npm --workspace @metaverse-systems/llm-tutor-backend run test:unit`
 
 **Acceptance Criteria**:
-- [ ] Unit tests pass
-- [ ] Atomic writes prevent corruption
-- [ ] "Exactly one active" invariant enforced
+- [x] Unit tests pass
+- [x] Atomic writes prevent corruption
+- [x] "Exactly one active" invariant enforced
+
+**Notes**:
+- Implemented `ProfileVaultService` with electron-store persistence, in-memory fallback, and Zod-backed normalization.
+- Added comprehensive Vitest suite (`apps/backend/tests/unit/profile-vault.spec.ts`) covering CRUD, invariant enforcement, and deduplication behavior.
+- Updated shared package exports and repository TypeScript module resolution (`bundler`) so backend build and typings consume compiled declaration maps without rootDir conflicts.
 
 **References**: data-model.md (ProfileVault), research.md (vault schema)
 
