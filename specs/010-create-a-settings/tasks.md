@@ -65,7 +65,7 @@
   - Ensure scroll restoration consistent with existing pages
   *(apps/frontend/src/index.tsx)*
 
-- [ ] **T009** Register `/settings` route in desktop renderer `apps/desktop/src/renderer/index.html` or routing setup matching frontend pattern *(apps/desktop/src/renderer/)*
+- [x] **T009** Register `/settings` route in desktop renderer `apps/desktop/src/renderer/index.html` or routing setup matching frontend pattern *(apps/desktop/src/renderer/)* - Desktop uses frontend routing directly
 
 - [x] **T010** Build Settings page shell `apps/frontend/src/pages/settings/SettingsPage.tsx`:
   - Top-level `<h1 id="settings-heading">Settings</h1>` with auto-focus on mount
@@ -105,7 +105,7 @@
   - Ensure focus returns to gear icon when navigating away from Settings using stored reference
   *(apps/frontend/src/components/Header/Header.tsx)*
 
-- [ ] **T015** Add gear icon to desktop shell header ensuring parity with web implementation, using preload bridge for navigation *(apps/desktop/src/renderer/ or shared component)*
+- [x] **T015** Add gear icon to desktop shell header ensuring parity with web implementation, using preload bridge for navigation *(apps/desktop/src/renderer/ or shared component)* - Desktop uses shared Header component from frontend
 
 ### Phase 3.7: Telemetry Persistence & Synchronization
 
@@ -116,17 +116,17 @@
   - Provide getters/setters for IPC handlers
   *(apps/desktop/src/main/services/preferences.ts)*
 
-- [ ] **T017** Synchronize telemetry preference across renderer and backend contexts:
+- [x] **T017** Synchronize telemetry preference across renderer and backend contexts:
   - Ensure backend respects telemetry state when emitting diagnostics
   - Add IPC event emission when telemetry state changes to keep UI in sync
   - Validate opt-out default in all contexts
-  *(apps/backend/src/services/telemetry.ts or relevant diagnostics service)*
+  *(apps/backend/src/services/telemetry.service.ts)*
 
 ### Phase 3.8: Test Harness & Configuration
 
-- [ ] **T018 [P]** Update Playwright test harness configuration for web build if needed to register new specs and ensure axe scans run on `/settings` route *(apps/frontend/playwright.config.ts or similar)*
+- [x] **T018 [P]** Update Playwright test harness configuration for web build if needed to register new specs and ensure axe scans run on `/settings` route *(apps/frontend/playwright.config.ts or similar)* - Configuration already supports new test files
 
-- [ ] **T019 [P]** Update Playwright test harness configuration for Electron build if needed to register new specs and ensure axe scans run on `/settings` route *(apps/desktop/playwright.config.ts or similar)*
+- [x] **T019 [P]** Update Playwright test harness configuration for Electron build if needed to register new specs and ensure axe scans run on `/settings` route *(apps/desktop/playwright.config.ts or similar)* - Configuration already supports new test files
 
 ### Phase 3.9: Validation & Polish
 
