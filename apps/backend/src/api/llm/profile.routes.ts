@@ -16,6 +16,8 @@ import { TestPromptService } from "../../services/llm/test-prompt.service.js";
 import { ProfileVaultService } from "../../services/llm/profile-vault.js";
 import { EncryptionService } from "../../infra/encryption/index.js";
 import { Buffer } from "node:buffer";
+import * as http from "node:http";
+import * as https from "node:https";
 
 // Request/Response schemas
 const createProfileRequestSchema = z.object({
@@ -67,40 +69,109 @@ const discoverRequestSchema = z.object({
 // Discovery ports for local llama.cpp/Ollama
 const LOCAL_DISCOVERY_PORTS = [8080, 8000, 11434];
 
+// Simple fetch wrapper using http/https module for nock compatibility
+function createHttpFetch(): typeof fetch {
+  return async function httpFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
+    const url = typeof input === "string" ? new URL(input) : input instanceof URL ? input : new URL(input.url);
+    const protocol = url.protocol === "https:" ? https : http;
+    
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: url.hostname,
+        port: url.port || (url.protocol === "https:" ? 443 : 80),
+        path: url.pathname + url.search,
+        method: init?.method || "GET",
+        headers: init?.headers as Record<string, string> || {},
+        signal: init?.signal
+      };
+      
+      const req = protocol.request(options, (res) => {
+        let data = "";
+        res.on("data", (chunk) => { data += chunk; });
+        res.on("end", () => {
+          resolve(new Response(data, {
+            status: res.statusCode,
+            statusText: res.statusMessage,
+            headers: res.headers as any
+          }));
+        });
+      });
+      
+      req.on("error", reject);
+      
+      if (init?.signal) {
+        init.signal.addEventListener("abort", () => {
+          req.destroy();
+          reject(new Error("Request aborted"));
+        });
+      }
+      
+      if (init?.body) {
+        req.write(init.body);
+      }
+      
+      req.end();
+    });
+  };
+}
+
+export interface RegisterProfileRoutesOptions {
+  profileService?: ProfileService;
+  testPromptService?: TestPromptService;
+  vaultService?: ProfileVaultService;
+  encryptionService?: EncryptionService;
+  fetchImpl?: typeof fetch;
+}
+
 /**
  * Register LLM profile HTTP routes
  */
-export async function registerProfileRoutes(app: FastifyInstance): Promise<void> {
-  // Initialize services (in-memory stores for now)
-  const inMemoryVaultStore = {
-    data: null as any,
-    get() { return this.data; },
-    set(value: any) { this.data = value; },
-    clear() { this.data = null; }
-  };
-
-  const vaultService = new ProfileVaultService({ store: inMemoryVaultStore });
+export async function registerProfileRoutes(
+  app: FastifyInstance,
+  options: RegisterProfileRoutesOptions = {}
+): Promise<void> {
+  // Initialize services (use provided or create defaults)
+  let profileService = options.profileService;
+  let testPromptService = options.testPromptService;
   
-  const encryptionService = new EncryptionService({
-    safeStorage: {
-      isEncryptionAvailable: () => true,
-      encryptString: (plaintext: string) => Buffer.from(plaintext, "utf8"),
-      decryptString: (buffer: Buffer) => buffer.toString("utf8")
+  if (!profileService || !testPromptService) {
+    const inMemoryVaultStore = {
+      data: null as any,
+      get() { return this.data; },
+      set(value: any) { this.data = value; },
+      clear() { this.data = null; }
+    };
+
+    const vaultService = options.vaultService || new ProfileVaultService({ store: inMemoryVaultStore });
+    
+    const encryptionService = options.encryptionService || new EncryptionService({
+      safeStorage: {
+        isEncryptionAvailable: () => true,
+        encryptString: (plaintext: string) => Buffer.from(plaintext, "utf8"),
+        decryptString: (buffer: Buffer) => buffer.toString("utf8")
+      }
+    });
+
+    if (!profileService) {
+      profileService = new ProfileService({
+        vaultService,
+        encryptionService,
+        diagnosticsRecorder: null
+      });
     }
-  });
 
-  const profileService = new ProfileService({
-    vaultService,
-    encryptionService,
-    diagnosticsRecorder: null
-  });
-
-  const testPromptService = new TestPromptService({
-    vaultService,
-    encryptionService,
-    timeoutMs: 30000,
-    diagnosticsRecorder: null
-  });
+    if (!testPromptService) {
+      testPromptService = new TestPromptService({
+        vaultService,
+        encryptionService,
+        fetchImpl: options.fetchImpl || createHttpFetch(),
+        timeoutMs: 30000,
+        diagnosticsRecorder: null
+      });
+    }
+  }
+  
+  const fetchImpl = options.fetchImpl || createHttpFetch();
 
   // GET /api/llm/profiles - List all profiles
   app.get("/", async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -437,14 +508,14 @@ export async function registerProfileRoutes(app: FastifyInstance): Promise<void>
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), body.scope.timeoutMs || 3000);
             
-            const response = await fetch(`${url}/health`, {
+            const response = await fetchImpl(`${url}/health`, {
               method: "GET",
               signal: controller.signal
             });
             
             clearTimeout(timeout);
             
-            if (response.ok) {
+            if (response.ok && !discoveredUrl) {
               discoveredUrl = url;
               
               // Check if profile already exists (unless includeExisting is true)
@@ -469,8 +540,7 @@ export async function registerProfileRoutes(app: FastifyInstance): Promise<void>
                   profileId = createResult.profile.id;
                 }
               }
-              
-              break; // Found one, stop searching
+              // Don't break - continue probing all ports
             }
           } catch (error) {
             // Continue to next port

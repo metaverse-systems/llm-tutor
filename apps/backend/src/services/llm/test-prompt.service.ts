@@ -416,9 +416,11 @@ export class TestPromptService {
 
 	private mapNetworkError(error: unknown, url: URL): ProviderErrorPayload {
 		const { code, message } = deriveNetworkError(error);
+		// Normalize ETIMEDOUT to TIMEOUT for consistency
+		const normalizedCode = code === "ETIMEDOUT" ? "TIMEOUT" : code;
 		const friendly = mapNetworkErrorMessage(code, url);
 		return {
-			errorCode: code,
+			errorCode: normalizedCode,
 			errorMessage: friendly ?? message
 		};
 	}
@@ -482,8 +484,15 @@ function extractErrorObject(rawBody: string): { code?: unknown; message?: unknow
 
 function mapAzureErrorMessage(code: string, status: number, message: unknown): string {
 	const normalizedCode = code.toUpperCase();
+	const messageStr = typeof message === "string" && message.trim().length > 0 ? message : null;
+	
 	switch (normalizedCode) {
 		case "401":
+			// Use original message if it contains "subscription key" or "credential", otherwise use default
+			if (messageStr && (messageStr.toLowerCase().includes("subscription key") || 
+			                   messageStr.toLowerCase().includes("credential"))) {
+				return messageStr;
+			}
 			return "Invalid API key. Check your credentials.";
 		case "DEPLOYMENTNOTFOUND":
 			return "Model deployment not found. Verify deployment name.";
@@ -494,8 +503,8 @@ function mapAzureErrorMessage(code: string, status: number, message: unknown): s
 		case "503":
 			return "Service temporarily unavailable. Retry later.";
 		default:
-			if (typeof message === "string" && message.trim().length > 0) {
-				return message;
+			if (messageStr) {
+				return messageStr;
 			}
 			return `Azure OpenAI request failed with status ${status}`;
 	}
