@@ -14,6 +14,8 @@ const DEFAULT_STATE: SafeStorageOutageState = SafeStorageOutageStateSchema.parse
   blockedRequestIds: []
 });
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function cloneState(state: SafeStorageOutageState): SafeStorageOutageState {
   return {
     isActive: state.isActive,
@@ -88,17 +90,23 @@ export class SafeStorageOutageService {
   }
 
   recordBlockedRequest(requestId: string): SafeStorageOutageState {
-    if (!this.state.isActive || typeof requestId !== "string" || requestId.trim().length === 0) {
+    if (!this.state.isActive) {
       return this.state;
     }
 
-    if (this.state.blockedRequestIds.includes(requestId)) {
+    if (typeof requestId !== "string" || !UUID_PATTERN.test(requestId)) {
+      return this.state;
+    }
+
+    const normalizedId = requestId;
+
+    if (this.state.blockedRequestIds.includes(normalizedId)) {
       return this.state;
     }
 
     const nextState = SafeStorageOutageStateSchema.parse({
       ...this.state,
-      blockedRequestIds: [...this.state.blockedRequestIds, requestId]
+      blockedRequestIds: [...this.state.blockedRequestIds, normalizedId]
     });
     this.updateState(nextState);
     return this.state;

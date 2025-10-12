@@ -119,12 +119,21 @@ const testPromptRequestSchema = z
 	})
 	.strict();
 
+type ValidationError = Error & { code?: string; details?: unknown };
+
 function parsePayload<T>(schema: z.ZodType<T>, payload: unknown, channel: string): T {
 	try {
 		return schema.parse(payload);
 	} catch (error) {
-		const message = error instanceof z.ZodError ? error.message : "Invalid payload";
-		throw new Error(`Invalid payload for ${channel}: ${message}`);
+		const isZodError = error instanceof z.ZodError;
+		const validationError: ValidationError = new Error(
+			`Invalid payload for ${channel}: ${isZodError ? error.message : "Invalid payload"}`
+		);
+		validationError.code = "VALIDATION_ERROR";
+		if (isZodError) {
+			validationError.details = error.issues;
+		}
+		throw validationError;
 	}
 }
 

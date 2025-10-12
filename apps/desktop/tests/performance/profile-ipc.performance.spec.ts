@@ -1,17 +1,21 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createProfileIpcRouter, type ProfileIpcRouterOptions } from "../../src/main/ipc/profile-ipc.router";
-import { ProfileIpcDiagnosticsRecorder } from "../../src/main/diagnostics/profile-ipc.recorder";
-import { SafeStorageOutageService } from "../../src/main/services/safe-storage-outage.service";
 import type {
-  ProfileIpcRequestEnvelope,
-  ProfileOperationResponse,
-  ListProfilesResponse,
   CreateProfileResponse,
+  DiagnosticsBreadcrumb,
+  ListProfilesResponse,
+  ProfileIpcRequestEnvelope,
   ProfileSummary
 } from "@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ProfileIpcDiagnosticsRecorder } from "../../src/main/diagnostics/profile-ipc.recorder";
+import { createProfileIpcRouter } from "../../src/main/ipc/profile-ipc.router";
+import { SafeStorageOutageService } from "../../src/main/services/safe-storage-outage.service";
 
 const PERFORMANCE_BUDGET_MS = 500;
 const TOLERANCE_MS = 50; // Allow 50ms tolerance for test overhead
+
+const makeUuid = (index: number): string =>
+  `00000000-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
 
 describe("Profile IPC Router Performance", () => {
   let diagnosticsRecorder: ProfileIpcDiagnosticsRecorder;
@@ -20,7 +24,7 @@ describe("Profile IPC Router Performance", () => {
   let currentTime: number;
 
   beforeEach(() => {
-    currentTime = 1000000;
+    currentTime = Math.trunc(Date.now());
     mockNow = vi.fn(() => currentTime);
     diagnosticsRecorder = new ProfileIpcDiagnosticsRecorder({ now: mockNow });
     safeStorageOutageService = new SafeStorageOutageService({ now: mockNow });
@@ -31,17 +35,14 @@ describe("Profile IPC Router Performance", () => {
     name,
     providerType: "llama.cpp",
     endpointUrl: "http://localhost:8080",
-    apiKey: "***REDACTED***",
     isActive: false,
-    modelId: null,
     consentTimestamp: null,
-    createdAt: 1000,
-    modifiedAt: 1000
+    lastModified: 1000
   });
 
   const createEnvelope = (
     channel: ProfileIpcRequestEnvelope["channel"],
-    payload: any
+      payload: ProfileIpcRequestEnvelope["payload"]
   ): ProfileIpcRequestEnvelope => ({
     channel,
     requestId: "9f1a4a1a-7b11-4a12-a9f0-0a6f4ce04f65",
@@ -51,12 +52,12 @@ describe("Profile IPC Router Performance", () => {
       operatorRole: "support_engineer",
       locale: "en-US"
     },
-    payload
+      payload
   });
 
   it("list handler completes within budget with empty profiles", async () => {
     const profileService = {
-      listProfiles: vi.fn(async () => ({
+      listProfiles: vi.fn(() => ({
         profiles: [],
         encryptionAvailable: true,
         activeProfileId: null
@@ -83,15 +84,18 @@ describe("Profile IPC Router Performance", () => {
 
   it("list handler completes within budget with 10 profiles", async () => {
     const profiles = Array.from({ length: 10 }, (_, i) =>
-      createMockProfile(`profile-${i}`, `Profile ${i}`)
+      createMockProfile(makeUuid(i + 1), `Profile ${i}`)
     );
 
     const profileService = {
-      listProfiles: vi.fn(async () => ({
-        profiles,
-        encryptionAvailable: true,
-        activeProfileId: profiles[0].id
-      }))
+      listProfiles: vi.fn(() => {
+        currentTime += 50;
+        return {
+          profiles,
+          encryptionAvailable: true,
+          activeProfileId: profiles[0].id
+        };
+      })
     };
 
     const router = createProfileIpcRouter({
@@ -103,8 +107,6 @@ describe("Profile IPC Router Performance", () => {
 
     const envelope = createEnvelope("llmProfile:list", { type: "list" });
 
-    const startTime = currentTime;
-    currentTime += 50; // Simulate 50ms operation
     const response = await router.invoke(envelope);
 
     expect(response.success).toBe(true);
@@ -117,15 +119,18 @@ describe("Profile IPC Router Performance", () => {
 
   it("list handler completes within budget with 50 profiles", async () => {
     const profiles = Array.from({ length: 50 }, (_, i) =>
-      createMockProfile(`profile-${i}`, `Profile ${i}`)
+      createMockProfile(makeUuid(i + 1), `Profile ${i}`)
     );
 
     const profileService = {
-      listProfiles: vi.fn(async () => ({
-        profiles,
-        encryptionAvailable: true,
-        activeProfileId: profiles[0].id
-      }))
+      listProfiles: vi.fn(() => {
+        currentTime += 100;
+        return {
+          profiles,
+          encryptionAvailable: true,
+          activeProfileId: profiles[0].id
+        };
+      })
     };
 
     const router = createProfileIpcRouter({
@@ -137,8 +142,6 @@ describe("Profile IPC Router Performance", () => {
 
     const envelope = createEnvelope("llmProfile:list", { type: "list" });
 
-    const startTime = currentTime;
-    currentTime += 100; // Simulate 100ms operation
     const response = await router.invoke(envelope);
 
     expect(response.success).toBe(true);
@@ -150,13 +153,16 @@ describe("Profile IPC Router Performance", () => {
   });
 
   it("create handler completes within budget", async () => {
-    const createdProfile = createMockProfile("new-profile-id", "New Profile");
+  const createdProfile = createMockProfile(makeUuid(9000), "New Profile");
 
     const profileService = {
-      createProfile: vi.fn(async () => ({
-        profile: createdProfile,
-        warning: null
-      }))
+      createProfile: vi.fn(() => {
+        currentTime += 80;
+        return {
+          profile: createdProfile,
+          warning: null
+        };
+      })
     };
 
     const router = createProfileIpcRouter({
@@ -178,8 +184,6 @@ describe("Profile IPC Router Performance", () => {
       }
     });
 
-    const startTime = currentTime;
-    currentTime += 80; // Simulate 80ms operation
     const response = await router.invoke(envelope);
 
     expect(response.success).toBe(true);
@@ -191,13 +195,16 @@ describe("Profile IPC Router Performance", () => {
   });
 
   it("update handler completes within budget", async () => {
-    const updatedProfile = createMockProfile("profile-1", "Updated Name");
+  const updatedProfile = createMockProfile(makeUuid(1), "Updated Name");
 
     const profileService = {
-      updateProfile: vi.fn(async () => ({
-        profile: updatedProfile,
-        warning: null
-      }))
+      updateProfile: vi.fn(() => {
+        currentTime += 70;
+        return {
+          profile: updatedProfile,
+          warning: null
+        };
+      })
     };
 
     const router = createProfileIpcRouter({
@@ -209,12 +216,10 @@ describe("Profile IPC Router Performance", () => {
 
     const envelope = createEnvelope("llmProfile:update", {
       type: "update",
-      profileId: "profile-1",
+  profileId: makeUuid(1),
       changes: { name: "Updated Name" }
     });
 
-    const startTime = currentTime;
-    currentTime += 70; // Simulate 70ms operation
     const response = await router.invoke(envelope);
 
     expect(response.success).toBe(true);
@@ -224,11 +229,14 @@ describe("Profile IPC Router Performance", () => {
 
   it("delete handler completes within budget", async () => {
     const profileService = {
-      deleteProfile: vi.fn(async () => ({
-        deletedId: "profile-1",
-        newActiveProfileId: null,
-        requiresUserSelection: false
-      }))
+      deleteProfile: vi.fn(() => {
+        currentTime += 60;
+        return {
+          deletedId: makeUuid(1),
+          newActiveProfileId: null,
+          requiresUserSelection: false
+        };
+      })
     };
 
     const router = createProfileIpcRouter({
@@ -240,11 +248,9 @@ describe("Profile IPC Router Performance", () => {
 
     const envelope = createEnvelope("llmProfile:delete", {
       type: "delete",
-      profileId: "profile-1"
+      profileId: makeUuid(1)
     });
 
-    const startTime = currentTime;
-    currentTime += 60; // Simulate 60ms operation
     const response = await router.invoke(envelope);
 
     expect(response.success).toBe(true);
@@ -253,14 +259,17 @@ describe("Profile IPC Router Performance", () => {
   });
 
   it("activate handler completes within budget", async () => {
-    const activeProfile = createMockProfile("profile-1", "Active Profile");
+  const activeProfile = createMockProfile(makeUuid(1), "Active Profile");
     activeProfile.isActive = true;
 
     const profileService = {
-      activateProfile: vi.fn(async () => ({
-        activeProfile,
-        deactivatedProfileId: "profile-2"
-      }))
+      activateProfile: vi.fn(() => {
+        currentTime += 50;
+        return {
+          activeProfile,
+          deactivatedProfileId: makeUuid(2)
+        };
+      })
     };
 
     const router = createProfileIpcRouter({
@@ -272,12 +281,10 @@ describe("Profile IPC Router Performance", () => {
 
     const envelope = createEnvelope("llmProfile:activate", {
       type: "activate",
-      profileId: "profile-1",
+      profileId: makeUuid(1),
       force: false
     });
 
-    const startTime = currentTime;
-    currentTime += 50; // Simulate 50ms operation
     const response = await router.invoke(envelope);
 
     expect(response.success).toBe(true);
@@ -290,6 +297,7 @@ describe("Profile IPC Router Performance", () => {
       listProfiles: vi.fn(async () => {
         // Simulate slow operation exceeding budget
         await new Promise((resolve) => setTimeout(resolve, 0));
+        currentTime += 550;
         return {
           profiles: [],
           encryptionAvailable: true,
@@ -298,8 +306,7 @@ describe("Profile IPC Router Performance", () => {
       })
     };
 
-    const warnings: any[] = [];
-    const onPerformanceWarning = vi.fn((warning) => warnings.push(warning));
+  const onPerformanceWarning = vi.fn();
 
     const router = createProfileIpcRouter({
       profileService,
@@ -311,8 +318,6 @@ describe("Profile IPC Router Performance", () => {
 
     const envelope = createEnvelope("llmProfile:list", { type: "list" });
 
-    const startTime = currentTime;
-    currentTime += 550; // Simulate operation exceeding 500ms budget
     await router.invoke(envelope);
 
     expect(onPerformanceWarning).toHaveBeenCalledWith(
@@ -326,11 +331,14 @@ describe("Profile IPC Router Performance", () => {
 
   it("does not emit warning when within budget", async () => {
     const profileService = {
-      listProfiles: vi.fn(async () => ({
-        profiles: [],
-        encryptionAvailable: true,
-        activeProfileId: null
-      }))
+      listProfiles: vi.fn(() => {
+        currentTime += 100;
+        return {
+          profiles: [],
+          encryptionAvailable: true,
+          activeProfileId: null
+        };
+      })
     };
 
     const onPerformanceWarning = vi.fn();
@@ -345,7 +353,6 @@ describe("Profile IPC Router Performance", () => {
 
     const envelope = createEnvelope("llmProfile:list", { type: "list" });
 
-    currentTime += 200; // Well within budget
     await router.invoke(envelope);
 
     expect(onPerformanceWarning).not.toHaveBeenCalled();
@@ -353,11 +360,11 @@ describe("Profile IPC Router Performance", () => {
 
   it("handles concurrent requests efficiently", async () => {
     const profiles = Array.from({ length: 20 }, (_, i) =>
-      createMockProfile(`profile-${i}`, `Profile ${i}`)
+      createMockProfile(makeUuid(i + 1), `Profile ${i}`)
     );
 
     const profileService = {
-      listProfiles: vi.fn(async () => ({
+      listProfiles: vi.fn(() => ({
         profiles,
         encryptionAvailable: true,
         activeProfileId: profiles[0].id
@@ -377,7 +384,6 @@ describe("Profile IPC Router Performance", () => {
       return router.invoke(envelope);
     });
 
-    currentTime += 150; // All should complete within 150ms
     const responses = await Promise.all(requests);
 
     responses.forEach((response) => {
@@ -390,14 +396,17 @@ describe("Profile IPC Router Performance", () => {
 
   it("records diagnostics breadcrumbs without significant overhead", async () => {
     const profileService = {
-      listProfiles: vi.fn(async () => ({
-        profiles: [],
-        encryptionAvailable: true,
-        activeProfileId: null
-      }))
+      listProfiles: vi.fn(() => {
+        currentTime += 100;
+        return {
+          profiles: [],
+          encryptionAvailable: true,
+          activeProfileId: null
+        };
+      })
     };
 
-    const breadcrumbs: any[] = [];
+    const breadcrumbs: DiagnosticsBreadcrumb[] = [];
     diagnosticsRecorder.onBreadcrumb((breadcrumb) => breadcrumbs.push(breadcrumb));
 
     const router = createProfileIpcRouter({
@@ -409,12 +418,14 @@ describe("Profile IPC Router Performance", () => {
 
     const envelope = createEnvelope("llmProfile:list", { type: "list" });
 
-    const startTime = currentTime;
-    currentTime += 100;
     await router.invoke(envelope);
 
     expect(breadcrumbs).toHaveLength(1);
-    expect(breadcrumbs[0].durationMs).toBe(100);
-    expect(breadcrumbs[0].channel).toBe("llmProfile:list");
+    const [breadcrumb] = breadcrumbs;
+    if (!breadcrumb) {
+      throw new Error("Expected diagnostics breadcrumb to be recorded");
+    }
+    expect(breadcrumb.durationMs).toBe(100);
+    expect(breadcrumb.channel).toBe("llmProfile:list");
   });
 });
