@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { AccessibilityToggles } from "../../components/AccessibilityToggles/AccessibilityToggles";
 import { DiagnosticsPanel } from "../../components/DiagnosticsPanel/DiagnosticsPanel";
+import { Header } from "../../components/Header/Header";
 import { useDiagnostics } from "../../hooks/useDiagnostics";
 
 type ToastTone = "info" | "success" | "warning" | "error";
@@ -259,25 +260,27 @@ export const LandingPage: React.FC = () => {
   }, [diagnostics.lastUpdatedAt]);
 
   return (
-    <main role="main" className="landing" aria-busy={diagnostics.isLoading}>
-      <header className="landing__hero">
-        <h1>Diagnostics overview</h1>
-        <p className="landing__lead">
-          Monitor the local-only LLM Tutor runtime, confirm llama.cpp status, and keep accessibility front-of-mind.
-        </p>
-        <div className="landing__cta">
-          <button
-            type="button"
-            onClick={handleExportClick}
-            data-testid="landing-diagnostics-cta"
-            className="landing__cta-button"
-          >
-            Export diagnostics snapshot
-          </button>
-          <p className="landing__meta" role="status" aria-live="polite">
-            Last updated: {lastUpdatedLabel}
+    <>
+      <Header />
+      <main role="main" className="landing" aria-busy={diagnostics.isLoading}>
+        <header className="landing__hero">
+          <h1>Diagnostics overview</h1>
+          <p className="landing__lead">
+            Monitor the local-only LLM Tutor runtime, confirm llama.cpp status, and keep accessibility front-of-mind.
           </p>
-          <p
+          <div className="landing__cta">
+            <button
+              type="button"
+              onClick={handleExportClick}
+              data-testid="landing-diagnostics-cta"
+              className="landing__cta-button"
+            >
+              Export diagnostics snapshot
+            </button>
+            <p className="landing__meta" role="status" aria-live="polite">
+              Last updated: {lastUpdatedLabel}
+            </p>
+            <p
             className="landing__meta"
             data-testid="diagnostics-snapshot-status"
             role="status"
@@ -381,6 +384,7 @@ export const LandingPage: React.FC = () => {
         </div>
       ) : null}
     </main>
+    </>
   );
 };
 

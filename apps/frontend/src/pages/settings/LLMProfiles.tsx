@@ -1,6 +1,7 @@
 import type { LLMProfile, ProviderType } from "@metaverse-systems/llm-tutor-shared";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { Header } from "../../components/Header/Header";
 import { ConsentDialog, type ConsentDecision } from "../../components/LLMProfiles/ConsentDialog";
 import { DeleteConfirmDialog } from "../../components/LLMProfiles/DeleteConfirmDialog";
 import { ProfileForm } from "../../components/LLMProfiles/ProfileForm";
@@ -283,30 +284,32 @@ export const LLMProfiles: React.FC = () => {
   }, [deleteDialogProfile, sortedProfiles]);
 
   return (
-    <main className="settings" aria-busy={loading} data-testid="llm-profiles-page">
-      <header className="settings__header app-stack-sm">
-        <div className="app-stack-sm">
-          <h1 className="settings__title">LLM connection profiles</h1>
-          <p className="settings__subtitle">
-            Manage encrypted credentials, run quick connection tests, and oversee auto-discovery results for llama.cpp and remote providers.
-          </p>
-        </div>
-        <div className="settings__actions" role="toolbar" aria-label="Profile actions">
-          <button type="button" className="app-button--primary" onClick={openCreateDialog} data-testid="add-profile-button">
-            Add profile
-          </button>
-          <button
-            type="button"
-            className="app-button"
-            onClick={openRemoteProviderDialog}
-            data-testid="add-remote-provider-button"
-          >
-            Add remote provider
-          </button>
-          <button
-            type="button"
-            className="app-button"
-            onClick={handleDiscover}
+    <>
+      <Header />
+      <main className="settings" aria-busy={loading} data-testid="llm-profiles-page">
+        <header className="settings__header app-stack-sm">
+          <div className="app-stack-sm">
+            <h1 className="settings__title">LLM connection profiles</h1>
+            <p className="settings__subtitle">
+              Manage encrypted credentials, run quick connection tests, and oversee auto-discovery results for llama.cpp and remote providers.
+            </p>
+          </div>
+          <div className="settings__actions" role="toolbar" aria-label="Profile actions">
+            <button type="button" className="app-button--primary" onClick={openCreateDialog} data-testid="add-profile-button">
+              Add profile
+            </button>
+            <button
+              type="button"
+              className="app-button"
+              onClick={openRemoteProviderDialog}
+              data-testid="add-remote-provider-button"
+            >
+              Add remote provider
+            </button>
+            <button
+              type="button"
+              className="app-button"
+              onClick={handleDiscover}
             disabled={discoveryStatus.status === "loading"}
             aria-busy={discoveryStatus.status === "loading"}
             data-testid="run-discovery-button"
@@ -498,6 +501,7 @@ export const LLMProfiles: React.FC = () => {
         />
       ) : null}
     </main>
+    </>
   );
 };
 

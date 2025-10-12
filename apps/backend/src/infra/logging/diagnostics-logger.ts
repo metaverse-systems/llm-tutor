@@ -86,6 +86,13 @@ export interface LlmAutoDiscoveryDiagnosticsEvent {
 	};
 }
 
+export interface TelemetryPreferenceChangedDiagnosticsEvent {
+	type: "telemetry_preference_changed";
+	enabled: boolean;
+	consentTimestamp?: number;
+	timestamp: number;
+}
+
 export type DiagnosticsEvent =
 	| LlmProfileCreatedDiagnosticsEvent
 	| LlmProfileUpdatedDiagnosticsEvent
@@ -95,6 +102,7 @@ export type DiagnosticsEvent =
 	| LlmConsentGrantedDiagnosticsEvent
 	| LlmConsentDeniedDiagnosticsEvent
 	| LlmAutoDiscoveryDiagnosticsEvent
+	| TelemetryPreferenceChangedDiagnosticsEvent
 	| EncryptionFallbackEvent;
 
 export type SanitizedDiagnosticsEvent = DiagnosticsEvent;

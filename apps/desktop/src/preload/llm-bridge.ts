@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+import type { TelemetryPreference } from "../../../../packages/shared/src/contracts/preferences";
 import type { TestPromptResult } from "../../../../packages/shared/src/llm/schemas";
 import type {
 	ActivateProfilePayload,
@@ -23,6 +24,12 @@ export const LLM_IPC_CHANNELS = Object.freeze({
 	activate: "llm:profiles:activate",
 	testPrompt: "llm:profiles:test",
 	discover: "llm:profiles:discover"
+});
+
+export const SETTINGS_IPC_CHANNELS = Object.freeze({
+	navigate: "settings:navigate",
+	telemetryGet: "settings:telemetry:get",
+	telemetrySet: "settings:telemetry:set"
 });
 
 export interface SuccessResponse<T> {
@@ -52,6 +59,14 @@ export interface LlmRendererBridge {
 	activateProfile(payload: ActivateProfilePayload): Promise<InvokeResult<ActivateProfileResult>>;
 	testPrompt(payload?: TestPromptRequest): Promise<InvokeResult<TestPromptResult>>;
 	discoverProfiles(payload?: DiscoverProfilesPayload): Promise<InvokeResult<DiscoveryResult>>;
+}
+
+export interface SettingsRendererBridge {
+	navigateToSettings(): Promise<void>;
+	telemetry: {
+		getState(): Promise<TelemetryPreference>;
+		setState(update: { enabled: boolean }): Promise<TelemetryPreference>;
+	};
 }
 
 export const LLM_BRIDGE_KEY = "llmAPI" as const;
@@ -130,12 +145,38 @@ function normalizeDiscoverPayload(payload?: DiscoverProfilesPayload): Record<str
 	return payload.force === true ? { force: true } : {};
 }
 
+export function createSettingsBridge(): SettingsRendererBridge {
+	return {
+		navigateToSettings(): Promise<void> {
+			return ipcRenderer.invoke(SETTINGS_IPC_CHANNELS.navigate) as Promise<void>;
+		},
+		telemetry: {
+			getState(): Promise<TelemetryPreference> {
+				return ipcRenderer.invoke(SETTINGS_IPC_CHANNELS.telemetryGet) as Promise<TelemetryPreference>;
+			},
+			setState(update: { enabled: boolean }): Promise<TelemetryPreference> {
+				return ipcRenderer.invoke(SETTINGS_IPC_CHANNELS.telemetrySet, update) as Promise<TelemetryPreference>;
+			}
+		}
+	};
+}
+
 export const llmBridge = createLlmBridge();
+export const settingsBridge = createSettingsBridge();
 
 contextBridge.exposeInMainWorld(LLM_BRIDGE_KEY, llmBridge);
+
+// Expose llmTutor namespace with settings
+export const LLM_TUTOR_KEY = "llmTutor" as const;
+contextBridge.exposeInMainWorld(LLM_TUTOR_KEY, {
+	settings: settingsBridge
+});
 
 declare global {
 	interface Window {
 		llmAPI?: LlmRendererBridge;
+		llmTutor?: {
+			settings: SettingsRendererBridge;
+		};
 	}
 }
