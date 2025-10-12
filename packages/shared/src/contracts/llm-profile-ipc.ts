@@ -139,7 +139,7 @@ const DraftProfileCoreSchema = z
   .object({
     name: z.string().trim().min(1).max(MAX_PROFILE_NAME_LENGTH),
     providerType: ProviderTypeSchema,
-    endpointUrl: z.string().trim().url(),
+  endpointUrl: z.string().trim().min(1, "endpointUrl must not be empty"),
     apiKey: z.string().trim().min(1).max(MAX_API_KEY_LENGTH),
     modelId: z.string().trim().min(1).max(MAX_MODEL_ID_LENGTH).nullable().optional(),
     consentTimestamp: z
@@ -170,9 +170,14 @@ export const DraftProfileSchema = DraftProfileCoreSchema.superRefine((draft, ctx
       });
     }
   } catch {
+    const trimmedUrl = draft.endpointUrl.trim();
+    const missingHostname = /^https?:\/\/$/i.test(trimmedUrl);
+
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "endpointUrl must be a valid URL",
+      message: missingHostname
+        ? "endpointUrl must include a valid hostname"
+        : "endpointUrl must be a valid URL",
       path: ["endpointUrl"]
     });
   }
@@ -324,7 +329,7 @@ export const ProfileIpcRequestEnvelopeSchema = z
       .min(0, "timestamp must be a positive epoch value")
       .refine(
         (value) => Math.abs(Date.now() - value) <= FIVE_MINUTES_IN_MS,
-        "timestamp must be within ±5 minutes of current time"
+        "timestamp must be within ±5 minutes of current time (stale or future request)"
       ),
     context: OperatorContextSchema,
     payload: ProfileOperationRequestSchema
@@ -351,6 +356,9 @@ export const ProfileErrorCodeSchema = z.enum([
   "SERVICE_FAILURE",
   "DISCOVERY_CONFLICT",
   "VAULT_READ_ERROR",
+  "VAULT_WRITE_ERROR",
+  "NETWORK_ERROR",
+  "UNKNOWN_ERROR",
   "RATE_LIMITED",
   "TIMEOUT"
 ]);
@@ -550,15 +558,29 @@ export const SafeStorageOutageStateSchema = z
   .strict();
 export type SafeStorageOutageState = z.infer<typeof SafeStorageOutageStateSchema>;
 
-export function sanitizeProfileSummary(summary: ProfileSummary): ProfileSummary {
-  return {
+type ProfileSummaryWithSecrets = ProfileSummary & {
+  apiKey?: string | null;
+};
+
+const REDACTED_SECRET = "***REDACTED***";
+
+export function sanitizeProfileSummary<T extends ProfileSummaryWithSecrets>(summary: T): T {
+  const sanitised = {
     ...summary,
     name: sanitizeSpaces(summary.name, MAX_PROFILE_NAME_LENGTH),
     endpointUrl: sanitizeUrl(summary.endpointUrl)
-  };
+  } as T;
+
+  if (Object.prototype.hasOwnProperty.call(summary, "apiKey")) {
+    const original = summary.apiKey;
+    const redacted = typeof original === "string" && original.length > 0 ? REDACTED_SECRET : null;
+    sanitised.apiKey = original === undefined ? undefined : redacted;
+  }
+
+  return sanitised;
 }
 
-export function sanitizeProfileSummaries(summaries: readonly ProfileSummary[]): ProfileSummary[] {
+export function sanitizeProfileSummaries<T extends ProfileSummaryWithSecrets>(summaries: readonly T[]): T[] {
   return summaries.map((summary) => sanitizeProfileSummary(summary));
 }
 

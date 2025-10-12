@@ -18,6 +18,9 @@ export default defineConfig({
       "tests/pages/**/*.test.{ts,tsx}",
       "tests/pages/**/*.spec.{ts,tsx}"
     ],
+    exclude: [
+      "tests/pages/**/*.spec.{ts,tsx}" // Playwright e2e coverage lives in Playwright runner
+    ],
     css: true
   }
 });

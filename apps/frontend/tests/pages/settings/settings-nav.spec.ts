@@ -7,7 +7,11 @@ function getActiveElementId(page: Page) {
 	return page.evaluate(() => document.activeElement?.getAttribute("id") ?? "");
 }
 
-test.describe("Settings page navigation and accessibility", () => {
+const isPlaywrightRunner =
+	Boolean(process.env.PLAYWRIGHT_TEST ?? process.env.PW_TEST ?? process.env.PLAYWRIGHT_WORKER_INDEX);
+
+if (isPlaywrightRunner) {
+	test.describe("Settings page navigation and accessibility", () => {
 	test("gear icon activation via keyboard navigates to Settings", async ({ page }) => {
 		await page.goto("/");
 
@@ -119,3 +123,4 @@ test.describe("Settings page navigation and accessibility", () => {
 		expect(hasActiveState).toBe(true);
 	});
 });
+}
