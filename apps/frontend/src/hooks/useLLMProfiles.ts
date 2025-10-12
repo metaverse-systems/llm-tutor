@@ -241,15 +241,28 @@ function removeProfileById(profiles: LLMProfile[], id: string): LLMProfile[] {
 }
 
 export function useLLMProfiles(): UseLLMProfilesResult {
+  console.log("[useLLMProfiles] hook mount");
   const [state, setState] = useState<HookState>(INITIAL_STATE);
   const stateRef = useRef<HookState>(INITIAL_STATE);
   const isMountedRef = useRef<boolean>(true);
+  const bridgeRetryCountRef = useRef<number>(0);
+  const bridgeRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearBridgeRetryTimer = useCallback(() => {
+    if (bridgeRetryTimerRef.current !== null) {
+      clearTimeout(bridgeRetryTimerRef.current);
+      bridgeRetryTimerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     return () => {
       isMountedRef.current = false;
+      clearBridgeRetryTimer();
     };
-  }, []);
+  }, [clearBridgeRetryTimer]);
 
   const updateState = useCallback(
     (updater: HookState | ((previous: HookState) => HookState)) => {
@@ -259,6 +272,13 @@ export function useLLMProfiles(): UseLLMProfilesResult {
         }
 
         const next = typeof updater === "function" ? (updater as (prev: HookState) => HookState)(previous) : updater;
+  console.log("[useLLMProfiles] state transition", {
+          prevLoading: previous.loading,
+          prevProfiles: previous.profiles.length,
+          nextLoading: next.loading,
+          nextProfiles: next.profiles.length,
+          nextError: next.error
+        });
         stateRef.current = next;
         return next;
       });
@@ -270,13 +290,29 @@ export function useLLMProfiles(): UseLLMProfilesResult {
     const bridge = getBridge();
 
     if (!bridge) {
+      const nextRetry = bridgeRetryCountRef.current + 1;
+      bridgeRetryCountRef.current = nextRetry;
+      const shouldRetry = nextRetry <= 20;
+
       updateState((previous) => ({
         ...previous,
-        loading: false,
-        error: BRIDGE_UNAVAILABLE_ERROR
+        loading: shouldRetry,
+        error: shouldRetry ? null : BRIDGE_UNAVAILABLE_ERROR
       }));
+
+      if (shouldRetry && typeof window !== "undefined") {
+        clearBridgeRetryTimer();
+        bridgeRetryTimerRef.current = setTimeout(() => {
+          bridgeRetryTimerRef.current = null;
+          void fetchProfiles();
+        }, 200);
+      }
+
       return;
     }
+
+    bridgeRetryCountRef.current = 0;
+    clearBridgeRetryTimer();
 
     updateState((previous) => ({
       ...previous,
@@ -301,13 +337,14 @@ export function useLLMProfiles(): UseLLMProfilesResult {
         error: null
       });
     } catch (error) {
+  console.log("[useLLMProfiles] fetch error", error);
       updateState((previous) => ({
         ...previous,
         loading: false,
         error: getErrorMessage(error)
       }));
     }
-  }, [updateState]);
+  }, [clearBridgeRetryTimer, updateState]);
 
   useEffect(() => {
     void fetchProfiles();
