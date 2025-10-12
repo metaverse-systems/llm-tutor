@@ -67,7 +67,9 @@ export const LLMProfiles: React.FC = () => {
     deleteProfile,
     activateProfile,
     testPrompt,
-    discoverProfiles
+    discoverProfiles,
+    getTranscriptHistory,
+    clearTranscriptHistory
   } = useLLMProfiles();
 
   const [ariaStatusMessage, setAriaStatusMessage] = useState<string>("");
@@ -444,6 +446,7 @@ export const LLMProfiles: React.FC = () => {
                   <TestConnectionButton
                     profile={profile}
                     testPrompt={testPrompt}
+                    getTranscriptHistory={getTranscriptHistory}
                     announce={updateAriaStatus}
                   />
                   </div>
