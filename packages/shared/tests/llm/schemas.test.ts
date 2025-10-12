@@ -234,6 +234,16 @@ describe('TestPromptResultSchema', () => {
     errorCode: null,
     errorMessage: null,
     timestamp: Date.now(),
+    transcript: {
+      messages: [
+        { role: 'user' as const, text: 'Hello', truncated: false },
+        { role: 'assistant' as const, text: 'Hi there', truncated: false },
+      ],
+      status: 'success' as const,
+      latencyMs: 123,
+      errorCode: null,
+      remediation: null,
+    },
   };
 
   it('accepts successful results with response text and latency', () => {
@@ -263,6 +273,13 @@ describe('TestPromptResultSchema', () => {
       latencyMs: null,
       errorCode: null,
       errorMessage: 'Timeout',
+      transcript: {
+        messages: [],
+        status: 'error' as const,
+        latencyMs: null,
+        errorCode: null,
+        remediation: 'Check connection',
+      },
     };
     expect(() => TestPromptResultSchema.parse(result)).toThrow(/must include errorCode/);
   });
@@ -275,6 +292,13 @@ describe('TestPromptResultSchema', () => {
       latencyMs: null,
       errorCode: 'TIMEOUT',
       errorMessage: null,
+      transcript: {
+        messages: [],
+        status: 'timeout' as const,
+        latencyMs: null,
+        errorCode: 'TIMEOUT',
+        remediation: 'Increase timeout',
+      },
     };
     expect(() => TestPromptResultSchema.parse(result)).toThrow(/must include errorMessage/);
   });
@@ -287,6 +311,13 @@ describe('TestPromptResultSchema', () => {
       latencyMs: 100,
       errorCode: 'TIMEOUT',
       errorMessage: 'Timeout',
+      transcript: {
+        messages: [],
+        status: 'timeout' as const,
+        latencyMs: null,
+        errorCode: 'TIMEOUT',
+        remediation: 'Increase timeout',
+      },
     };
     expect(() => TestPromptResultSchema.parse(result)).toThrow(/must not include/);
   });

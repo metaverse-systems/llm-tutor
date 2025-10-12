@@ -187,6 +187,7 @@ export const TestPromptResultSchema = z
     errorCode: trimmedString(1, 100, 'errorCode').nullable(),
     errorMessage: trimmedString(1, 1000, 'errorMessage').nullable(),
     timestamp: positiveInt('timestamp'),
+    transcript: z.lazy(() => TestTranscriptSchema),
   })
   .superRefine((data, ctx) => {
     if (data.success) {
@@ -257,6 +258,68 @@ export const TestPromptResultSchema = z
   });
 
 export type TestPromptResult = z.infer<typeof TestPromptResultSchema>;
+
+// Transcript message role enum
+const TranscriptRoleSchema = z.enum(['user', 'assistant']);
+export type TranscriptRole = z.infer<typeof TranscriptRoleSchema>;
+
+// Individual transcript message
+export const TranscriptMessageSchema = z.object({
+  role: TranscriptRoleSchema,
+  text: trimmedString(1, 500, 'text'),
+  truncated: z.boolean({ required_error: 'truncated is required' }),
+});
+export type TranscriptMessage = z.infer<typeof TranscriptMessageSchema>;
+
+// Transcript status enum
+const TranscriptStatusSchema = z.enum(['success', 'error', 'timeout']);
+export type TranscriptStatus = z.infer<typeof TranscriptStatusSchema>;
+
+// Full transcript structure
+export const TestTranscriptSchema = z
+  .object({
+    messages: z.array(TranscriptMessageSchema).min(0).max(6, 'Transcript must contain at most 6 messages (3 exchanges)'),
+    status: TranscriptStatusSchema,
+    latencyMs: positiveInt('latencyMs').nullable(),
+    errorCode: trimmedString(1, 100, 'errorCode').nullable(),
+    remediation: trimmedString(1, 1000, 'remediation').nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.status === 'success') {
+      if (data.latencyMs === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Successful transcripts must include latencyMs',
+          path: ['latencyMs'],
+        });
+      }
+      if (data.messages.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Successful transcripts must contain at least 1 message',
+          path: ['messages'],
+        });
+      }
+    }
+
+    if (data.status === 'error' || data.status === 'timeout') {
+      if (data.errorCode === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Error/timeout transcripts must include errorCode',
+          path: ['errorCode'],
+        });
+      }
+      if (data.messages.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Error/timeout transcripts must be empty when status is error or timeout',
+          path: ['messages'],
+        });
+      }
+    }
+  });
+export type TestTranscript = z.infer<typeof TestTranscriptSchema>;
 
 export const ConsentRecordSchema = z
   .object({
