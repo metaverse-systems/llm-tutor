@@ -584,8 +584,22 @@ export class DiagnosticsManager extends TypedEventEmitter {
 			if (!ownerAlive && !childAlive) {
 				this.removeBackendLock();
 			} else {
+				const { host, port } = this.getDiagnosticsEndpoint();
+				const reachable = await this.isBackendPortBusy(host, port);
+				if (reachable) {
+					const message = `Diagnostics backend already managed by PID ${existingLock.ownerPid}.`;
+					this.options.getLogger?.().log?.(message);
+					this.updateBackendState({
+						status: "running",
+						message,
+						pid: existingLock.childPid ?? existingLock.ownerPid,
+						updatedAt: new Date()
+					});
+					return false;
+				}
+
 				const lockPath = this.resolveBackendLockPath();
-				const message = `Diagnostics backend already managed by PID ${existingLock.ownerPid}.`;
+				const message = `Diagnostics backend lock held by PID ${existingLock.ownerPid}, but the service is unreachable.`;
 				this.options.getLogger?.().warn?.(message);
 				this.updateBackendState({
 					status: "error",
@@ -593,7 +607,7 @@ export class DiagnosticsManager extends TypedEventEmitter {
 					updatedAt: new Date()
 				});
 				this.showErrorDialog(
-					"Diagnostics backend already running",
+					"Diagnostics backend unavailable",
 					`${message} Stop the existing session or remove the lock file at ${lockPath} before retrying.`
 				);
 				return false;
