@@ -225,14 +225,24 @@ export class TestPromptService {
 	}
 
 	private buildLlamaRequest(profile: LLMProfile, promptText: string): ProviderRequestConfig {
-		const url = this.appendPath(profile.endpointUrl, "/v1/completions");
+		const url = this.appendPath(profile.endpointUrl, "/v1/chat/completions");
 		return {
 			url,
 			headers: {
 				"content-type": "application/json"
 			},
 			body: {
-				prompt: promptText,
+				messages: [
+					{
+						role: "system",
+						content: "You are a helpful AI assistant."
+					},
+					{
+						role: "user",
+						content: promptText
+					}
+				],
+				model: profile.modelId ?? undefined,
 				max_tokens: 100,
 				temperature: 0.7
 			}
@@ -296,7 +306,17 @@ export class TestPromptService {
 			return { responseText: null, modelName: null };
 		}
 
-		const modelName = typeof parsed.model === "string" ? parsed.model : null;
+		const modelName = typeof parsed.model === "string"
+			? parsed.model
+			: typeof parsed.model_name === "string"
+				? parsed.model_name
+				: null;
+
+		const structuredOutput = extractOutputText(parsed);
+		if (structuredOutput) {
+			return { responseText: structuredOutput, modelName };
+		}
+
 		const choices = Array.isArray(parsed.choices) ? parsed.choices : [];
 		const choice = choices.find((candidate): candidate is Record<string, unknown> => isRecord(candidate)) ?? null;
 
@@ -305,18 +325,15 @@ export class TestPromptService {
 		}
 
 		if (providerType === "llama.cpp") {
-			const text = extractString(choice.text);
+			const text = extractChoiceResponse(choice) ?? extractString(choice["text"]);
 			return { responseText: text, modelName };
 		}
 
-		const message = isRecord(choice.message) ? choice.message : null;
-		if (message) {
-			const content = extractString(message.content);
-			return { responseText: content, modelName };
-		}
-
-		const text = extractString(choice.text);
-		return { responseText: text, modelName };
+		const responseText = extractChoiceResponse(choice);
+		return {
+			responseText: responseText ?? extractString(choice.text),
+			modelName
+		};
 	}
 
 	private createSuccessResult(options: CreateSuccessResultOptions): TestPromptResult {
@@ -418,7 +435,7 @@ export class TestPromptService {
 		};
 	}
 
-	private generateRemediation(errorCode: string, providerType: ProviderType): string | null {
+	private generateRemediation(errorCode: string, _providerType: ProviderType): string | null {
 		const remediations: Record<string, string> = {
 			'ECONNREFUSED': 'Check that the service is running and accessible',
 			'TIMEOUT': 'Increase timeout value or check service performance',
@@ -535,6 +552,111 @@ export class TestPromptService {
 
 function extractString(value: unknown): string | null {
 	return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function extractOutputText(payload: Record<string, unknown>): string | null {
+	const direct = extractMessageContent(payload["output_text"]);
+	if (direct) {
+		return direct;
+	}
+
+	const outputItems = Array.isArray(payload["output"]) ? payload["output"] : null;
+	if (!outputItems) {
+		return null;
+	}
+
+	const parts: string[] = [];
+	for (const item of outputItems) {
+		if (!isRecord(item)) {
+			continue;
+		}
+		const content = extractMessageContent(item.content);
+		if (content) {
+			parts.push(content);
+		}
+	}
+
+	if (parts.length === 0) {
+		return null;
+	}
+
+	return parts.join("\n\n");
+}
+
+function extractChoiceResponse(choice: Record<string, unknown>): string | null {
+	const message = isRecord(choice["message"]) ? choice["message"] : null;
+	if (message) {
+		const content = extractMessageContent(message.content);
+		if (content) {
+			return content;
+		}
+	}
+
+	const delta = isRecord(choice["delta"]) ? choice["delta"] : null;
+	if (delta) {
+		const content = extractMessageContent(delta.content);
+		if (content) {
+			return content;
+		}
+	}
+
+	return extractMessageContent(choice["text"]);
+}
+
+function extractMessageContent(value: unknown): string | null {
+	if (typeof value === "string") {
+		return extractString(value);
+	}
+
+	if (Array.isArray(value)) {
+		const parts: string[] = [];
+		for (const item of value) {
+			const part = extractMessageContent(item);
+			if (part) {
+				parts.push(part);
+			}
+		}
+		if (parts.length > 0) {
+			return parts.join("\n\n");
+		}
+		return null;
+	}
+
+	if (!isRecord(value)) {
+		return null;
+	}
+
+	const typeValue = value["type"];
+	const rawType = typeof typeValue === "string" ? typeValue.toLowerCase() : null;
+	if (rawType === "input_text") {
+		return null;
+	}
+
+	const textCandidate =
+		extractString(value["text"]) ??
+		extractString(value["value"]) ??
+		extractString(value["content"]);
+	if (textCandidate) {
+		return textCandidate;
+	}
+
+	const contentField = "content" in value ? value["content"] : null;
+	if (contentField && contentField !== value) {
+		const nested = extractMessageContent(contentField);
+		if (nested) {
+			return nested;
+		}
+	}
+
+	const valueField = "value" in value ? value["value"] : null;
+	if (valueField && valueField !== value) {
+		const nested = extractMessageContent(valueField);
+		if (nested) {
+			return nested;
+		}
+	}
+
+	return null;
 }
 
 function extractErrorObject(rawBody: string): { code?: unknown; message?: unknown } {

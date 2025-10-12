@@ -77,7 +77,10 @@ function createHarness(options?: {
 					model: "llama-2",
 					choices: [
 						{
-							text: "Hello world"
+							message: {
+								role: "assistant",
+								content: "Hello world"
+							}
 						}
 					]
 				})
@@ -131,7 +134,10 @@ describe("TestPromptService", () => {
 				model: null,
 				choices: [
 					{
-						text: longResponse
+						message: {
+							role: "assistant",
+							content: longResponse
+						}
 					}
 				]
 			})
@@ -142,7 +148,7 @@ describe("TestPromptService", () => {
 
 		const result = await harness.service.testPrompt({ promptText: "Test please" });
 
-		expect(fetchMock).toHaveBeenCalledWith("http://localhost:11434/v1/completions", expect.objectContaining({
+		expect(fetchMock).toHaveBeenCalledWith("http://localhost:11434/v1/chat/completions", expect.objectContaining({
 			method: "POST"
 		}));
 		expect(result.success).toBe(true);
@@ -256,12 +262,18 @@ describe("TestPromptService", () => {
 		// Verify user message
 		const userMsg = result.transcript.messages.find((m: { role: string }) => m.role === "user");
 		expect(userMsg).toBeDefined();
+		if (!userMsg) {
+			throw new Error("Expected user message in transcript");
+		}
 		expect(userMsg.text).toBe("Test prompt");
 		expect(userMsg.truncated).toBe(false);
 		
 		// Verify assistant message
 		const assistantMsg = result.transcript.messages.find((m: { role: string }) => m.role === "assistant");
 		expect(assistantMsg).toBeDefined();
+		if (!assistantMsg) {
+			throw new Error("Expected assistant message in transcript");
+		}
 		expect(assistantMsg.text).toBe("Hello world");
 		expect(typeof assistantMsg.truncated).toBe("boolean");
 	});
@@ -279,6 +291,9 @@ describe("TestPromptService", () => {
 		
 		const userMsg = result.transcript.messages.find((m: { role: string }) => m.role === "user");
 		expect(userMsg).toBeDefined();
+		if (!userMsg) {
+			throw new Error("Expected user message in transcript");
+		}
 		expect(userMsg.truncated).toBe(true);
 		expect(userMsg.text.length).toBeLessThanOrEqual(500);
 	});
@@ -290,7 +305,7 @@ describe("TestPromptService", () => {
 			new Response(
 				JSON.stringify({
 					model: "llama-2",
-					choices: [{ text: longResponse }]
+					choices: [{ message: { role: "assistant", content: longResponse } }]
 				})
 			)
 		);
@@ -302,8 +317,48 @@ describe("TestPromptService", () => {
 		expect(result.success).toBe(true);
 		const assistantMsg = result.transcript.messages.find((m: { role: string }) => m.role === "assistant");
 		expect(assistantMsg).toBeDefined();
+		if (!assistantMsg) {
+			throw new Error("Expected assistant message in transcript");
+		}
 		expect(assistantMsg.truncated).toBe(true);
 		expect(assistantMsg.text.length).toBeLessThanOrEqual(500);
+	});
+
+	it("extracts structured assistant content and drops echoed input", async () => {
+		const profile = createProfile({ providerType: "custom", endpointUrl: "https://example.com", consentTimestamp: 1_700_000_200 });
+		const fetchMock = vi.fn(async () =>
+			new Response(
+				JSON.stringify({
+					model: "gpt-4o",
+					choices: [
+						{
+							message: {
+								role: "assistant",
+								content: [
+									{ type: "input_text", text: "Hello, can you respond?" },
+									{ type: "output_text", text: "Yes, I can respond." }
+								]
+							}
+						}
+					]
+				})
+			)
+		);
+		const harness = createHarness({ profiles: [profile], fetchImplementation: fetchMock });
+		queuePerformanceTimes([0, 80, 80]);
+
+		const result = await harness.service.testPrompt();
+
+		expect(result.success).toBe(true);
+		expect(result.responseText).toBe("Yes, I can respond.");
+		const assistantMsg = result.transcript.messages.find((m: { role: string }) => m.role === "assistant");
+		expect(assistantMsg).toBeDefined();
+		if (!assistantMsg) {
+			throw new Error("Expected assistant message in transcript");
+		}
+		expect(assistantMsg.text).toBe("Yes, I can respond.");
+		const echoedInput = result.transcript.messages.filter((m: { role: string; text: string }) => m.role === "assistant" && m.text.includes("Hello, can you respond?"));
+		expect(echoedInput).toHaveLength(0);
 	});
 
 	it("maintains rolling history of three exchanges", async () => {

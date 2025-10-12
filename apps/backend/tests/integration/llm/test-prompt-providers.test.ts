@@ -97,22 +97,28 @@ describe("LLM integration: test prompt providers via HTTP routes", () => {
 		const longResponse = "a".repeat(600);
 
 		nock("http://localhost:8080")
-			.post("/v1/completions", (body: unknown) => {
+			.post("/v1/chat/completions", (body: unknown) => {
 				if (!body || typeof body !== "object") {
 					return false;
 				}
 
-				return (body as { prompt?: unknown }).prompt === "Hello, can you respond?";
+				const payload = body as { messages?: Array<{ role?: string; content?: unknown }> };
+				const messages = Array.isArray(payload.messages) ? payload.messages : [];
+				const userMessage = messages.find((message) => message?.role === "user");
+				return typeof userMessage?.content === "string" && userMessage.content === "Hello, can you respond?";
 			})
 			.delay(234)
 			.reply(200, {
-				id: "cmpl-success",
-				object: "text_completion",
+				id: "chatcmpl-success",
+				object: "chat.completion",
 				created: Math.floor(now / 1_000),
 				model: "llama-2-7b-chat",
 				choices: [
 					{
-						text: longResponse,
+						message: {
+							role: "assistant",
+							content: longResponse
+						},
 						index: 0,
 						finish_reason: "stop",
 						logprobs: null
@@ -219,7 +225,7 @@ describe("LLM integration: test prompt providers via HTTP routes", () => {
 		const createdProfile = LLMProfileSchema.parse(JSON.parse(createResponse.body).data.profile);
 
 		nock("http://localhost:8080")
-			.post("/v1/completions")
+			.post("/v1/chat/completions")
 			.replyWithError({ code: "ETIMEDOUT", message: "Request timed out" });
 
 		// POST to test endpoint with custom timeout
