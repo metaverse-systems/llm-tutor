@@ -1,11 +1,14 @@
 import type { LLMProfile, TestPromptResult } from "@metaverse-systems/llm-tutor-shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { TestTranscriptPanel } from "./TestTranscriptPanel";
+
 type ConnectionStatus = "idle" | "loading" | "success" | "error";
 
 interface TestConnectionButtonProps {
   profile: LLMProfile;
   testPrompt: (profileId?: string, promptText?: string) => Promise<TestPromptResult>;
+  getTranscriptHistory?: (profileId: string) => TestPromptResult[];
   announce?: (message: string) => void;
   timeoutMs?: number;
 }
@@ -71,6 +74,7 @@ function formatTimeoutLabel(duration: number): string {
 export const TestConnectionButton: React.FC<TestConnectionButtonProps> = ({
   profile,
   testPrompt,
+  getTranscriptHistory,
   announce,
   timeoutMs = TIMEOUT_MS
 }) => {
@@ -81,6 +85,9 @@ export const TestConnectionButton: React.FC<TestConnectionButtonProps> = ({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
   const effectiveTimeout = Math.max(0, timeoutMs ?? TIMEOUT_MS);
+
+  // Get transcript history for this profile
+  const transcripts = getTranscriptHistory ? getTranscriptHistory(profile.id) : [];
 
   useEffect(() => {
     return () => {
@@ -226,6 +233,10 @@ export const TestConnectionButton: React.FC<TestConnectionButtonProps> = ({
           </div>
         ) : null}
       </div>
+
+      {transcripts.length > 0 && (
+        <TestTranscriptPanel transcripts={transcripts} profileName={profile.name} />
+      )}
     </div>
   );
 };

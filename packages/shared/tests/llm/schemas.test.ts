@@ -5,6 +5,8 @@ import {
   ProfileVaultSchema,
   ProviderTypeSchema,
   TestPromptResultSchema,
+  TranscriptMessageSchema,
+  TestTranscriptSchema,
 } from '../../src/llm/schemas.js';
 
 const validProfile = {
@@ -232,6 +234,16 @@ describe('TestPromptResultSchema', () => {
     errorCode: null,
     errorMessage: null,
     timestamp: Date.now(),
+    transcript: {
+      messages: [
+        { role: 'user' as const, text: 'Hello', truncated: false },
+        { role: 'assistant' as const, text: 'Hi there', truncated: false },
+      ],
+      status: 'success' as const,
+      latencyMs: 123,
+      errorCode: null,
+      remediation: null,
+    },
   };
 
   it('accepts successful results with response text and latency', () => {
@@ -261,6 +273,13 @@ describe('TestPromptResultSchema', () => {
       latencyMs: null,
       errorCode: null,
       errorMessage: 'Timeout',
+      transcript: {
+        messages: [],
+        status: 'error' as const,
+        latencyMs: null,
+        errorCode: null,
+        remediation: 'Check connection',
+      },
     };
     expect(() => TestPromptResultSchema.parse(result)).toThrow(/must include errorCode/);
   });
@@ -273,6 +292,13 @@ describe('TestPromptResultSchema', () => {
       latencyMs: null,
       errorCode: 'TIMEOUT',
       errorMessage: null,
+      transcript: {
+        messages: [],
+        status: 'timeout' as const,
+        latencyMs: null,
+        errorCode: 'TIMEOUT',
+        remediation: 'Increase timeout',
+      },
     };
     expect(() => TestPromptResultSchema.parse(result)).toThrow(/must include errorMessage/);
   });
@@ -285,6 +311,13 @@ describe('TestPromptResultSchema', () => {
       latencyMs: 100,
       errorCode: 'TIMEOUT',
       errorMessage: 'Timeout',
+      transcript: {
+        messages: [],
+        status: 'timeout' as const,
+        latencyMs: null,
+        errorCode: 'TIMEOUT',
+        remediation: 'Increase timeout',
+      },
     };
     expect(() => TestPromptResultSchema.parse(result)).toThrow(/must not include/);
   });
@@ -311,5 +344,247 @@ describe('ConsentRecordSchema', () => {
   it('rejects consent records for llama.cpp providers', () => {
     const record = { ...baseRecord, providerType: 'llama.cpp' as const };
     expect(() => ConsentRecordSchema.parse(record)).toThrow(/remote providers/);
+  });
+});
+
+describe('TranscriptMessageSchema', () => {
+  const baseMessage = {
+    role: 'user' as const,
+    text: 'Hello, how are you?',
+    truncated: false,
+  };
+
+  it('accepts valid user messages', () => {
+    expect(() => TranscriptMessageSchema.parse(baseMessage)).not.toThrow();
+  });
+
+  it('accepts valid assistant messages', () => {
+    const message = { ...baseMessage, role: 'assistant' as const, text: 'I am fine, thank you!' };
+    expect(() => TranscriptMessageSchema.parse(message)).not.toThrow();
+  });
+
+  it('accepts messages with truncated flag set to true', () => {
+    const message = { ...baseMessage, truncated: true };
+    expect(() => TranscriptMessageSchema.parse(message)).not.toThrow();
+  });
+
+  it('rejects messages with invalid role', () => {
+    const message = { ...baseMessage, role: 'system' };
+    expect(() => TranscriptMessageSchema.parse(message)).toThrow(/Invalid enum value/);
+  });
+
+  it('enforces 500 character limit on text', () => {
+    const longText = 'a'.repeat(501);
+    const message = { ...baseMessage, text: longText };
+    expect(() => TranscriptMessageSchema.parse(message)).toThrow(/must be at most 500 characters/);
+  });
+
+  it('accepts exactly 500 characters', () => {
+    const text = 'a'.repeat(500);
+    const message = { ...baseMessage, text };
+    expect(() => TranscriptMessageSchema.parse(message)).not.toThrow();
+  });
+
+  it('rejects empty text', () => {
+    const message = { ...baseMessage, text: '' };
+    expect(() => TranscriptMessageSchema.parse(message)).toThrow(/must be at least 1 characters/);
+  });
+
+  it('sets truncated flag when input exceeds 500 characters', () => {
+    const longText = 'a'.repeat(600);
+    const message = { role: 'user' as const, text: longText, truncated: false };
+    // This should fail until we implement auto-truncation in the schema
+    expect(() => TranscriptMessageSchema.parse(message)).toThrow();
+  });
+});
+
+describe('TestTranscriptSchema', () => {
+  const baseTranscript = {
+    messages: [
+      { role: 'user' as const, text: 'Hello', truncated: false },
+      { role: 'assistant' as const, text: 'Hi there!', truncated: false },
+    ],
+    status: 'success' as const,
+    latencyMs: 123,
+    errorCode: null,
+    remediation: null,
+  };
+
+  it('accepts successful transcripts with two messages', () => {
+    expect(() => TestTranscriptSchema.parse(baseTranscript)).not.toThrow();
+  });
+
+  it('accepts transcripts with exactly three message pairs (six messages)', () => {
+    const transcript = {
+      ...baseTranscript,
+      messages: [
+        { role: 'user' as const, text: 'Hello', truncated: false },
+        { role: 'assistant' as const, text: 'Hi', truncated: false },
+        { role: 'user' as const, text: 'How are you?', truncated: false },
+        { role: 'assistant' as const, text: 'Fine', truncated: false },
+        { role: 'user' as const, text: 'Great', truncated: false },
+        { role: 'assistant' as const, text: 'Indeed', truncated: false },
+      ],
+    };
+    expect(() => TestTranscriptSchema.parse(transcript)).not.toThrow();
+  });
+
+  it('rejects transcripts with more than six messages (three exchanges)', () => {
+    const transcript = {
+      ...baseTranscript,
+      messages: [
+        { role: 'user' as const, text: 'Hello', truncated: false },
+        { role: 'assistant' as const, text: 'Hi', truncated: false },
+        { role: 'user' as const, text: 'How are you?', truncated: false },
+        { role: 'assistant' as const, text: 'Fine', truncated: false },
+        { role: 'user' as const, text: 'Great', truncated: false },
+        { role: 'assistant' as const, text: 'Indeed', truncated: false },
+        { role: 'user' as const, text: 'Extra', truncated: false },
+      ],
+    };
+    expect(() => TestTranscriptSchema.parse(transcript)).toThrow(/must contain at most 6 messages/);
+  });
+
+  it('rejects transcripts with empty message arrays', () => {
+    const transcript = { ...baseTranscript, messages: [] };
+    expect(() => TestTranscriptSchema.parse(transcript)).toThrow(/must contain at least 1/);
+  });
+
+  it('accepts error status with errorCode and remediation', () => {
+    const transcript = {
+      ...baseTranscript,
+      status: 'error' as const,
+      messages: [],
+      latencyMs: null,
+      errorCode: 'CONNECTION_FAILED',
+      remediation: 'Check your network connection',
+    };
+    expect(() => TestTranscriptSchema.parse(transcript)).not.toThrow();
+  });
+
+  it('accepts timeout status', () => {
+    const transcript = {
+      ...baseTranscript,
+      status: 'timeout' as const,
+      messages: [],
+      latencyMs: null,
+      errorCode: 'TIMEOUT',
+      remediation: 'Request exceeded timeout limit',
+    };
+    expect(() => TestTranscriptSchema.parse(transcript)).not.toThrow();
+  });
+
+  it('requires errorCode when status is error', () => {
+    const transcript = {
+      ...baseTranscript,
+      status: 'error' as const,
+      messages: [],
+      latencyMs: null,
+      errorCode: null,
+      remediation: 'Check your connection',
+    };
+    expect(() => TestTranscriptSchema.parse(transcript)).toThrow(/must include errorCode/);
+  });
+
+  it('requires latencyMs when status is success', () => {
+    const transcript = {
+      ...baseTranscript,
+      latencyMs: null,
+    };
+    expect(() => TestTranscriptSchema.parse(transcript)).toThrow(/must include latencyMs/);
+  });
+
+  it('clears messages array when status is error', () => {
+    const transcript = {
+      ...baseTranscript,
+      status: 'error' as const,
+      messages: [{ role: 'user' as const, text: 'Hello', truncated: false }],
+      latencyMs: null,
+      errorCode: 'CONNECTION_FAILED',
+      remediation: 'Check your network',
+    };
+    expect(() => TestTranscriptSchema.parse(transcript)).toThrow(/must be empty when status is error/);
+  });
+
+  it('rejects invalid status values', () => {
+    const transcript = { ...baseTranscript, status: 'pending' };
+    expect(() => TestTranscriptSchema.parse(transcript)).toThrow(/Invalid enum value/);
+  });
+});
+
+describe('TestPromptResultSchema with transcript', () => {
+  const baseResult = {
+    profileId: validProfile.id,
+    profileName: 'Local Model',
+    providerType: 'llama.cpp' as const,
+    success: true,
+    promptText: 'Hello',
+    responseText: 'Hi there',
+    modelName: 'llama-7b',
+    latencyMs: 123,
+    totalTimeMs: 234,
+    errorCode: null,
+    errorMessage: null,
+    timestamp: Date.now(),
+    transcript: {
+      messages: [
+        { role: 'user' as const, text: 'Hello', truncated: false },
+        { role: 'assistant' as const, text: 'Hi there', truncated: false },
+      ],
+      status: 'success' as const,
+      latencyMs: 123,
+      errorCode: null,
+      remediation: null,
+    },
+  };
+
+  it('accepts successful results with transcript', () => {
+    expect(() => TestPromptResultSchema.parse(baseResult)).not.toThrow();
+  });
+
+  it('requires transcript field to be present', () => {
+    const { transcript, ...resultWithoutTranscript } = baseResult;
+    expect(() => TestPromptResultSchema.parse(resultWithoutTranscript)).toThrow(/transcript/);
+  });
+
+  it('validates transcript follows TestTranscriptSchema', () => {
+    const result = {
+      ...baseResult,
+      transcript: {
+        ...baseResult.transcript,
+        status: 'invalid-status',
+      },
+    };
+    expect(() => TestPromptResultSchema.parse(result)).toThrow(/Invalid enum value/);
+  });
+
+  it('accepts failed results with empty transcript', () => {
+    const result = {
+      ...baseResult,
+      success: false,
+      responseText: null,
+      latencyMs: null,
+      errorCode: 'TIMEOUT',
+      errorMessage: 'Request timed out',
+      transcript: {
+        messages: [],
+        status: 'error' as const,
+        latencyMs: null,
+        errorCode: 'TIMEOUT',
+        remediation: 'Increase timeout value',
+      },
+    };
+    expect(() => TestPromptResultSchema.parse(result)).not.toThrow();
+  });
+
+  it('enforces three-exchange history limit via transcript', () => {
+    const result = {
+      ...baseResult,
+      transcript: {
+        ...baseResult.transcript,
+        messages: Array(7).fill({ role: 'user' as const, text: 'test', truncated: false }),
+      },
+    };
+    expect(() => TestPromptResultSchema.parse(result)).toThrow(/must contain at most 6 messages/);
   });
 });

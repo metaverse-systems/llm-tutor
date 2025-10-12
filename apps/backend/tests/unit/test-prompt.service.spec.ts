@@ -77,7 +77,10 @@ function createHarness(options?: {
 					model: "llama-2",
 					choices: [
 						{
-							text: "Hello world"
+							message: {
+								role: "assistant",
+								content: "Hello world"
+							}
 						}
 					]
 				})
@@ -131,7 +134,10 @@ describe("TestPromptService", () => {
 				model: null,
 				choices: [
 					{
-						text: longResponse
+						message: {
+							role: "assistant",
+							content: longResponse
+						}
 					}
 				]
 			})
@@ -142,7 +148,7 @@ describe("TestPromptService", () => {
 
 		const result = await harness.service.testPrompt({ promptText: "Test please" });
 
-		expect(fetchMock).toHaveBeenCalledWith("http://localhost:11434/v1/completions", expect.objectContaining({
+		expect(fetchMock).toHaveBeenCalledWith("http://localhost:11434/v1/chat/completions", expect.objectContaining({
 			method: "POST"
 		}));
 		expect(result.success).toBe(true);
@@ -239,5 +245,175 @@ describe("TestPromptService", () => {
 		const harness = createHarness({ profiles: [inactive] });
 
 		await expect(harness.service.testPrompt()).rejects.toBeInstanceOf(NoActiveProfileError);
+	});
+
+	it("generates transcript with user and assistant message pair", async () => {
+		const profile = createProfile();
+		const harness = createHarness({ profiles: [profile] });
+		queuePerformanceTimes([0, 150, 150]);
+
+		const result = await harness.service.testPrompt({ promptText: "Test prompt" });
+
+		expect(result.success).toBe(true);
+		expect(result.transcript).toBeDefined();
+		expect(result.transcript.messages).toBeDefined();
+		expect(result.transcript.messages.length).toBeGreaterThanOrEqual(2);
+		
+		// Verify user message
+		const userMsg = result.transcript.messages.find((m: { role: string }) => m.role === "user");
+		expect(userMsg).toBeDefined();
+		if (!userMsg) {
+			throw new Error("Expected user message in transcript");
+		}
+		expect(userMsg.text).toBe("Test prompt");
+		expect(userMsg.truncated).toBe(false);
+		
+		// Verify assistant message
+		const assistantMsg = result.transcript.messages.find((m: { role: string }) => m.role === "assistant");
+		expect(assistantMsg).toBeDefined();
+		if (!assistantMsg) {
+			throw new Error("Expected assistant message in transcript");
+		}
+		expect(assistantMsg.text).toBe("Hello world");
+		expect(typeof assistantMsg.truncated).toBe("boolean");
+	});
+
+	it("sets truncation flag when prompt exceeds 500 characters", async () => {
+		const profile = createProfile();
+		const longPrompt = "a".repeat(600);
+		const harness = createHarness({ profiles: [profile] });
+		queuePerformanceTimes([0, 150, 150]);
+
+		const result = await harness.service.testPrompt({ promptText: longPrompt });
+
+		expect(result.success).toBe(true);
+		expect(result.transcript.messages).toBeDefined();
+		
+		const userMsg = result.transcript.messages.find((m: { role: string }) => m.role === "user");
+		expect(userMsg).toBeDefined();
+		if (!userMsg) {
+			throw new Error("Expected user message in transcript");
+		}
+		expect(userMsg.truncated).toBe(true);
+		expect(userMsg.text.length).toBeLessThanOrEqual(500);
+	});
+
+	it("sets truncation flag when response exceeds 500 characters", async () => {
+		const profile = createProfile();
+		const longResponse = "b".repeat(600);
+		const fetchMock = vi.fn(async () =>
+			new Response(
+				JSON.stringify({
+					model: "llama-2",
+					choices: [{ message: { role: "assistant", content: longResponse } }]
+				})
+			)
+		);
+		const harness = createHarness({ profiles: [profile], fetchImplementation: fetchMock });
+		queuePerformanceTimes([0, 150, 150]);
+
+		const result = await harness.service.testPrompt();
+
+		expect(result.success).toBe(true);
+		const assistantMsg = result.transcript.messages.find((m: { role: string }) => m.role === "assistant");
+		expect(assistantMsg).toBeDefined();
+		if (!assistantMsg) {
+			throw new Error("Expected assistant message in transcript");
+		}
+		expect(assistantMsg.truncated).toBe(true);
+		expect(assistantMsg.text.length).toBeLessThanOrEqual(500);
+	});
+
+	it("extracts structured assistant content and drops echoed input", async () => {
+		const profile = createProfile({ providerType: "custom", endpointUrl: "https://example.com", consentTimestamp: 1_700_000_200 });
+		const fetchMock = vi.fn(async () =>
+			new Response(
+				JSON.stringify({
+					model: "gpt-4o",
+					choices: [
+						{
+							message: {
+								role: "assistant",
+								content: [
+									{ type: "input_text", text: "Hello, can you respond?" },
+									{ type: "output_text", text: "Yes, I can respond." }
+								]
+							}
+						}
+					]
+				})
+			)
+		);
+		const harness = createHarness({ profiles: [profile], fetchImplementation: fetchMock });
+		queuePerformanceTimes([0, 80, 80]);
+
+		const result = await harness.service.testPrompt();
+
+		expect(result.success).toBe(true);
+		expect(result.responseText).toBe("Yes, I can respond.");
+		const assistantMsg = result.transcript.messages.find((m: { role: string }) => m.role === "assistant");
+		expect(assistantMsg).toBeDefined();
+		if (!assistantMsg) {
+			throw new Error("Expected assistant message in transcript");
+		}
+		expect(assistantMsg.text).toBe("Yes, I can respond.");
+		const echoedInput = result.transcript.messages.filter((m: { role: string; text: string }) => m.role === "assistant" && m.text.includes("Hello, can you respond?"));
+		expect(echoedInput).toHaveLength(0);
+	});
+
+	it("maintains rolling history of three exchanges", async () => {
+		const profile = createProfile();
+		const harness = createHarness({ profiles: [profile] });
+		
+		// First exchange
+		queuePerformanceTimes([0, 100, 100]);
+		await harness.service.testPrompt({ promptText: "First" });
+		
+		// Second exchange
+		queuePerformanceTimes([0, 100, 100]);
+		await harness.service.testPrompt({ promptText: "Second" });
+		
+		// Third exchange
+		queuePerformanceTimes([0, 100, 100]);
+		await harness.service.testPrompt({ promptText: "Third" });
+		
+		// Fourth exchange should drop the first
+		queuePerformanceTimes([0, 100, 100]);
+		const result = await harness.service.testPrompt({ promptText: "Fourth" });
+
+		expect(result.transcript.messages.length).toBeLessThanOrEqual(6); // Max 3 exchanges = 6 messages
+		
+		// Should not contain "First" anymore
+		const hasFirst = result.transcript.messages.some((m: { text: string }) => m.text === "First");
+		expect(hasFirst).toBe(false);
+		
+		// Should contain Fourth
+		const hasFourth = result.transcript.messages.some((m: { text: string }) => m.text === "Fourth");
+		expect(hasFourth).toBe(true);
+	});
+
+	it("clears transcript on failure", async () => {
+		const customProfile = createProfile({
+			id: "33333333-3333-4333-8333-333333333333",
+			providerType: "custom",
+			endpointUrl: "https://example.com",
+			consentTimestamp: 1_700_000_000
+		});
+		const error = new Error("Connection refused");
+		(error as NodeJS.ErrnoException).code = "ECONNREFUSED";
+		const fetchMock = vi.fn(async () => {
+			throw error;
+		});
+		const harness = createHarness({ profiles: [customProfile], fetchImplementation: fetchMock });
+		queuePerformanceTimes([0, 120]);
+
+		const result = await harness.service.testPrompt();
+
+		expect(result.success).toBe(false);
+		expect(result.transcript).toBeDefined();
+		expect(result.transcript.status).toBe("error");
+		expect(result.transcript.messages).toEqual([]);
+		expect(result.transcript.latencyMs).toBeNull();
+		expect(result.transcript.errorCode).toBe("ECONNREFUSED");
 	});
 });

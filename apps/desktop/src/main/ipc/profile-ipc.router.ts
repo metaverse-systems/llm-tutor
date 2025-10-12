@@ -528,6 +528,12 @@ class ProfileIpcRouter {
 
       const sanitizedResponse = sanitizePromptPreview(result.truncatedResponse);
 
+      // Calculate historyDepth from transcript messages (number of exchanges)
+      const historyDepth = Math.floor(result.transcript.messages.length / 2);
+      
+      // Get messagePreview from first user message (already truncated in transcript)
+      const messagePreview = result.transcript.messages.find(m => m.role === 'user')?.text || '';
+
       const response = createProfileSuccessResponse<TestProfileResponse>({
         requestId: envelope.requestId,
         channel: envelope.channel,
@@ -537,7 +543,8 @@ class ProfileIpcRouter {
           latencyMs: result.latencyMs ?? null,
           totalTimeMs: result.totalTimeMs,
           modelName: result.modelName ?? null,
-          truncatedResponse: sanitizedResponse
+          truncatedResponse: sanitizedResponse,
+          transcript: result.transcript
         },
         userMessage: result.success ? "Profile test successful." : "Profile test failed.",
         durationMs,
@@ -547,7 +554,9 @@ class ProfileIpcRouter {
       this.recordBreadcrumb(envelope, response, {
         latencyMs: result.latencyMs ?? null,
         totalTimeMs: result.totalTimeMs,
-        success: result.success
+        success: result.success,
+        historyDepth,
+        messagePreview
       });
 
       return response;

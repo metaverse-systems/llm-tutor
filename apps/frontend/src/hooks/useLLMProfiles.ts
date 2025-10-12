@@ -29,6 +29,7 @@ interface HookState {
   activeProfileId: string | null;
   loading: boolean;
   error: string | null;
+  transcriptHistory: Map<string, TestPromptResult[]>;
 }
 
 export interface CreateProfileInput {
@@ -62,6 +63,9 @@ export interface UseLLMProfilesResult {
   activateProfile: (id: string) => Promise<void>;
   testPrompt: (profileId?: string, promptText?: string) => Promise<TestPromptResult>;
   discoverProfiles: (force?: boolean) => Promise<DiscoveryResult>;
+  getTranscriptHistory: (profileId: string) => TestPromptResult[];
+  clearTranscriptHistory: (profileId: string) => void;
+  getLastTranscript: (profileId: string) => TestPromptResult | null;
 }
 
 interface BridgeError extends Error {
@@ -74,7 +78,8 @@ const INITIAL_STATE: HookState = {
   encryptionAvailable: false,
   activeProfileId: null,
   loading: true,
-  error: null
+  error: null,
+  transcriptHistory: new Map()
 };
 
 function isInvokeSuccess<T>(result: InvokeResult<T>): result is SuccessResponse<T> {
@@ -321,13 +326,14 @@ export function useLLMProfiles(): UseLLMProfilesResult {
 
       const { profiles, encryptionAvailable, activeProfileId } = result.data;
 
-      updateState({
+      updateState((previous) => ({
+        ...previous,
         profiles: cloneProfiles(profiles),
         encryptionAvailable,
         activeProfileId,
         loading: false,
         error: null
-      });
+      }));
     } catch (error) {
       updateState((previous) => ({
         ...previous,
@@ -550,12 +556,33 @@ export function useLLMProfiles(): UseLLMProfilesResult {
         throw createBridgeError(result, "Failed to test prompt");
       }
 
-      updateState((previous) => ({
-        ...previous,
-        error: null
-      }));
+      const testResult = result.data;
+      const targetProfileId = profileId || state.activeProfileId;
 
-      return result.data;
+      // Store transcript in history (max 3 per profile)
+      if (targetProfileId) {
+        updateState((previous) => {
+          const newHistory = new Map(previous.transcriptHistory);
+          const profileHistory = newHistory.get(targetProfileId) || [];
+          
+          // Add new result at beginning and keep only last 3
+          const updatedHistory = [testResult, ...profileHistory].slice(0, 3);
+          newHistory.set(targetProfileId, updatedHistory);
+
+          return {
+            ...previous,
+            error: null,
+            transcriptHistory: newHistory
+          };
+        });
+      } else {
+        updateState((previous) => ({
+          ...previous,
+          error: null
+        }));
+      }
+
+      return testResult;
     } catch (error) {
       const message = getErrorMessage(error);
       updateState((previous) => ({
@@ -564,7 +591,7 @@ export function useLLMProfiles(): UseLLMProfilesResult {
       }));
       throw error;
     }
-  }, [updateState]);
+  }, [updateState, state.activeProfileId]);
 
   const discoverProfiles = useCallback(async (force?: boolean): Promise<DiscoveryResult> => {
     const bridge = ensureBridge();
@@ -609,6 +636,26 @@ export function useLLMProfiles(): UseLLMProfilesResult {
     return state.profiles.find((profile) => profile.id === state.activeProfileId) ?? null;
   }, [state.activeProfileId, state.profiles]);
 
+  const getTranscriptHistory = useCallback((profileId: string): TestPromptResult[] => {
+    return state.transcriptHistory.get(profileId) || [];
+  }, [state.transcriptHistory]);
+
+  const clearTranscriptHistory = useCallback((profileId: string): void => {
+    updateState((previous) => {
+      const newHistory = new Map(previous.transcriptHistory);
+      newHistory.delete(profileId);
+      return {
+        ...previous,
+        transcriptHistory: newHistory
+      };
+    });
+  }, [updateState]);
+
+  const getLastTranscript = useCallback((profileId: string): TestPromptResult | null => {
+    const history = state.transcriptHistory.get(profileId);
+    return history && history.length > 0 ? history[0] : null;
+  }, [state.transcriptHistory]);
+
   return {
     profiles: state.profiles,
     activeProfile,
@@ -621,7 +668,10 @@ export function useLLMProfiles(): UseLLMProfilesResult {
     deleteProfile,
     activateProfile,
     testPrompt,
-    discoverProfiles
+    discoverProfiles,
+    getTranscriptHistory,
+    clearTranscriptHistory,
+    getLastTranscript
   };
 }
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ProviderTypeSchema, type ProviderType } from "../llm/schemas.js";
+import { ProviderTypeSchema, type ProviderType, TestTranscriptSchema } from "../llm/schemas.js";
 import { generateUUID } from "../utils/uuid.js";
 
 const PROFILE_IPC_CHANNELS = [
@@ -497,7 +497,8 @@ export const TestProfileResponseSchema = z
       .int("totalTimeMs must be an integer")
       .min(0, "totalTimeMs must be non-negative"),
     modelName: z.string().trim().min(1).max(120).nullable().optional(),
-    truncatedResponse: z.string().trim().max(MAX_PROMPT_PREVIEW_LENGTH).nullable().optional()
+    truncatedResponse: z.string().trim().max(MAX_PROMPT_PREVIEW_LENGTH).nullable().optional(),
+    transcript: TestTranscriptSchema,
   })
   .strict();
 export type TestProfileResponse = z.infer<typeof TestProfileResponseSchema>;
@@ -585,7 +586,24 @@ export function sanitizeProfileSummaries<T extends ProfileSummaryWithSecrets>(su
 }
 
 export function sanitizeDiagnosticsMetadata(metadata?: Record<string, unknown> | null): Record<string, unknown> {
-  return sanitizeMetadata(metadata);
+  if (!metadata || typeof metadata !== 'object') {
+    return {};
+  }
+  
+  const baseMetadata = sanitizeMetadata(metadata);
+  
+  // Handle messagePreview truncation to 120 characters
+  if (typeof metadata.messagePreview === 'string') {
+    const preview = metadata.messagePreview;
+    baseMetadata.messagePreview = preview.length > 120 ? preview.substring(0, 120) : preview;
+  }
+  
+  // Preserve historyDepth if present
+  if (typeof metadata.historyDepth === 'number') {
+    baseMetadata.historyDepth = metadata.historyDepth;
+  }
+  
+  return baseMetadata;
 }
 
 export function sanitizePromptPreview(preview: string | null | undefined): string | null {

@@ -83,6 +83,38 @@ describe("LLM contract: test prompt", () => {
 		expect(parsed.data.errorCode).toBeNull();
 	});
 
+	it("returns structured transcript payload on success", async () => {
+		const response = await harness.invoke("llm:profiles:test", {
+			profileId: activeProfile.id,
+			promptText: "Hello, can you respond?"
+		});
+
+		const parsed = successResponseSchema.parse(response);
+		
+		// Verify transcript structure
+		expect(parsed.data.transcript).toBeDefined();
+		expect(parsed.data.transcript.status).toBe("success");
+		expect(parsed.data.transcript.messages).toBeDefined();
+		expect(Array.isArray(parsed.data.transcript.messages)).toBe(true);
+		expect(parsed.data.transcript.messages.length).toBeGreaterThanOrEqual(2);
+		
+		// Verify first message is user prompt
+		const userMsg = parsed.data.transcript.messages[0];
+		expect(userMsg.role).toBe("user");
+		expect(userMsg.text).toBe("Hello, can you respond?");
+		expect(userMsg.truncated).toBe(false);
+		
+		// Verify second message is assistant response
+		const assistantMsg = parsed.data.transcript.messages[1];
+		expect(assistantMsg.role).toBe("assistant");
+		expect(assistantMsg.text).toEqual(expect.any(String));
+		expect(typeof assistantMsg.truncated).toBe("boolean");
+		
+		// Verify latency is present
+		expect(parsed.data.transcript.latencyMs).toEqual(expect.any(Number));
+		expect(parsed.data.transcript.latencyMs).toBeGreaterThan(0);
+	});
+
 	it("returns an error result payload on provider failure", async () => {
 		const response = await harness.invoke("llm:profiles:test", {
 			profileId: activeProfile.id,
@@ -94,6 +126,45 @@ describe("LLM contract: test prompt", () => {
 		expect(errorResult.data.errorCode).toEqual(expect.any(String));
 		if (errorResult.data.responseText !== null) {
 			throw new Error("Failed prompts must not include response text");
+		}
+	});
+
+	it("hides transcript data on error", async () => {
+		const response = await harness.invoke("llm:profiles:test", {
+			profileId: activeProfile.id,
+			promptText: "Cause an error"
+		});
+
+		const errorResult = errorResponseSchema.parse(response);
+		
+		// Verify transcript structure for error
+		expect(errorResult.data.transcript).toBeDefined();
+		expect(errorResult.data.transcript.status).toBe("error");
+		expect(errorResult.data.transcript.messages).toBeDefined();
+		expect(Array.isArray(errorResult.data.transcript.messages)).toBe(true);
+		expect(errorResult.data.transcript.messages.length).toBe(0);
+		expect(errorResult.data.transcript.latencyMs).toBeNull();
+		expect(errorResult.data.transcript.errorCode).toEqual(expect.any(String));
+		expect(errorResult.data.transcript.remediation).toBeDefined();
+	});
+
+	it("maps timeout status correctly", async () => {
+		const response = await harness.invoke("llm:profiles:test", {
+			profileId: activeProfile.id,
+			promptText: "Simulate timeout"
+		});
+
+		// Can be either standard error format or error result format
+		if ('error' in response) {
+			// Standard error format
+			const error = standardErrorSchema.parse(response);
+			expect(error.error).toBe("TIMEOUT");
+		} else {
+			// Error result format with transcript
+			const errorResult = errorResponseSchema.parse(response);
+			expect(errorResult.data.success).toBe(false);
+			expect(errorResult.data.transcript.status).toBe("timeout");
+			expect(errorResult.data.transcript.errorCode).toBe("TIMEOUT");
 		}
 	});
 

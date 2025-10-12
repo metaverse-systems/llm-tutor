@@ -395,6 +395,13 @@ function normalizeTestPromptResult(result: unknown): {
   totalTimeMs: number;
   modelName?: string | null;
   truncatedResponse?: string | null;
+  transcript: {
+    messages: Array<{ role: 'user' | 'assistant'; text: string; truncated: boolean }>;
+    status: 'success' | 'error' | 'timeout';
+    latencyMs: number | null;
+    errorCode: string | null;
+    remediation: string | null;
+  };
 } {
   if (!result || typeof result !== "object") {
     throw new Error("Test prompt override must return an object");
@@ -407,11 +414,27 @@ function normalizeTestPromptResult(result: unknown): {
     totalTimeMs?: number;
     modelName?: string | null;
     truncatedResponse?: string | null;
+    transcript?: {
+      messages: Array<{ role: 'user' | 'assistant'; text: string; truncated: boolean }>;
+      status: 'success' | 'error' | 'timeout';
+      latencyMs: number | null;
+      errorCode: string | null;
+      remediation: string | null;
+    };
   };
 
   if (!candidate.profileId) {
     throw new Error("Test prompt override must include profileId");
   }
+
+  // Ensure transcript is present, create default if not provided
+  const transcript = candidate.transcript ?? {
+    messages: [],
+    status: candidate.success ? 'success' : 'error' as const,
+    latencyMs: candidate.latencyMs ?? null,
+    errorCode: null,
+    remediation: null
+  };
 
   return {
     profileId: candidate.profileId,
@@ -419,7 +442,8 @@ function normalizeTestPromptResult(result: unknown): {
     latencyMs: candidate.latencyMs ?? null,
     totalTimeMs: candidate.totalTimeMs ?? 0,
     modelName: candidate.modelName ?? null,
-    truncatedResponse: candidate.truncatedResponse ?? null
+    truncatedResponse: candidate.truncatedResponse ?? null,
+    transcript
   };
 }
 

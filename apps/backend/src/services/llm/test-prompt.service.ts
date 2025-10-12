@@ -3,7 +3,8 @@ import {
 	type LLMProfile,
 	type ProfileVault,
 	type ProviderType,
-	type TestPromptResult
+	type TestPromptResult,
+	type TranscriptMessage
 } from "@metaverse-systems/llm-tutor-shared/llm";
 import { performance } from "node:perf_hooks";
 
@@ -13,10 +14,12 @@ import type {
 	DecryptionResult,
 	EncryptionService
 } from "../../infra/encryption/index.js";
+import { getTranscriptStore, type TestTranscriptStore } from "./test-transcript.store.js";
 
 const DEFAULT_PROMPT = "Hello, can you respond?" as const;
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_LENGTH = 500;
+const MAX_MESSAGE_LENGTH = 500;
 const RESPONSE_TRUNCATION_SUFFIX = "..." as const;
 const AZURE_API_VERSION = "2024-02-15-preview" as const;
 
@@ -102,6 +105,7 @@ export class TestPromptService {
 	private readonly timeoutMs: number;
 	private readonly diagnosticsRecorder?: TestPromptDiagnosticsRecorder | null;
 	private readonly now: () => number;
+	private readonly transcriptStore: TestTranscriptStore;
 
 	constructor(options: TestPromptServiceOptions) {
 		this.vaultService = options.vaultService;
@@ -110,6 +114,7 @@ export class TestPromptService {
 		this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 		this.diagnosticsRecorder = options.diagnosticsRecorder ?? null;
 		this.now = options.now ?? (() => Date.now());
+		this.transcriptStore = getTranscriptStore();
 	}
 
 	async testPrompt(request: TestPromptRequest = {}): Promise<TestPromptResult> {
@@ -220,14 +225,24 @@ export class TestPromptService {
 	}
 
 	private buildLlamaRequest(profile: LLMProfile, promptText: string): ProviderRequestConfig {
-		const url = this.appendPath(profile.endpointUrl, "/v1/completions");
+		const url = this.appendPath(profile.endpointUrl, "/v1/chat/completions");
 		return {
 			url,
 			headers: {
 				"content-type": "application/json"
 			},
 			body: {
-				prompt: promptText,
+				messages: [
+					{
+						role: "system",
+						content: "You are a helpful AI assistant."
+					},
+					{
+						role: "user",
+						content: promptText
+					}
+				],
+				model: profile.modelId ?? undefined,
 				max_tokens: 100,
 				temperature: 0.7
 			}
@@ -291,7 +306,17 @@ export class TestPromptService {
 			return { responseText: null, modelName: null };
 		}
 
-		const modelName = typeof parsed.model === "string" ? parsed.model : null;
+		const modelName = typeof parsed.model === "string"
+			? parsed.model
+			: typeof parsed.model_name === "string"
+				? parsed.model_name
+				: null;
+
+		const structuredOutput = extractOutputText(parsed);
+		if (structuredOutput) {
+			return { responseText: structuredOutput, modelName };
+		}
+
 		const choices = Array.isArray(parsed.choices) ? parsed.choices : [];
 		const choice = choices.find((candidate): candidate is Record<string, unknown> => isRecord(candidate)) ?? null;
 
@@ -300,18 +325,15 @@ export class TestPromptService {
 		}
 
 		if (providerType === "llama.cpp") {
-			const text = extractString(choice.text);
+			const text = extractChoiceResponse(choice) ?? extractString(choice["text"]);
 			return { responseText: text, modelName };
 		}
 
-		const message = isRecord(choice.message) ? choice.message : null;
-		if (message) {
-			const content = extractString(message.content);
-			return { responseText: content, modelName };
-		}
-
-		const text = extractString(choice.text);
-		return { responseText: text, modelName };
+		const responseText = extractChoiceResponse(choice);
+		return {
+			responseText: responseText ?? extractString(choice.text),
+			modelName
+		};
 	}
 
 	private createSuccessResult(options: CreateSuccessResultOptions): TestPromptResult {
@@ -321,6 +343,21 @@ export class TestPromptService {
 			? this.truncateResponse(this.sanitizeResponse(payload.responseText))
 			: null;
 		const modelName = payload.modelName ?? profile.modelId ?? null;
+
+		// Build transcript messages
+		const userMessage = this.createTranscriptMessage(promptText, 'user');
+		const assistantMessage = this.createTranscriptMessage(
+			payload.responseText ?? '',
+			'assistant'
+		);
+		const messages: TranscriptMessage[] = [userMessage, assistantMessage];
+
+		// Update transcript store with new messages
+		this.transcriptStore.update(profile.id, messages, 'success', latency, null, null);
+
+		// Get full transcript from store (includes history)
+		const transcript = this.transcriptStore.get(profile.id);
+
 		const result: TestPromptResult = {
 			profileId: profile.id,
 			profileName: profile.name,
@@ -333,7 +370,8 @@ export class TestPromptService {
 			totalTimeMs: Math.max(1, Math.round(totalTimeMs)),
 			errorCode: null,
 			errorMessage: null,
-			timestamp
+			timestamp,
+			transcript: transcript!,
 		};
 
 		return TestPromptResultSchema.parse(result);
@@ -341,6 +379,29 @@ export class TestPromptService {
 
 	private createFailureResult(options: CreateFailureResultOptions): TestPromptResult {
 		const { profile, promptText, latencyMs, totalTimeMs, timestamp, error } = options;
+
+		// Clear transcript history on failure
+		this.transcriptStore.clear(profile.id);
+
+		// Create error transcript with empty messages
+		const transcript = {
+			messages: [],
+			status: error.errorCode === 'TIMEOUT' ? 'timeout' as const : 'error' as const,
+			latencyMs: null,
+			errorCode: error.errorCode,
+			remediation: this.generateRemediation(error.errorCode, profile.providerType),
+		};
+
+		// Store the error transcript
+		this.transcriptStore.update(
+			profile.id,
+			[],
+			transcript.status,
+			null,
+			error.errorCode,
+			transcript.remediation
+		);
+
 		const result: TestPromptResult = {
 			profileId: profile.id,
 			profileName: profile.name,
@@ -353,10 +414,40 @@ export class TestPromptService {
 			totalTimeMs: Math.max(1, Math.round(totalTimeMs)),
 			errorCode: error.errorCode,
 			errorMessage: this.truncateErrorMessage(error.errorMessage),
-			timestamp
+			timestamp,
+			transcript,
 		};
 
 		return TestPromptResultSchema.parse(result);
+	}
+
+	private createTranscriptMessage(text: string, role: 'user' | 'assistant'): TranscriptMessage {
+		const sanitized = role === 'assistant' ? this.sanitizeResponse(text) : text;
+		const truncated = sanitized.length > MAX_MESSAGE_LENGTH;
+		const truncatedText = truncated
+			? sanitized.substring(0, MAX_MESSAGE_LENGTH - RESPONSE_TRUNCATION_SUFFIX.length) + RESPONSE_TRUNCATION_SUFFIX
+			: sanitized;
+
+		return {
+			role,
+			text: truncatedText,
+			truncated,
+		};
+	}
+
+	private generateRemediation(errorCode: string, _providerType: ProviderType): string | null {
+		const remediations: Record<string, string> = {
+			'ECONNREFUSED': 'Check that the service is running and accessible',
+			'TIMEOUT': 'Increase timeout value or check service performance',
+			'ENOTFOUND': 'Verify the endpoint URL is correct',
+			'401': 'Check your API key is valid',
+			'403': 'Verify your API key has the required permissions',
+			'429': 'Rate limit exceeded. Wait before retrying',
+			'500': 'Service error. Try again later',
+			'503': 'Service temporarily unavailable',
+		};
+
+		return remediations[errorCode] || 'Check your configuration and try again';
 	}
 
 	private sanitizeResponse(value: string): string {
@@ -461,6 +552,111 @@ export class TestPromptService {
 
 function extractString(value: unknown): string | null {
 	return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function extractOutputText(payload: Record<string, unknown>): string | null {
+	const direct = extractMessageContent(payload["output_text"]);
+	if (direct) {
+		return direct;
+	}
+
+	const outputItems = Array.isArray(payload["output"]) ? payload["output"] : null;
+	if (!outputItems) {
+		return null;
+	}
+
+	const parts: string[] = [];
+	for (const item of outputItems) {
+		if (!isRecord(item)) {
+			continue;
+		}
+		const content = extractMessageContent(item.content);
+		if (content) {
+			parts.push(content);
+		}
+	}
+
+	if (parts.length === 0) {
+		return null;
+	}
+
+	return parts.join("\n\n");
+}
+
+function extractChoiceResponse(choice: Record<string, unknown>): string | null {
+	const message = isRecord(choice["message"]) ? choice["message"] : null;
+	if (message) {
+		const content = extractMessageContent(message.content);
+		if (content) {
+			return content;
+		}
+	}
+
+	const delta = isRecord(choice["delta"]) ? choice["delta"] : null;
+	if (delta) {
+		const content = extractMessageContent(delta.content);
+		if (content) {
+			return content;
+		}
+	}
+
+	return extractMessageContent(choice["text"]);
+}
+
+function extractMessageContent(value: unknown): string | null {
+	if (typeof value === "string") {
+		return extractString(value);
+	}
+
+	if (Array.isArray(value)) {
+		const parts: string[] = [];
+		for (const item of value) {
+			const part = extractMessageContent(item);
+			if (part) {
+				parts.push(part);
+			}
+		}
+		if (parts.length > 0) {
+			return parts.join("\n\n");
+		}
+		return null;
+	}
+
+	if (!isRecord(value)) {
+		return null;
+	}
+
+	const typeValue = value["type"];
+	const rawType = typeof typeValue === "string" ? typeValue.toLowerCase() : null;
+	if (rawType === "input_text") {
+		return null;
+	}
+
+	const textCandidate =
+		extractString(value["text"]) ??
+		extractString(value["value"]) ??
+		extractString(value["content"]);
+	if (textCandidate) {
+		return textCandidate;
+	}
+
+	const contentField = "content" in value ? value["content"] : null;
+	if (contentField && contentField !== value) {
+		const nested = extractMessageContent(contentField);
+		if (nested) {
+			return nested;
+		}
+	}
+
+	const valueField = "value" in value ? value["value"] : null;
+	if (valueField && valueField !== value) {
+		const nested = extractMessageContent(valueField);
+		if (nested) {
+			return nested;
+		}
+	}
+
+	return null;
 }
 
 function extractErrorObject(rawBody: string): { code?: unknown; message?: unknown } {
