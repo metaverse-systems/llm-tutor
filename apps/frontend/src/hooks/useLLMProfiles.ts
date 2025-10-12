@@ -241,7 +241,6 @@ function removeProfileById(profiles: LLMProfile[], id: string): LLMProfile[] {
 }
 
 export function useLLMProfiles(): UseLLMProfilesResult {
-  console.log("[useLLMProfiles] hook mount");
   const [state, setState] = useState<HookState>(INITIAL_STATE);
   const stateRef = useRef<HookState>(INITIAL_STATE);
   const isMountedRef = useRef<boolean>(true);
@@ -272,13 +271,6 @@ export function useLLMProfiles(): UseLLMProfilesResult {
         }
 
         const next = typeof updater === "function" ? (updater as (prev: HookState) => HookState)(previous) : updater;
-  console.log("[useLLMProfiles] state transition", {
-          prevLoading: previous.loading,
-          prevProfiles: previous.profiles.length,
-          nextLoading: next.loading,
-          nextProfiles: next.profiles.length,
-          nextError: next.error
-        });
         stateRef.current = next;
         return next;
       });
@@ -337,7 +329,6 @@ export function useLLMProfiles(): UseLLMProfilesResult {
         error: null
       });
     } catch (error) {
-  console.log("[useLLMProfiles] fetch error", error);
       updateState((previous) => ({
         ...previous,
         loading: false,
