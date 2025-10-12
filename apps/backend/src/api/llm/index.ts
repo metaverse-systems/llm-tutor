@@ -1,11 +1,12 @@
 import type { ProfileVault } from "@metaverse-systems/llm-tutor-shared/llm";
 import { Buffer } from "node:buffer";
+import { z } from "zod";
 
 import type { LlmContractTestHarness, ProfileVaultSeed } from "../../../tests/contract/llm/helpers.js";
 import { EncryptionService } from "../../infra/encryption/index.js";
 import { ProfileVaultService, ProfileVaultReadError, ProfileVaultWriteError, type ProfileVaultStore } from "../../services/llm/profile-vault.js";
-import { ProfileService } from "../../services/llm/profile.service.js";
-import { TestPromptService } from "../../services/llm/test-prompt.service.js";
+import { ProfileService, type ActivateProfilePayload, type CreateProfilePayload, type DeleteProfilePayload, type UpdateProfilePayload } from "../../services/llm/profile.service.js";
+import { TestPromptService, type TestPromptRequest } from "../../services/llm/test-prompt.service.js";
 
 
 
@@ -56,6 +57,130 @@ class InMemoryVaultStore implements ProfileVaultStore {
 	}
 }
 
+const createProfilePayloadSchema = z
+	.object({
+		name: z.string().min(1).max(100),
+		providerType: z.enum(["llama.cpp", "azure", "custom"]),
+		endpointUrl: z.string().min(1),
+		apiKey: z.string().max(500),
+		modelId: z.union([z.string().max(200), z.null()]),
+		consentTimestamp: z.number().int().nonnegative().nullable()
+	})
+	.strict();
+
+const updateProfilePayloadSchema = z
+	.object({
+		id: z.string().uuid(),
+		name: z.string().min(1).max(100).optional(),
+		providerType: z.enum(["llama.cpp", "azure", "custom"]).optional(),
+		endpointUrl: z.string().min(1).optional(),
+		apiKey: z.string().max(500).optional(),
+		modelId: z.union([z.string().max(200), z.null()]).optional(),
+		consentTimestamp: z.number().int().nonnegative().nullable().optional()
+	})
+	.strict();
+
+const deleteProfilePayloadSchema = z
+	.object({
+		id: z.string().uuid(),
+		activateAlternateId: z.string().uuid().optional()
+	})
+	.strict();
+
+const activateProfilePayloadSchema = z
+	.object({
+		id: z.string().uuid()
+	})
+	.strict();
+
+const testPromptRequestSchema = z
+	.object({
+		profileId: z.string().uuid().optional(),
+		promptText: z.string().optional()
+	})
+	.strict();
+
+function parsePayload<T>(schema: z.ZodType<T>, payload: unknown, channel: string): T {
+	try {
+		return schema.parse(payload);
+	} catch (error) {
+		const message = error instanceof z.ZodError ? error.message : "Invalid payload";
+		throw new Error(`Invalid payload for ${channel}: ${message}`);
+	}
+}
+
+function parseError(error: unknown): {
+	code?: string;
+	message: string;
+	details?: unknown;
+	cause?: unknown;
+} {
+	if (error instanceof Error) {
+		const enriched = error as Error & { code?: string; details?: unknown };
+		return {
+			code: typeof enriched.code === "string" ? enriched.code : undefined,
+			message: enriched.message,
+			details: enriched.details,
+			cause: (enriched as Error & { cause?: unknown }).cause
+		};
+	}
+
+	if (typeof error === "object" && error !== null) {
+		const candidate = error as Record<string, unknown>;
+		return {
+			code: typeof candidate.code === "string" ? candidate.code : undefined,
+			message: typeof candidate.message === "string" ? candidate.message : "Unknown error",
+			details: candidate.details,
+			cause: candidate.cause
+		};
+	}
+
+	return {
+		message: typeof error === "string" ? error : "Unknown error"
+	};
+}
+
+function parseRequestBody(body: unknown): Record<string, unknown> | null {
+	if (typeof body === "string") {
+		try {
+			const parsed = JSON.parse(body) as unknown;
+			return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
+		} catch {
+			return null;
+		}
+	}
+
+	if (body instanceof Buffer) {
+		return parseRequestBody(body.toString("utf8"));
+	}
+
+	return null;
+}
+
+function extractPromptText(requestBody: Record<string, unknown> | null): string {
+	if (!requestBody) {
+		return "";
+	}
+
+	const prompt = requestBody.prompt;
+	if (typeof prompt === "string") {
+		return prompt;
+	}
+
+	const messages = requestBody.messages;
+	if (Array.isArray(messages) && messages.length > 0) {
+		const first: unknown = messages[0];
+		if (first && typeof first === "object" && "content" in first) {
+			const content = (first as Record<string, unknown>).content;
+			if (typeof content === "string") {
+				return content;
+			}
+		}
+	}
+
+	return "";
+}
+
 class ContractTestHarness implements LlmContractTestHarness {
 	private state: TestState;
 	private vaultService: ProfileVaultService;
@@ -92,15 +217,18 @@ class ContractTestHarness implements LlmContractTestHarness {
 			vaultService: this.vaultService,
 			encryptionService,
 			// Use smart mocking: mock for contract tests, real fetch for integration tests with nock
-			fetchImpl: async (url: string | URL, init?: RequestInit) => {
+			fetchImpl: async (requestInfo: RequestInfo | URL, init?: RequestInit) => {
+				const url = requestInfo instanceof URL
+					? requestInfo
+					: new URL(typeof requestInfo === "string" ? requestInfo : requestInfo.url);
 				const urlString = url.toString();
-				const body = init?.body ? JSON.parse(init.body as string) : {};
-				const promptText = body.prompt || body.messages?.[0]?.content || "";
+				const parsedBody = parseRequestBody(init?.body ?? null);
+				const promptText = extractPromptText(parsedBody);
 				const signal = init?.signal;
 				
 				// Handle timeout simulation (contract test specific)
 				if (promptText.includes("Simulate timeout")) {
-					return new Promise((_, reject) => {
+					return new Promise((_resolve, reject) => {
 						if (signal) {
 							signal.addEventListener("abort", () => {
 								const error = new Error("The operation was aborted");
@@ -108,13 +236,14 @@ class ContractTestHarness implements LlmContractTestHarness {
 								reject(error);
 							});
 						}
+						// Intentionally never resolve to simulate a hung request until abort triggers
 					});
 				}
 				
 				// Try real fetch first (for integration tests with nock)
 				try {
-					return await globalThis.fetch(url, init);
-				} catch (error: any) {
+					return await globalThis.fetch(requestInfo, init);
+				} catch (fetchError: unknown) {
 					// If fetch fails and we're testing localhost, provide a mock response
 					if (urlString.includes("localhost:8080")) {
 						// Handle error simulation
@@ -142,7 +271,7 @@ class ContractTestHarness implements LlmContractTestHarness {
 					}
 					
 					// Re-throw for non-localhost errors
-					throw error;
+					throw fetchError;
 				}
 			},
 			timeoutMs: 1000, // Short timeout for tests
@@ -165,7 +294,8 @@ class ContractTestHarness implements LlmContractTestHarness {
 				}
 
 				case "llm:profiles:create": {
-					const result = await this.profileService.createProfile(payload as any);
+					const parsedPayload = parsePayload<CreateProfilePayload>(createProfilePayloadSchema, payload, channel);
+					const result = await this.profileService.createProfile(parsedPayload);
 					return {
 						success: true,
 						data: result,
@@ -174,7 +304,8 @@ class ContractTestHarness implements LlmContractTestHarness {
 				}
 
 				case "llm:profiles:update": {
-					const result = await this.profileService.updateProfile(payload as any);
+					const parsedPayload = parsePayload<UpdateProfilePayload>(updateProfilePayloadSchema, payload, channel);
+					const result = await this.profileService.updateProfile(parsedPayload);
 					return {
 						success: true,
 						data: result,
@@ -183,7 +314,8 @@ class ContractTestHarness implements LlmContractTestHarness {
 				}
 
 				case "llm:profiles:delete": {
-					const result = await this.profileService.deleteProfile(payload as any);
+					const parsedPayload = parsePayload<DeleteProfilePayload>(deleteProfilePayloadSchema, payload, channel);
+					const result = await this.profileService.deleteProfile(parsedPayload);
 					return {
 						success: true,
 						data: result,
@@ -192,7 +324,8 @@ class ContractTestHarness implements LlmContractTestHarness {
 				}
 
 				case "llm:profiles:activate": {
-					const result = await this.profileService.activateProfile(payload as any);
+					const parsedPayload = parsePayload<ActivateProfilePayload>(activateProfilePayloadSchema, payload, channel);
+					const result = await this.profileService.activateProfile(parsedPayload);
 					return {
 						success: true,
 						data: result,
@@ -201,7 +334,8 @@ class ContractTestHarness implements LlmContractTestHarness {
 				}
 
 				case "llm:profiles:test": {
-					const result = await this.testPromptService.testPrompt(payload as any);
+					const parsedPayload = parsePayload<TestPromptRequest>(testPromptRequestSchema, payload, channel);
+					const result = await this.testPromptService.testPrompt(parsedPayload);
 					return {
 						success: true,
 						data: result,
@@ -232,62 +366,63 @@ class ContractTestHarness implements LlmContractTestHarness {
 				default:
 					throw new Error(`Unknown channel: ${channel}`);
 			}
-		} catch (error: any) {
-			if (error.code === "VAULT_READ_ERROR") {
+		} catch (unknownError: unknown) {
+			const { code, message, details, cause } = parseError(unknownError);
+			if (code === "VAULT_READ_ERROR") {
 				return {
 					error: "VAULT_READ_ERROR",
-					message: error.message,
-					details: error.cause,
+					message,
+					details: cause ?? details,
 					timestamp
 				};
 			}
 
-			if (error.code === "VAULT_WRITE_ERROR") {
+			if (code === "VAULT_WRITE_ERROR") {
 				return {
 					error: "VAULT_WRITE_ERROR",
-					message: error.message,
-					details: error.cause,
+					message,
+					details: cause ?? details,
 					timestamp
 				};
 			}
 
-			if (error.code === "VALIDATION_ERROR") {
+			if (code === "VALIDATION_ERROR") {
 				return {
 					error: "VALIDATION_ERROR",
-					message: error.message,
-					details: error.details,
+					message,
+					details,
 					timestamp
 				};
 			}
 
-			if (error.code === "PROFILE_NOT_FOUND") {
+			if (code === "PROFILE_NOT_FOUND") {
 				return {
 					error: "PROFILE_NOT_FOUND",
-					message: error.message,
+					message,
 					timestamp
 				};
 			}
 
-			if (error.code === "ALTERNATE_NOT_FOUND") {
+			if (code === "ALTERNATE_NOT_FOUND") {
 				return {
 					error: "ALTERNATE_NOT_FOUND",
-					message: error.message,
+					message,
 					timestamp
 				};
 			}
 
-			if (error.code === "NO_ACTIVE_PROFILE") {
+			if (code === "NO_ACTIVE_PROFILE") {
 				return {
 					error: "NO_ACTIVE_PROFILE",
-					message: error.message,
+					message,
 					timestamp
 				};
 			}
 
-			if (error.code === "TIMEOUT") {
+			if (code === "TIMEOUT") {
 				return {
 					error: "TIMEOUT",
-					message: error.message,
+					message,
 					timestamp
 				};
 			}
@@ -295,37 +430,41 @@ class ContractTestHarness implements LlmContractTestHarness {
 			if (channel === "llm:profiles:discover") {
 				return {
 					error: "DISCOVERY_ERROR",
-					message: error.message,
-					details: error,
+					message,
+					details: unknownError,
 					timestamp
 				};
 			}
 
-			throw error;
+			throw unknownError;
 		}
 	}
 
-	async seedVault(seed: ProfileVaultSeed): Promise<void> {
+	seedVault(seed: ProfileVaultSeed): Promise<void> {
 		this.state.vault = seed as ProfileVault;
 		this.state.vaultReadError = null;
 		this.state.vaultWriteError = null;
+		return Promise.resolve();
 	}
 
-	async clearVault(): Promise<void> {
+	clearVault(): Promise<void> {
 		this.state.vault = null;
 		this.state.vaultReadError = null;
 		this.state.vaultWriteError = null;
+		return Promise.resolve();
 	}
 
-	async simulateVaultReadError(error?: Error): Promise<void> {
+	simulateVaultReadError(error?: Error): Promise<void> {
 		this.state.vaultReadError = error ?? new Error("Vault read error");
+		return Promise.resolve();
 	}
 
-	async simulateVaultWriteError(error?: Error): Promise<void> {
+	simulateVaultWriteError(error?: Error): Promise<void> {
 		this.state.vaultWriteError = error ?? new Error("Vault write error");
+		return Promise.resolve();
 	}
 
-	async simulateDiscoveryResult(result: {
+	simulateDiscoveryResult(result: {
 		discovered: boolean;
 		discoveredUrl: string | null;
 		profileCreated: boolean;
@@ -334,24 +473,29 @@ class ContractTestHarness implements LlmContractTestHarness {
 	}): Promise<void> {
 		this.state.discoveryResult = result;
 		this.state.discoveryError = null;
+		return Promise.resolve();
 	}
 
-	async simulateDiscoveryError(error?: Error): Promise<void> {
+	simulateDiscoveryError(error?: Error): Promise<void> {
 		this.state.discoveryError = error ?? new Error("Discovery error");
 		this.state.discoveryResult = null;
+		return Promise.resolve();
 	}
 
-	async readDiagnosticsEvents(): Promise<unknown[]> {
-		return [];
+	readDiagnosticsEvents(): Promise<unknown[]> {
+		return Promise.resolve([]);
 	}
 
-	async close(): Promise<void> {
+	close(): Promise<void> {
 		// Nothing to clean up in memory
+		return Promise.resolve();
 	}
 }
 
-export async function createLLMContractTestHarness(options?: {
+export function createLLMContractTestHarness(options?: {
 	initialVault?: ProfileVaultSeed | null;
 }): Promise<LlmContractTestHarness> {
-	return new ContractTestHarness(options?.initialVault as ProfileVault | null | undefined);
+	return Promise.resolve(
+		new ContractTestHarness(options?.initialVault as ProfileVault | null | undefined)
+	);
 }

@@ -1,4 +1,14 @@
-import type { TelemetryPreference } from "@metaverse-systems/llm-tutor-shared/src/contracts/preferences";
+interface TelemetryPreference {
+	enabled: boolean;
+	consentTimestamp?: number;
+}
+
+function normalizeTelemetryPreference(preference: TelemetryPreference): TelemetryPreference {
+	return {
+		enabled: preference.enabled === true,
+		consentTimestamp: typeof preference.consentTimestamp === "number" ? preference.consentTimestamp : undefined
+	};
+}
 
 /**
  * Backend telemetry service
@@ -21,7 +31,7 @@ export class TelemetryService {
 	 * Should be called when preference changes via IPC
 	 */
 	setTelemetryState(state: TelemetryPreference): void {
-		this.telemetryState = { ...state };
+		this.telemetryState = normalizeTelemetryPreference(state);
 	}
 
 	/**
