@@ -163,6 +163,16 @@ describe("LLM Profile IPC contract", () => {
       totalTimeMs: 180,
       modelName: "gpt-4o",
       truncatedResponse: "Hello",
+      transcript: {
+        messages: [
+          { role: "user", text: "Test", truncated: false },
+          { role: "assistant", text: "Hello", truncated: false },
+        ],
+        status: "success",
+        latencyMs: 120,
+        errorCode: null,
+        remediation: null,
+      },
     };
   expect(ContractModule.TestProfileResponseSchema.safeParse(testResponse).success).toBe(true);
 
