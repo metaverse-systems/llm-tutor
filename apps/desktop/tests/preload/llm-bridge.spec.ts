@@ -36,13 +36,15 @@ describe("llm preload bridge", () => {
 			};
 		};
 
-		const { LLM_BRIDGE_KEY } = await import("../../src/preload/llm-bridge");
+		const { LLM_BRIDGE_KEY, LLM_TUTOR_KEY } = await import("../../src/preload/llm-bridge");
 
-		expect(contextBridge.exposeInMainWorld).toHaveBeenCalledTimes(1);
+		expect(contextBridge.exposeInMainWorld).toHaveBeenCalledTimes(2);
 		const calls = contextBridge.exposeInMainWorld.mock.calls as [string, unknown][];
-		expect(calls.length).toBeGreaterThan(0);
-		const [keyArg, apiArg] = calls[0];
-		expect(keyArg).toBe(LLM_BRIDGE_KEY);
+		const llmCall = calls.find(([key]) => key === LLM_BRIDGE_KEY);
+		if (!llmCall) {
+			throw new Error("LLM bridge was not registered");
+		}
+		const [, apiArg] = llmCall;
 		if (!apiArg || typeof apiArg !== "object") {
 			throw new Error("LLM bridge was not registered as an object");
 		}
@@ -55,17 +57,21 @@ describe("llm preload bridge", () => {
 		expect(typeof registered.testPrompt).toBe("function");
 		expect(typeof registered.discoverProfiles).toBe("function");
 
-		const exposed = exposedApis.get(LLM_BRIDGE_KEY) as LlmRendererBridge | undefined;
-		expect(exposed).toBeDefined();
-		if (exposed) {
-			expect(typeof exposed.listProfiles).toBe("function");
-			expect(typeof exposed.createProfile).toBe("function");
-			expect(typeof exposed.updateProfile).toBe("function");
-			expect(typeof exposed.deleteProfile).toBe("function");
-			expect(typeof exposed.activateProfile).toBe("function");
-			expect(typeof exposed.testPrompt).toBe("function");
-			expect(typeof exposed.discoverProfiles).toBe("function");
+		const exposedLlm = exposedApis.get(LLM_BRIDGE_KEY) as LlmRendererBridge | undefined;
+		expect(exposedLlm).toBeDefined();
+		if (exposedLlm) {
+			expect(typeof exposedLlm.listProfiles).toBe("function");
+			expect(typeof exposedLlm.createProfile).toBe("function");
+			expect(typeof exposedLlm.updateProfile).toBe("function");
+			expect(typeof exposedLlm.deleteProfile).toBe("function");
+			expect(typeof exposedLlm.activateProfile).toBe("function");
+			expect(typeof exposedLlm.testPrompt).toBe("function");
+			expect(typeof exposedLlm.discoverProfiles).toBe("function");
 		}
+
+		const settingsCall = calls.find(([key]) => key === LLM_TUTOR_KEY);
+		expect(settingsCall).toBeDefined();
+		expect(exposedApis.has(LLM_TUTOR_KEY)).toBe(true);
 	});
 
 	it("delegates bridge calls to the expected IPC channels", async () => {

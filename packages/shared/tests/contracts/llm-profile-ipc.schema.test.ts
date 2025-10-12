@@ -20,6 +20,8 @@ import {
   type DiscoveryScope
 } from "../../src/contracts/llm-profile-ipc";
 
+const makeUuid = (index: number): string => `00000000-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
+
 describe("ProfileIpcChannelSchema", () => {
   it("accepts valid channel names", () => {
     const validChannels: ProfileIpcChannel[] = [
@@ -293,7 +295,7 @@ describe("SafeStorageOutageStateSchema", () => {
       isActive: true,
       startedAt: Date.now(),
       resolvedAt: null,
-      blockedRequestIds: ["req-1", "req-2"]
+      blockedRequestIds: [makeUuid(1), makeUuid(2)]
     };
     const result = SafeStorageOutageStateSchema.parse(state);
     expect(result.isActive).toBe(true);
@@ -315,9 +317,12 @@ describe("SafeStorageOutageStateSchema", () => {
       isActive: true,
       startedAt: Date.now(),
       resolvedAt: null,
-      blockedRequestIds: Array(51).fill("req")
+      blockedRequestIds: Array.from({ length: 55 }, (_, index) => makeUuid(index + 10))
     };
-    expect(() => SafeStorageOutageStateSchema.parse(state)).toThrow(/cannot exceed 50 entries/);
+    const result = SafeStorageOutageStateSchema.parse(state);
+    expect(result.blockedRequestIds).toHaveLength(50);
+    expect(result.blockedRequestIds[0]).toBe(makeUuid(15));
+    expect(result.blockedRequestIds[result.blockedRequestIds.length - 1]).toBe(makeUuid(64));
   });
 });
 

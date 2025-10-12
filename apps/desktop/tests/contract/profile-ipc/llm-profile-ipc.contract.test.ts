@@ -61,6 +61,9 @@ describe("LLM Profile IPC contract", () => {
       "SERVICE_FAILURE",
       "DISCOVERY_CONFLICT",
       "VAULT_READ_ERROR",
+      "VAULT_WRITE_ERROR",
+      "NETWORK_ERROR",
+      "UNKNOWN_ERROR",
       "RATE_LIMITED",
       "TIMEOUT",
     ]);

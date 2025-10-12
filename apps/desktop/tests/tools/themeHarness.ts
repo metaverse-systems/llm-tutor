@@ -1,15 +1,13 @@
-import http from "node:http";
-import { promises as fs } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import type { AddressInfo } from "node:net";
-import { spawn } from "node:child_process";
-
-import type { Page } from "@playwright/test";
 import {
   createDiagnosticsPreferenceRecord,
   serializeDiagnosticsPreferenceRecord
 } from "@metaverse-systems/llm-tutor-shared";
+import { type Page } from "@playwright/test";
+import { spawn } from "node:child_process";
+import { promises as fs } from "node:fs";
+import http from "node:http";
+import os from "node:os";
+import path from "node:path";
 import { _electron as electron, type ElectronApplication } from "playwright";
 
 export interface DiagnosticsWindowHandle {
@@ -30,31 +28,30 @@ export async function launchDiagnosticsWindow(): Promise<DiagnosticsWindowHandle
 
   try {
     app = await electron.launch({
-    args: [
-      workspace.desktopRoot,
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu"
-    ],
-    cwd: workspace.desktopRoot,
-    env: {
-      ...process.env,
-      ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
-      NODE_ENV: process.env.NODE_ENV ?? "test",
-      LLM_TUTOR_DEV_BACKEND_LOCK: workspace.backendLockPath,
-      ELECTRON_USER_DATA_DIR: workspace.primaryUserDataDir,
-      XDG_CONFIG_HOME: workspace.configRoot,
-      APPDATA: workspace.configRoot,
+      args: [
+        workspace.desktopRoot,
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu"
+      ],
+      cwd: workspace.desktopRoot,
+      env: {
+        ...process.env,
+        ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
+        NODE_ENV: process.env.NODE_ENV ?? "test",
+        LLM_TUTOR_DEV_BACKEND_LOCK: workspace.backendLockPath,
+        ELECTRON_USER_DATA_DIR: workspace.primaryUserDataDir,
+        XDG_CONFIG_HOME: workspace.configRoot,
+        APPDATA: workspace.configRoot,
         PLAYWRIGHT_TEST: "1",
         ELECTRON_RENDERER_URL: rendererServer.origin
-    },
+      },
       timeout: 30000
-  });
-    
-    // Log Electron console output
-    app.on('console', (msg) => {
-      console.log('[Electron]', msg.text());
+    });
+
+    app.on("console", (message) => {
+      console.log("[Electron]", message.text());
     });
   } catch (error) {
     await stopRendererServer(rendererServer.server);
@@ -64,9 +61,7 @@ export async function launchDiagnosticsWindow(): Promise<DiagnosticsWindowHandle
 
   rendererServerRegistry.set(app, rendererServer.server);
 
-  const resolvedUserDataDir = await app.evaluate(async ({ app: electronApp }) => {
-    return electronApp.getPath("userData");
-  });
+  const resolvedUserDataDir = workspace.primaryUserDataDir;
 
   if (!workspace.allUserDataDirs.includes(resolvedUserDataDir)) {
     await fs.mkdir(resolvedUserDataDir, { recursive: true });
@@ -74,7 +69,7 @@ export async function launchDiagnosticsWindow(): Promise<DiagnosticsWindowHandle
   }
 
   // Wait for window to be created (even if not shown in headless mode)
-  const window = await app.waitForEvent('window', { timeout: 30000 });
+  const window = await app.waitForEvent("window", { timeout: 30000 });
   await window.waitForLoadState("domcontentloaded");
 
   let themeState = await readThemeState(window);
@@ -102,29 +97,14 @@ export async function closeDiagnosticsApp(app: ElectronApplication | null | unde
   }
 
   const server = rendererServerRegistry.get(app);
-  
+
   try {
-    // Close all windows first
     const windows = app.windows();
-    await Promise.all(windows.map(w => w.close().catch(() => {})));
-    
-    // Then close the app with timeout
-    await Promise.race([
-      app.close(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("App close timeout")), 5000)
-      )
-    ]).catch(() => {
-      // Force kill if close hangs
-      try {
-        app.process().kill('SIGKILL');
-      } catch {}
-    });
+    await Promise.allSettled(windows.map((window) => window.close()));
+    await closeElectronWithTimeout(app, 5_000);
   } catch (error) {
     console.error("[themeHarness] Error during app cleanup:", error);
-    try {
-      app.process().kill('SIGKILL');
-    } catch {}
+    forceKillElectronProcess(app);
   } finally {
     if (server) {
       await stopRendererServer(server);
@@ -289,38 +269,8 @@ async function startRendererServer(desktopRoot: string): Promise<RendererServerH
   const indexPath = path.join(distRoot, "index.html");
   await fs.access(indexPath);
 
-  const server = http.createServer(async (request, response) => {
-    try {
-      const target = new URL(request.url ?? "/", "http://127.0.0.1");
-      let pathname = decodeURIComponent(target.pathname);
-      if (!pathname || pathname === "/") {
-        pathname = "/index.html";
-      }
-      const safePath = pathNormalize(distRoot, pathname);
-      const fileStat = await fs.stat(safePath).catch(() => null);
-      let filePath = safePath;
-
-      if (!fileStat) {
-        response.writeHead(404, { "content-type": "text/plain" });
-        response.end("Not Found");
-        return;
-      }
-
-      if (fileStat.isDirectory()) {
-        filePath = path.join(filePath, "index.html");
-      }
-
-      const data = await fs.readFile(filePath);
-      response.writeHead(200, {
-        "content-type": resolveContentType(filePath),
-        "cache-control": "no-store"
-      });
-      response.end(data);
-    } catch (error) {
-      response.writeHead(500, { "content-type": "text/plain" });
-  response.end("Internal Server Error");
-  console.error("[themeHarness] renderer server error", error);
-    }
+  const server = http.createServer((request, response) => {
+    void serveRendererRequest(distRoot, request, response);
   });
 
   await new Promise<void>((resolve) => {
@@ -333,7 +283,7 @@ async function startRendererServer(desktopRoot: string): Promise<RendererServerH
     throw new Error("Failed to determine renderer server address");
   }
 
-  const origin = `http://127.0.0.1:${(address as AddressInfo).port}`;
+  const origin = `http://127.0.0.1:${address.port}`;
   return { server, origin };
 }
 
@@ -341,6 +291,78 @@ async function stopRendererServer(server: http.Server): Promise<void> {
   await new Promise<void>((resolve) => {
     server.close(() => resolve());
   });
+}
+
+async function serveRendererRequest(
+  distRoot: string,
+  request: http.IncomingMessage,
+  response: http.ServerResponse
+): Promise<void> {
+  try {
+    const target = new URL(request.url ?? "/", "http://127.0.0.1");
+    let pathname = decodeURIComponent(target.pathname);
+
+    if (!pathname || pathname === "/") {
+      pathname = "/index.html";
+    }
+
+    const safePath = pathNormalize(distRoot, pathname);
+    const fileStat = await fs.stat(safePath).catch(() => null);
+
+    if (!fileStat) {
+      response.writeHead(404, { "content-type": "text/plain" });
+      response.end("Not Found");
+      return;
+    }
+
+    const filePath = fileStat.isDirectory() ? path.join(safePath, "index.html") : safePath;
+    const data = await fs.readFile(filePath);
+
+    response.writeHead(200, {
+      "content-type": resolveContentType(filePath),
+      "cache-control": "no-store"
+    });
+    response.end(data);
+  } catch (error) {
+    response.writeHead(500, { "content-type": "text/plain" });
+    response.end("Internal Server Error");
+    console.error("[themeHarness] renderer server error", error);
+  }
+}
+
+async function closeElectronWithTimeout(app: ElectronApplication, timeoutMs: number): Promise<void> {
+  await withTimeout(app.close(), timeoutMs, "App close timeout");
+}
+
+function forceKillElectronProcess(app: ElectronApplication): void {
+  const childProcess = app.process();
+  if (!childProcess) {
+    return;
+  }
+
+  try {
+    childProcess.kill("SIGKILL");
+  } catch (error) {
+    console.warn("[themeHarness] Failed to force kill Electron process:", error);
+  }
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutHandle: NodeJS.Timeout | undefined;
+
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
 }
 
 function resolveContentType(filePath: string): string {

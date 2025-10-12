@@ -1,8 +1,4 @@
-import {
-  LLMProfileSchema,
-  type LLMProfile,
-  type ProfileVault
-} from "@metaverse-systems/llm-tutor-shared/llm";
+import { type ProfileVault } from "@metaverse-systems/llm-tutor-shared/llm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Buffer } from "node:buffer";
 import * as http from "node:http";
@@ -17,8 +13,7 @@ import {
   type CreateProfilePayload,
   type UpdateProfilePayload,
   type DeleteProfilePayload,
-  type ActivateProfilePayload,
-  API_KEY_PLACEHOLDER
+  type ActivateProfilePayload
 } from "../../services/llm/profile.service.js";
 import { TestPromptService } from "../../services/llm/test-prompt.service.js";
 
@@ -87,7 +82,7 @@ function getErrorInfo(error: unknown): { code?: string; message: string; name?: 
     const errorObj = error as Record<string, unknown>;
     return {
       code: typeof errorObj.code === "string" ? errorObj.code : undefined,
-      message: typeof errorObj.message === "string" ? errorObj.message : String(error),
+      message: typeof errorObj.message === "string" ? errorObj.message : "Unknown error",
       name: typeof errorObj.name === "string" ? errorObj.name : undefined,
       details: errorObj.details
     };
@@ -102,16 +97,20 @@ function createHttpFetch(): typeof fetch {
     const protocol = url.protocol === "https:" ? https : http;
     
     return new Promise((resolve, reject) => {
-      const options = {
+      const headers = (init?.headers as Record<string, string>) || {};
+      const requestOptions: http.RequestOptions = {
         hostname: url.hostname,
-        port: url.port || (url.protocol === "https:" ? 443 : 80),
+        port: url.port ? Number(url.port) : url.protocol === "https:" ? 443 : 80,
         path: url.pathname + url.search,
-        method: init?.method || "GET",
-        headers: init?.headers as Record<string, string> || {},
-        signal: init?.signal
+        method: init?.method ?? "GET",
+        headers
       };
-      
-      const req = protocol.request(options, (res) => {
+
+      if (init?.signal) {
+        requestOptions.signal = init.signal;
+      }
+
+      const req = protocol.request(requestOptions, (res) => {
         let data = "";
         res.on("data", (chunk) => { data += chunk; });
         res.on("end", () => {
@@ -133,7 +132,9 @@ function createHttpFetch(): typeof fetch {
       }
       
       if (init?.body) {
-        req.write(init.body);
+        if (typeof init.body === "string" || init.body instanceof Buffer) {
+          req.write(init.body);
+        }
       }
       
       req.end();
@@ -164,11 +165,17 @@ export async function registerProfileRoutes(
   const diagnosticsLogger = options.diagnosticsLogger ?? null;
   
   if (!profileService || !testPromptService) {
+    let vaultData: ProfileVault | undefined;
     const inMemoryVaultStore: ProfileVaultStore = {
-      data: null as ProfileVault | undefined,
-      get() { return this.data; },
-      set(value: ProfileVault) { this.data = value; },
-      clear() { this.data = undefined; }
+      get() {
+        return vaultData;
+      },
+      set(value: ProfileVault) {
+        vaultData = value;
+      },
+      clear() {
+        vaultData = undefined;
+      }
     };
 
     const vaultService = options.vaultService || new ProfileVaultService({ store: inMemoryVaultStore });
@@ -217,7 +224,7 @@ export async function registerProfileRoutes(
         timestamp: Date.now()
       });
     } catch (error: unknown) {
-      const { code, message, details: _details } = getErrorInfo(error);
+      const { code, message } = getErrorInfo(error);
       
       if (code === "VAULT_READ_ERROR") {
         return reply.code(500).send({
@@ -340,7 +347,7 @@ export async function registerProfileRoutes(
         timestamp: Date.now()
       });
     } catch (error: unknown) {
-      const { code, message, details: _details } = getErrorInfo(error);
+      const { code, message, details } = getErrorInfo(error);
       
       if (code === "PROFILE_NOT_FOUND") {
         return reply.code(404).send({
@@ -540,8 +547,7 @@ export async function registerProfileRoutes(
       
       const result = await testPromptService.testPrompt({
         profileId,
-        promptText: body.promptOverride || "Hello, this is a test prompt.",
-        timeoutMs: body.timeoutMs
+        promptText: body.promptOverride || "Hello, this is a test prompt."
       });
       
       // Record diagnostics event

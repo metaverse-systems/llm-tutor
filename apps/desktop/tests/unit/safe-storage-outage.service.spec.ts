@@ -1,5 +1,9 @@
+import type { SafeStorageOutageState } from "@metaverse-systems/llm-tutor-shared/src/contracts/llm-profile-ipc";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+
 import { SafeStorageOutageService } from "../../src/main/services/safe-storage-outage.service";
+
+const makeUuid = (index: number): string => `00000000-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
 
 describe("SafeStorageOutageService", () => {
   let mockNow: () => number;
@@ -26,7 +30,7 @@ describe("SafeStorageOutageService", () => {
         isActive: true,
         startedAt: 500000,
         resolvedAt: null,
-        blockedRequestIds: ["req-1"]
+        blockedRequestIds: [makeUuid(1)]
       };
 
       const service = new SafeStorageOutageService({ initialState });
@@ -34,7 +38,7 @@ describe("SafeStorageOutageService", () => {
 
       expect(state.isActive).toBe(true);
       expect(state.startedAt).toBe(500000);
-      expect(state.blockedRequestIds).toEqual(["req-1"]);
+      expect(state.blockedRequestIds).toEqual([makeUuid(1)]);
     });
 
     it("uses provided now function", () => {
@@ -105,7 +109,7 @@ describe("SafeStorageOutageService", () => {
           isActive: false,
           startedAt: null,
           resolvedAt: 900000,
-          blockedRequestIds: ["old-req"]
+          blockedRequestIds: [makeUuid(2)]
         }
       });
 
@@ -132,7 +136,7 @@ describe("SafeStorageOutageService", () => {
     it("transitions from active to inactive", () => {
       const service = new SafeStorageOutageService({
         now: mockNow,
-        initialState: { isActive: true, startedAt: 900000, resolvedAt: null, blockedRequestIds: ["req-1"] }
+        initialState: { isActive: true, startedAt: 900000, resolvedAt: null, blockedRequestIds: [makeUuid(3)] }
       });
 
       const result = service.resolveOutage();
@@ -149,7 +153,7 @@ describe("SafeStorageOutageService", () => {
           isActive: true,
           startedAt: 900000,
           resolvedAt: null,
-          blockedRequestIds: ["req-1", "req-2", "req-3"]
+          blockedRequestIds: [makeUuid(4), makeUuid(5), makeUuid(6)]
         }
       });
 
@@ -196,11 +200,14 @@ describe("SafeStorageOutageService", () => {
         initialState: { isActive: true, startedAt: 900000, resolvedAt: null, blockedRequestIds: [] }
       });
 
-      service.recordBlockedRequest("req-1");
-      expect(service.getState().blockedRequestIds).toEqual(["req-1"]);
+      const firstId = makeUuid(4);
+      const secondId = makeUuid(5);
 
-      service.recordBlockedRequest("req-2");
-      expect(service.getState().blockedRequestIds).toEqual(["req-1", "req-2"]);
+      service.recordBlockedRequest(firstId);
+      expect(service.getState().blockedRequestIds).toEqual([firstId]);
+
+      service.recordBlockedRequest(secondId);
+      expect(service.getState().blockedRequestIds).toEqual([firstId, secondId]);
     });
 
     it("does not record duplicate request IDs", () => {
@@ -208,17 +215,18 @@ describe("SafeStorageOutageService", () => {
         initialState: { isActive: true, startedAt: 900000, resolvedAt: null, blockedRequestIds: [] }
       });
 
-      service.recordBlockedRequest("req-1");
-      service.recordBlockedRequest("req-1");
-      service.recordBlockedRequest("req-1");
+      const id = makeUuid(6);
+      service.recordBlockedRequest(id);
+      service.recordBlockedRequest(id);
+      service.recordBlockedRequest(id);
 
-      expect(service.getState().blockedRequestIds).toEqual(["req-1"]);
+      expect(service.getState().blockedRequestIds).toEqual([id]);
     });
 
     it("ignores blocked requests when outage is not active", () => {
       const service = new SafeStorageOutageService();
 
-      service.recordBlockedRequest("req-1");
+      service.recordBlockedRequest(makeUuid(7));
       expect(service.getState().blockedRequestIds).toEqual([]);
     });
 
@@ -295,20 +303,26 @@ describe("SafeStorageOutageService", () => {
         initialState: { isActive: true, startedAt: 900000, resolvedAt: null, blockedRequestIds: [] }
       });
 
-      let receivedState1: any;
-      let receivedState2: any;
+      let receivedState1: SafeStorageOutageState | undefined;
+      let receivedState2: SafeStorageOutageState | undefined;
 
       service.onStateChange((state) => {
         receivedState1 = state;
       });
 
-      service.recordBlockedRequest("req-1");
+      service.recordBlockedRequest(makeUuid(8));
 
       service.onStateChange((state) => {
         receivedState2 = state;
       });
 
-      service.recordBlockedRequest("req-2");
+      service.recordBlockedRequest(makeUuid(9));
+
+      expect(receivedState1).toBeDefined();
+      expect(receivedState2).toBeDefined();
+      if (!receivedState1 || !receivedState2) {
+        throw new Error("Expected listeners to receive state updates");
+      }
 
       expect(receivedState1).not.toBe(receivedState2);
       expect(receivedState1.blockedRequestIds).not.toBe(receivedState2.blockedRequestIds);
@@ -343,7 +357,7 @@ describe("SafeStorageOutageService", () => {
   describe("state transitions", () => {
     it("tracks full outage lifecycle", () => {
       const service = new SafeStorageOutageService({ now: mockNow });
-      const stateHistory: any[] = [];
+      const stateHistory: SafeStorageOutageState[] = [];
 
       service.onStateChange((state) => stateHistory.push(state));
 
@@ -352,8 +366,8 @@ describe("SafeStorageOutageService", () => {
       service.startOutage();
 
       // Record some blocked requests
-      service.recordBlockedRequest("req-1");
-      service.recordBlockedRequest("req-2");
+      service.recordBlockedRequest(makeUuid(10));
+      service.recordBlockedRequest(makeUuid(11));
 
       // Resolve outage
       currentTime = 2000;
@@ -371,13 +385,13 @@ describe("SafeStorageOutageService", () => {
       // First request blocked
       expect(stateHistory[1]).toMatchObject({
         isActive: true,
-        blockedRequestIds: ["req-1"]
+        blockedRequestIds: [makeUuid(10)]
       });
 
       // Second request blocked
       expect(stateHistory[2]).toMatchObject({
         isActive: true,
-        blockedRequestIds: ["req-1", "req-2"]
+        blockedRequestIds: [makeUuid(10), makeUuid(11)]
       });
 
       // Outage resolved
@@ -394,7 +408,7 @@ describe("SafeStorageOutageService", () => {
       // First outage
       currentTime = 1000;
       service.startOutage();
-      service.recordBlockedRequest("req-1");
+      service.recordBlockedRequest(makeUuid(12));
 
       currentTime = 2000;
       service.resolveOutage();
@@ -406,7 +420,7 @@ describe("SafeStorageOutageService", () => {
 
       expect(state.isActive).toBe(true);
       expect(state.startedAt).toBe(3000);
-      expect(state.resolvedAt).toBe(2000);
+      expect(state.resolvedAt).toBeNull();
       expect(state.blockedRequestIds).toEqual([]);
     });
   });
