@@ -1,12 +1,15 @@
+import {
+	createDefaultTelemetryPreference,
+	createOptInTelemetryPreference,
+	parseTelemetryPreference,
+	type TelemetryPreference
+} from "@metaverse-systems/llm-tutor-shared";
 import { useState, useEffect } from "react";
 
-interface TelemetryState {
-	enabled: boolean;
-	consentTimestamp?: number;
-}
-
 export function GeneralSection() {
-	const [telemetryState, setTelemetryState] = useState<TelemetryState>({ enabled: false });
+	const [telemetryState, setTelemetryState] = useState<TelemetryPreference>(
+		createDefaultTelemetryPreference()
+	);
 	const [isLoading, setIsLoading] = useState(true);
 
 	// Load telemetry state on mount
@@ -21,7 +24,9 @@ export function GeneralSection() {
 					// Web fallback - read from localStorage
 					const stored = localStorage.getItem("telemetry-preference");
 					if (stored) {
-						setTelemetryState(JSON.parse(stored));
+						setTelemetryState(parseTelemetryPreference(JSON.parse(stored)));
+					} else {
+						setTelemetryState(createDefaultTelemetryPreference());
 					}
 				}
 			} catch (error) {
@@ -31,7 +36,7 @@ export function GeneralSection() {
 			}
 		};
 
-		loadTelemetryState();
+		void loadTelemetryState();
 	}, []);
 
 	const handleTelemetryToggle = async () => {
@@ -39,17 +44,16 @@ export function GeneralSection() {
 		setIsLoading(true);
 
 		try {
-			let newState: TelemetryState;
+			let newState: TelemetryPreference;
 
 			// Check if we're in Electron environment
 			if (window.llmTutor?.settings?.telemetry?.setState) {
 				newState = await window.llmTutor.settings.telemetry.setState({ enabled: newEnabled });
 			} else {
 				// Web fallback - save to localStorage
-				newState = {
-					enabled: newEnabled,
-					consentTimestamp: newEnabled ? Date.now() : undefined
-				};
+				newState = newEnabled
+					? createOptInTelemetryPreference()
+					: createDefaultTelemetryPreference();
 				localStorage.setItem("telemetry-preference", JSON.stringify(newState));
 			}
 
@@ -76,10 +80,14 @@ export function GeneralSection() {
 			<div className="space-y-6">
 				{/* Theme selector placeholder */}
 				<div>
-					<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+					<label
+						htmlFor="settings-theme-select"
+						className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+					>
 						Theme
 					</label>
 					<select
+						id="settings-theme-select"
 						className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
 						defaultValue="system"
 					>

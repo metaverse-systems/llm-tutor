@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react";
-import { Header } from "../../components/Header/Header";
+import type { MouseEvent } from "react";
+
+import { DiagnosticsSection } from "./DiagnosticsSection";
 import { GeneralSection } from "./GeneralSection";
 import { LLMProfilesSection } from "./LLMProfilesSection";
-import { DiagnosticsSection } from "./DiagnosticsSection";
+import { Header } from "../../components/Header/Header";
 
 export function SettingsPage() {
 	const headingRef = useRef<HTMLHeadingElement>(null);
@@ -14,8 +16,8 @@ export function SettingsPage() {
 		}
 	}, []);
 
-	const handleReturnToPrevious = (e: React.MouseEvent | React.KeyboardEvent) => {
-		e.preventDefault();
+	const handleReturnToPrevious = (event: MouseEvent<HTMLButtonElement>) => {
+		event.preventDefault();
 		// Navigate back to previous view
 		if (window.history.length > 1) {
 			window.history.back();
@@ -30,19 +32,17 @@ export function SettingsPage() {
 			<Header />
 			<main className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
 				<div className="max-w-4xl mx-auto">
-					{/* Skip link for returning to previous view */}
-					<a
-						href="#"
+					{/* Skip control for returning to previous view */}
+					<button
+						type="button"
 						onClick={handleReturnToPrevious}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								handleReturnToPrevious(e);
-							}
-						}}
-						className="inline-block mb-4 text-blue-600 dark:text-blue-400 underline focus:outline-none focus:ring-2 focus:ring-blue-500"
+						className="inline-flex items-center mb-4 text-blue-600 dark:text-blue-400 underline focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
-						← Return to previous view
-					</a>
+						<span aria-hidden="true" className="mr-1">
+							←
+						</span>
+						Return to previous view
+					</button>
 
 					{/* Main heading with auto-focus */}
 					<h1
