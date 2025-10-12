@@ -17,6 +17,8 @@ const RESPONSE_TRUNCATION_SUFFIX = "..." as const;
 const HOSTNAME_KEYS = new Set(["endpointUrl", "discoveredUrl"]);
 const OMITTED_KEYS = new Set(["apiKey"]);
 const TRUNCATED_KEYS = new Set(["responseText"]);
+const MAX_TRANSCRIPT_MESSAGE_LENGTH = 500;
+const MAX_MESSAGE_PREVIEW_LENGTH = 120;
 
 export interface LlmProfileCreatedDiagnosticsEvent {
 	type: "llm_profile_created";
@@ -174,6 +176,10 @@ function deepCloneAndSanitize(
 		if (typeof value === "string" && currentKey && TRUNCATED_KEYS.has(currentKey)) {
 			return truncateResponseText(value);
 		}
+		// Handle transcript message text truncation
+		if (typeof value === "string" && currentKey === "text") {
+			return truncateTranscriptMessage(value);
+		}
 		return value;
 	}
 
@@ -188,8 +194,15 @@ function deepCloneAndSanitize(
 	if (Array.isArray(value)) {
 		const result: unknown[] = [];
 		seen.set(value, result);
-		for (const entry of value) {
-			result.push(deepCloneAndSanitize(entry, undefined, seen));
+		// Special handling for transcript messages array
+		if (currentKey === "messages") {
+			for (const entry of value) {
+				result.push(deepCloneAndSanitize(entry, "message", seen));
+			}
+		} else {
+			for (const entry of value) {
+				result.push(deepCloneAndSanitize(entry, undefined, seen));
+			}
 		}
 		return result;
 	}
@@ -251,6 +264,16 @@ function truncateResponseText(value: string): string {
 	}
 
 	const sliceLength = Math.max(0, MAX_RESPONSE_LENGTH - RESPONSE_TRUNCATION_SUFFIX.length);
+	return `${value.slice(0, sliceLength)}${RESPONSE_TRUNCATION_SUFFIX}`;
+}
+
+function truncateTranscriptMessage(value: string): string {
+	// For transcript messages within diagnostics, limit to MAX_MESSAGE_PREVIEW_LENGTH (120 chars)
+	if (value.length <= MAX_MESSAGE_PREVIEW_LENGTH) {
+		return value;
+	}
+
+	const sliceLength = Math.max(0, MAX_MESSAGE_PREVIEW_LENGTH - RESPONSE_TRUNCATION_SUFFIX.length);
 	return `${value.slice(0, sliceLength)}${RESPONSE_TRUNCATION_SUFFIX}`;
 }
 
