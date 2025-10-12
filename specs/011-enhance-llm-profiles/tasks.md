@@ -14,15 +14,15 @@
 ## Task List
 
 ### Phase 3.1: Shared & Contract Tests (write first, ensure failures)
-- [ ] **T001** Extend `packages/shared/tests/llm/schemas.test.ts` with failing cases covering `TranscriptMessage` parsing, 500-character truncation flags, success/failure transcript requirements, and three-exchange history limits on `TestPromptResultSchema`.
-- [ ] **T002 [P]** Update `packages/shared/tests/contracts/llm-profile-ipc.schema.test.ts` to assert the enriched `TestProfileResponseSchema`, including `transcript.status`, `messages[0].role`, `messages[0].truncated`, and sanitized metadata via `sanitizeDiagnosticsMetadata`.
-- [ ] **T003 [P]** Amend `apps/backend/tests/contract/llm/test-prompt.contract.test.ts` so HTTP responses must return the structured transcript payload (success with two messages, error hiding transcript, timeout status mapping).
-- [ ] **T004 [P]** Expand `apps/desktop/tests/contract/profile-ipc/llm-profile-ipc.contract.test.ts` to require the IPC `TestProfileResponseSchema` to surface transcript messages, latency/status chips, and omit transcript data for failures.
-- [ ] **T005 [P]** Strengthen `apps/desktop/tests/integration/profile-ipc/test-prompt.integration.test.ts` to expect diagnostics breadcrumbs with `historyDepth`, redacted `messagePreview`, and transcript message arrays in the IPC success path.
+- [x] **T001** Extend `packages/shared/tests/llm/schemas.test.ts` with failing cases covering `TranscriptMessage` parsing, 500-character truncation flags, success/failure transcript requirements, and three-exchange history limits on `TestPromptResultSchema`.
+- [x] **T002 [P]** Update `packages/shared/tests/contracts/llm-profile-ipc.schema.test.ts` to assert the enriched `TestProfileResponseSchema`, including `transcript.status`, `messages[0].role`, `messages[0].truncated`, and sanitized metadata via `sanitizeDiagnosticsMetadata`.
+- [x] **T003 [P]** Amend `apps/backend/tests/contract/llm/test-prompt.contract.test.ts` so HTTP responses must return the structured transcript payload (success with two messages, error hiding transcript, timeout status mapping).
+- [x] **T004 [P]** Expand `apps/desktop/tests/contract/profile-ipc/llm-profile-ipc.contract.test.ts` to require the IPC `TestProfileResponseSchema` to surface transcript messages, latency/status chips, and omit transcript data for failures.
+- [x] **T005 [P]** Strengthen `apps/desktop/tests/integration/profile-ipc/test-prompt.integration.test.ts` to expect diagnostics breadcrumbs with `historyDepth`, redacted `messagePreview`, and transcript message arrays in the IPC success path.
 
 ### Phase 3.2: Backend Service & Diagnostics Tests (still pre-implementation)
-- [ ] **T006** Extend `apps/backend/tests/unit/test-prompt.service.spec.ts` with failing assertions covering transcript generation (user/assistant pairing, truncation flags), rolling history of three exchanges, and cleared transcripts on failure.
-- [ ] **T007 [P]** Update `apps/backend/tests/unit/diagnostics-logger.spec.ts` to verify transcript message sanitization, `historyDepth` metadata, and stable redaction of previews in logged events.
+- [x] **T006** Extend `apps/backend/tests/unit/test-prompt.service.spec.ts` with failing assertions covering transcript generation (user/assistant pairing, truncation flags), rolling history of three exchanges, and cleared transcripts on failure.
+- [x] **T007 [P]** Update `apps/backend/tests/unit/diagnostics-logger.spec.ts` to verify transcript message sanitization, `historyDepth` metadata, and stable redaction of previews in logged events.
 
 ### Phase 3.3: Frontend Tests (last test gate before implementation)
 - [ ] **T008** Enhance `apps/frontend/tests/components/LLMProfiles/TestConnectionButton.test.tsx` (or new companion spec) with failing expectations for transcript panel rendering, collapse/expand focus handling, aria-live messaging, and latency/status pill output.
@@ -32,15 +32,15 @@
 > ⚠️ Do not proceed to implementation tasks until T001–T010 are in place and observed failing.
 
 ### Phase 3.4: Shared Schema & Contract Implementation
-- [ ] **T011** Implement transcript types in `packages/shared/src/llm/schemas.ts` (`TranscriptMessageSchema`, `TestTranscriptSchema`, updated `TestPromptResultSchema`) and export them via `@metaverse-systems/llm-tutor-shared/llm`.
-- [ ] **T012** Refine `packages/shared/src/contracts/llm-profile-ipc.ts` so `TestProfileResponseSchema` carries the new transcript structure, extend `sanitizeDiagnosticsMetadata` for `messagePreview`/`historyDepth`, and add helpers for transcript previews.
-- [ ] **T013** Regenerate shared type exports (e.g., barrel files or generated d.ts) if required so desktop/frontend consumers receive the new transcript definitions without manual patching.
+- [x] **T011** Implement transcript types in `packages/shared/src/llm/schemas.ts` (`TranscriptMessageSchema`, `TestTranscriptSchema`, updated `TestPromptResultSchema`) and export them via `@metaverse-systems/llm-tutor-shared/llm`.
+- [x] **T012** Refine `packages/shared/src/contracts/llm-profile-ipc.ts` so `TestProfileResponseSchema` carries the new transcript structure, extend `sanitizeDiagnosticsMetadata` for `messagePreview`/`historyDepth`, and add helpers for transcript previews.
+- [x] **T013** Regenerate shared type exports (e.g., barrel files or generated d.ts) if required so desktop/frontend consumers receive the new transcript definitions without manual patching.
 
 ### Phase 3.5: Backend Transcript Pipeline
-- [ ] **T014** Introduce an in-memory transcript cache (e.g., `apps/backend/src/services/llm/test-transcript.store.ts`) that stores up to three exchanges per profile with timestamps and truncation metadata.
-- [ ] **T015** Refactor `apps/backend/src/services/llm/test-prompt.service.ts` to build `TranscriptMessage[]` from prompt/response, flag truncation, update the cache, and clear history on failure while preserving existing diagnostics hooks.
-- [ ] **T016** Update `apps/backend/src/api/llm/profile.routes.ts` to return the cached transcript block with status/latency/remediation fields and surface `historyDepth` in diagnostics events.
-- [ ] **T017** Enhance `apps/backend/src/infra/logging/diagnostics-logger.ts` to redact transcript messages (500-char limit), include `messagePreview`, and persist `historyDepth` metadata without exposing raw prompts.
+- [x] **T014** Introduce an in-memory transcript cache (e.g., `apps/backend/src/services/llm/test-transcript.store.ts`) that stores up to three exchanges per profile with timestamps and truncation metadata.
+- [x] **T015** Refactor `apps/backend/src/services/llm/test-prompt.service.ts` to build `TranscriptMessage[]` from prompt/response, flag truncation, update the cache, and clear history on failure while preserving existing diagnostics hooks.
+- [x] **T016** Update `apps/backend/src/api/llm/profile.routes.ts` to return the cached transcript block with status/latency/remediation fields and surface `historyDepth` in diagnostics events.
+- [x] **T017** Enhance `apps/backend/src/infra/logging/diagnostics-logger.ts` to redact transcript messages (500-char limit), include `messagePreview`, and persist `historyDepth` metadata without exposing raw prompts.
 
 ### Phase 3.6: Desktop IPC & Diagnostics Integration
 - [ ] **T018** Adjust `apps/desktop/src/main/ipc/profile-ipc.router.ts` to map backend transcripts into the IPC response, normalize previews, enrich breadcrumbs with `{ messagePreview, historyDepth }`, and respect request budget checks.
