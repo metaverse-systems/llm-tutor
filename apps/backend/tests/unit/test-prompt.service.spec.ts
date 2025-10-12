@@ -244,7 +244,7 @@ describe("TestPromptService", () => {
 	it("generates transcript with user and assistant message pair", async () => {
 		const profile = createProfile();
 		const harness = createHarness({ profiles: [profile] });
-		queuePerformanceTimes([0, 150]);
+		queuePerformanceTimes([0, 150, 150]);
 
 		const result = await harness.service.testPrompt({ promptText: "Test prompt" });
 
@@ -270,7 +270,7 @@ describe("TestPromptService", () => {
 		const profile = createProfile();
 		const longPrompt = "a".repeat(600);
 		const harness = createHarness({ profiles: [profile] });
-		queuePerformanceTimes([0, 150]);
+		queuePerformanceTimes([0, 150, 150]);
 
 		const result = await harness.service.testPrompt({ promptText: longPrompt });
 
@@ -295,7 +295,7 @@ describe("TestPromptService", () => {
 			)
 		);
 		const harness = createHarness({ profiles: [profile], fetchImplementation: fetchMock });
-		queuePerformanceTimes([0, 150]);
+		queuePerformanceTimes([0, 150, 150]);
 
 		const result = await harness.service.testPrompt();
 
@@ -311,19 +311,19 @@ describe("TestPromptService", () => {
 		const harness = createHarness({ profiles: [profile] });
 		
 		// First exchange
-		queuePerformanceTimes([0, 100]);
+		queuePerformanceTimes([0, 100, 100]);
 		await harness.service.testPrompt({ promptText: "First" });
 		
 		// Second exchange
-		queuePerformanceTimes([0, 100]);
+		queuePerformanceTimes([0, 100, 100]);
 		await harness.service.testPrompt({ promptText: "Second" });
 		
 		// Third exchange
-		queuePerformanceTimes([0, 100]);
+		queuePerformanceTimes([0, 100, 100]);
 		await harness.service.testPrompt({ promptText: "Third" });
 		
 		// Fourth exchange should drop the first
-		queuePerformanceTimes([0, 100]);
+		queuePerformanceTimes([0, 100, 100]);
 		const result = await harness.service.testPrompt({ promptText: "Fourth" });
 
 		expect(result.transcript.messages.length).toBeLessThanOrEqual(6); // Max 3 exchanges = 6 messages
