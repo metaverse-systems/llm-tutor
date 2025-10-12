@@ -2,7 +2,6 @@ import type { ProfileVault } from "@metaverse-systems/llm-tutor-shared/llm";
 import { Buffer } from "node:buffer";
 import { z } from "zod";
 
-import type { LlmContractTestHarness, ProfileVaultSeed } from "../../../tests/contract/llm/helpers.js";
 import { EncryptionService } from "../../infra/encryption/index.js";
 import { ProfileVaultService, ProfileVaultReadError, ProfileVaultWriteError, type ProfileVaultStore } from "../../services/llm/profile-vault.js";
 import { ProfileService, type ActivateProfilePayload, type CreateProfilePayload, type DeleteProfilePayload, type UpdateProfilePayload } from "../../services/llm/profile.service.js";
@@ -22,6 +21,26 @@ interface TestState {
 		probedPorts?: number[];
 	} | null;
 	discoveryError: Error | null;
+}
+
+type ProfileVaultSeed = ProfileVault;
+
+export interface LlmContractTestHarness {
+	invoke(channel: string, payload?: unknown): Promise<unknown>;
+	seedVault(seed: ProfileVaultSeed): Promise<void>;
+	clearVault(): Promise<void>;
+	simulateVaultReadError(error?: Error): Promise<void>;
+	simulateVaultWriteError(error?: Error): Promise<void>;
+	simulateDiscoveryResult?(result: {
+		discovered: boolean;
+		discoveredUrl: string | null;
+		profileCreated: boolean;
+		profileId: string | null;
+		probedPorts?: number[];
+	}): Promise<void>;
+	simulateDiscoveryError?(error?: Error): Promise<void>;
+	readDiagnosticsEvents?(): Promise<unknown[]>;
+	close(): Promise<void>;
 }
 
 class InMemoryVaultStore implements ProfileVaultStore {
@@ -441,7 +460,7 @@ class ContractTestHarness implements LlmContractTestHarness {
 	}
 
 	seedVault(seed: ProfileVaultSeed): Promise<void> {
-		this.state.vault = seed as ProfileVault;
+		this.state.vault = seed;
 		this.state.vaultReadError = null;
 		this.state.vaultWriteError = null;
 		return Promise.resolve();
@@ -496,6 +515,6 @@ export function createLLMContractTestHarness(options?: {
 	initialVault?: ProfileVaultSeed | null;
 }): Promise<LlmContractTestHarness> {
 	return Promise.resolve(
-		new ContractTestHarness(options?.initialVault as ProfileVault | null | undefined)
+		new ContractTestHarness(options?.initialVault ?? null)
 	);
 }
