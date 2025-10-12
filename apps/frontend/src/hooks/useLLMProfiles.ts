@@ -326,13 +326,14 @@ export function useLLMProfiles(): UseLLMProfilesResult {
 
       const { profiles, encryptionAvailable, activeProfileId } = result.data;
 
-      updateState({
+      updateState((previous) => ({
+        ...previous,
         profiles: cloneProfiles(profiles),
         encryptionAvailable,
         activeProfileId,
         loading: false,
         error: null
-      });
+      }));
     } catch (error) {
       updateState((previous) => ({
         ...previous,
