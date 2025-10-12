@@ -1,0 +1,82 @@
+openapi: 3.1.0
+info:
+  title: LLM Tutor Backend - Profile Test Transcript Extension
+  version: 0.1.0
+paths:
+  /api/llm/profiles/{profileId}/test:
+    post:
+      summary: Execute a prompt test against the specified LLM profile.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                promptOverride:
+                  type: string
+                  maxLength: 500
+                timeoutMs:
+                  type: integer
+                  minimum: 1000
+                  maximum: 120000
+      responses:
+        '200':
+          description: Test completed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    nullable: true
+                    properties:
+                      status:
+                        type: string
+                        enum: [success, error, timeout]
+                      latencyMs:
+                        type: integer
+                        minimum: 0
+                      errorCode:
+                        type: string
+                        nullable: true
+                      remediation:
+                        type: string
+                        nullable: true
+                      messages:
+                        type: array
+                        minItems: 1
+                        maxItems: 3
+                        items:
+                          type: object
+                          properties:
+                            role:
+                              type: string
+                              enum: [user, assistant]
+                            text:
+                              type: string
+                              maxLength: 500
+                            truncated:
+                              type: boolean
+                          required: [role, text, truncated]
+                  timestamp:
+                    type: integer
+                    format: int64
+                required: [success, data, timestamp]
+        '409':
+          description: No active profile available for testing.
+        '500':
+          description: Internal server error.
+        '504':
+          description: Timed out while waiting for provider response.
+      security: []
