@@ -1,34 +1,48 @@
 import type { TelemetryPreference } from "@metaverse-systems/llm-tutor-shared/src/contracts/preferences";
-import type ElectronStore from "electron-store";
+import Store from "electron-store";
 
 interface TelemetryStorePayload {
 	telemetry?: TelemetryPreference;
 }
 
-let storeInstance: ElectronStore<TelemetryStorePayload> | null = null;
+interface TelemetryStore {
+	read(): TelemetryPreference | undefined;
+	write(value: TelemetryPreference): void;
+	reset(): void;
+}
+
+interface TelemetryStoreBackend {
+	get(key: "telemetry"): TelemetryPreference | undefined;
+	set(key: "telemetry", value: TelemetryPreference): void;
+}
+
+let storeInstance: TelemetryStore | null = null;
+
+function toError(value: unknown): Error {
+	return value instanceof Error ? value : new Error(String(value));
+}
 
 /**
  * Initialize the telemetry preference store
  */
-async function getStore(): Promise<ElectronStore<TelemetryStorePayload>> {
-	if (storeInstance) {
-		return storeInstance;
-	}
-
-	const ElectronStoreModule = await import("electron-store");
-	const ElectronStoreConstructor =
-		typeof ElectronStoreModule === "function"
-			? ElectronStoreModule
-			: ElectronStoreModule.default;
-
-	storeInstance = new ElectronStoreConstructor<TelemetryStorePayload>({
+function getStore(): TelemetryStore {
+	if (!storeInstance) {
+		const rawStore = new Store<TelemetryStorePayload>({
 		name: "telemetry-preferences",
 		defaults: {
 			telemetry: {
 				enabled: false
 			}
 		}
-	});
+		});
+		const backend = rawStore as unknown as TelemetryStoreBackend;
+
+		storeInstance = {
+			read: () => backend.get("telemetry"),
+			write: (value) => backend.set("telemetry", value),
+			reset: () => backend.set("telemetry", { enabled: false })
+		};
+	}
 
 	return storeInstance;
 }
@@ -37,21 +51,21 @@ async function getStore(): Promise<ElectronStore<TelemetryStorePayload>> {
  * Get the current telemetry preference state
  * Defaults to opt-out (enabled: false) on first run
  */
-export async function getTelemetryState(): Promise<TelemetryPreference> {
+export function getTelemetryState(): Promise<TelemetryPreference> {
 	try {
-		const store = await getStore();
-		const telemetry = store.get("telemetry");
+		const store = getStore();
+		const telemetry = store.read();
 		
 		// Ensure opt-out default
 		if (!telemetry || typeof telemetry.enabled !== "boolean") {
-			return { enabled: false };
+			return Promise.resolve({ enabled: false });
 		}
-		
-		return telemetry;
+
+		return Promise.resolve(telemetry);
 	} catch (error) {
 		console.error("Failed to get telemetry state:", error);
 		// Return opt-out default on error
-		return { enabled: false };
+		return Promise.resolve({ enabled: false });
 	}
 }
 
@@ -59,9 +73,9 @@ export async function getTelemetryState(): Promise<TelemetryPreference> {
  * Set the telemetry preference state
  * Records consent timestamp when enabling
  */
-export async function setTelemetryState(update: { enabled: boolean }): Promise<TelemetryPreference> {
+export function setTelemetryState(update: { enabled: boolean }): Promise<TelemetryPreference> {
 	try {
-		const store = await getStore();
+		const store = getStore();
 		
 		const newState: TelemetryPreference = {
 			enabled: update.enabled,
@@ -69,24 +83,25 @@ export async function setTelemetryState(update: { enabled: boolean }): Promise<T
 			consentTimestamp: update.enabled ? Date.now() : undefined
 		};
 		
-		store.set("telemetry", newState);
-		
-		return newState;
+		store.write(newState);
+
+		return Promise.resolve(newState);
 	} catch (error) {
 		console.error("Failed to set telemetry state:", error);
-		throw error;
+		return Promise.reject(toError(error));
 	}
 }
 
 /**
  * Reset telemetry preferences to default opt-out state
  */
-export async function resetTelemetryState(): Promise<void> {
+export function resetTelemetryState(): Promise<void> {
 	try {
-		const store = await getStore();
-		store.set("telemetry", { enabled: false });
+		const store = getStore();
+		store.reset();
+		return Promise.resolve();
 	} catch (error) {
 		console.error("Failed to reset telemetry state:", error);
-		throw error;
+		return Promise.reject(toError(error));
 	}
 }

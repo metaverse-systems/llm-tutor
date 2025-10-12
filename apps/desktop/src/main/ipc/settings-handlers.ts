@@ -25,13 +25,15 @@ const SETTINGS_IPC_CHANNELS = Object.freeze({
 	telemetrySet: "settings:telemetry:set"
 });
 
+const noop = () => undefined;
+
 export function createSettingsIpcHandlers(
 	options: SettingsIpcHandlerOptions
 ): SettingsIpcHandlerRegistration {
 	const { ipcMain, settingsService, getMainWindow } = options;
 
 	if (!ipcMain) {
-		return { unregister: () => {} };
+		return { unregister: noop };
 	}
 
 	// Handle navigation to settings
