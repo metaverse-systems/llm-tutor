@@ -61,7 +61,14 @@ export const TestTranscriptPanel: React.FC<TestTranscriptPanelProps> = ({
       
       {transcripts.map((transcript, index) => {
         const isExpanded = expandedIndex === index;
-        const hasMessages = transcript.transcript.messages.length > 0;
+        const transcriptData = transcript.transcript;
+        
+        // Handle case where transcript is not yet populated
+        if (!transcriptData) {
+          return null;
+        }
+        
+        const hasMessages = transcriptData.messages?.length > 0;
         
         return (
           <div
@@ -78,21 +85,21 @@ export const TestTranscriptPanel: React.FC<TestTranscriptPanelProps> = ({
             >
               <div className="settings__transcript-header-content">
                 <span
-                  className={`settings__transcript-status ${getStatusClass(transcript.transcript.status)}`}
+                  className={`settings__transcript-status ${getStatusClass(transcriptData.status)}`}
                   data-testid={`transcript-status-${index}`}
                 >
-                  {getStatusLabel(transcript.transcript.status)}
+                  {getStatusLabel(transcriptData.status)}
                 </span>
                 
-                {transcript.transcript.latencyMs !== null && (
+                {transcriptData.latencyMs !== null && (
                   <span className="settings__transcript-latency">
-                    {formatLatency(transcript.transcript.latencyMs)}
+                    {formatLatency(transcriptData.latencyMs)}
                   </span>
                 )}
                 
                 {hasMessages && (
                   <span className="settings__transcript-message-count">
-                    {transcript.transcript.messages.length} messages
+                    {transcriptData.messages.length} messages
                   </span>
                 )}
               </div>
@@ -114,7 +121,7 @@ export const TestTranscriptPanel: React.FC<TestTranscriptPanelProps> = ({
               >
                 {hasMessages ? (
                   <div className="settings__transcript-messages">
-                    {transcript.transcript.messages.map((message, msgIndex) => (
+                    {transcriptData.messages.map((message, msgIndex) => (
                       <div
                         key={msgIndex}
                         className={`settings__transcript-message settings__transcript-message--${message.role}`}
@@ -141,14 +148,14 @@ export const TestTranscriptPanel: React.FC<TestTranscriptPanelProps> = ({
                   </div>
                 ) : (
                   <div className="settings__transcript-error">
-                    {transcript.transcript.errorCode && (
+                    {transcriptData.errorCode && (
                       <div className="settings__transcript-error-code">
-                        Error: {transcript.transcript.errorCode}
+                        Error: {transcriptData.errorCode}
                       </div>
                     )}
-                    {transcript.transcript.remediation && (
+                    {transcriptData.remediation && (
                       <div className="settings__transcript-error-remediation">
-                        {transcript.transcript.remediation}
+                        {transcriptData.remediation}
                       </div>
                     )}
                   </div>
