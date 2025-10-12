@@ -36,6 +36,8 @@ import {
   registerLLMHandlers,
   type LlmIpcRegistration
 } from "./main/llm/ipc-handlers";
+import { navigateToSettings } from "./main/services/navigation";
+import { getTelemetryState, setTelemetryState } from "./main/services/preferences";
 import { SafeStorageOutageService } from "./main/services/safe-storage-outage.service";
 import {
   EncryptionService,
@@ -80,6 +82,13 @@ let diagnosticsEventLogger: DiagnosticsLogger | null = null;
 let profileIpcRouter: ProfileIpcRouterRegistration | null = null;
 let profileDiagnosticsRecorder: ProfileIpcDiagnosticsRecorder | null = null;
 let safeStorageOutageService: SafeStorageOutageService | null = null;
+let settingsIpcRegistration: { unregister(): void } | null = null;
+
+const SETTINGS_IPC_CHANNELS = Object.freeze({
+  navigate: "settings:navigate",
+  telemetryGet: "settings:telemetry:get",
+  telemetrySet: "settings:telemetry:set"
+});
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -286,7 +295,7 @@ async function setupLlmSubsystem(): Promise<void> {
 
   const profileServiceHandlers: ProfileServiceHandlers = {
     listProfiles: async (filter?: ProfileListFilter) => {
-  const result = await profileService.listProfiles();
+      const result = await profileService.listProfiles();
       const summaries = result.profiles.map((profile) =>
         ProfileSummarySchema.parse({
           id: String(profile.id),
@@ -321,7 +330,7 @@ async function setupLlmSubsystem(): Promise<void> {
         consentTimestamp: draftProfile.consentTimestamp ?? null
       };
 
-  const result = await profileService.createProfile(payload);
+    const result = await profileService.createProfile(payload);
 
       return {
         profile: ProfileSummarySchema.parse({
@@ -422,6 +431,34 @@ void app
     // Create window first to ensure it's available for testing
     createWindow();
 
+    settingsIpcRegistration?.unregister();
+
+    ipcMain.handle(SETTINGS_IPC_CHANNELS.navigate, async () => {
+      const window = mainWindow;
+      if (window) {
+        await navigateToSettings(window);
+      }
+    });
+
+    ipcMain.handle(SETTINGS_IPC_CHANNELS.telemetryGet, async () => {
+      return await getTelemetryState();
+    });
+
+    ipcMain.handle(
+      SETTINGS_IPC_CHANNELS.telemetrySet,
+      async (_event, update: { enabled: boolean }) => {
+        return await setTelemetryState(update);
+      }
+    );
+
+    settingsIpcRegistration = {
+      unregister: () => {
+        ipcMain.removeHandler(SETTINGS_IPC_CHANNELS.navigate);
+        ipcMain.removeHandler(SETTINGS_IPC_CHANNELS.telemetryGet);
+        ipcMain.removeHandler(SETTINGS_IPC_CHANNELS.telemetrySet);
+      }
+    };
+
     diagnosticsManager = new DiagnosticsManager({
       resolveBackendEntry,
       getLogger: () => console,
@@ -465,6 +502,8 @@ void app
       "Unable to start the desktop shell. Check the logs for details."
     );
     diagnosticsEventLogger = null;
+    settingsIpcRegistration?.unregister();
+    settingsIpcRegistration = null;
     profileIpcRouter?.dispose();
     profileIpcRouter = null;
     profileDiagnosticsRecorder = null;
@@ -485,6 +524,8 @@ app.on("before-quit", () => {
 app.on("quit", () => {
   diagnosticsIpc?.dispose();
   diagnosticsIpc = null;
+  settingsIpcRegistration?.unregister();
+  settingsIpcRegistration = null;
   void diagnosticsManager?.shutdown();
   diagnosticsManager = null;
   llmRegistration?.dispose();

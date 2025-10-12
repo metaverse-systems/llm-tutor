@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { ipcRenderer } from "electron";
 
 import type { TelemetryPreference } from "../../../../packages/shared/src/contracts/preferences";
 import type { TestPromptResult } from "../../../../packages/shared/src/llm/schemas";
@@ -161,22 +161,10 @@ export function createSettingsBridge(): SettingsRendererBridge {
 	};
 }
 
-export const llmBridge = createLlmBridge();
-export const settingsBridge = createSettingsBridge();
-
-contextBridge.exposeInMainWorld(LLM_BRIDGE_KEY, llmBridge);
-
-// Expose llmTutor namespace with settings
 export const LLM_TUTOR_KEY = "llmTutor" as const;
-contextBridge.exposeInMainWorld(LLM_TUTOR_KEY, {
-	settings: settingsBridge
-});
 
 declare global {
 	interface Window {
 		llmAPI?: LlmRendererBridge;
-		llmTutor?: {
-			settings: SettingsRendererBridge;
-		};
 	}
 }
