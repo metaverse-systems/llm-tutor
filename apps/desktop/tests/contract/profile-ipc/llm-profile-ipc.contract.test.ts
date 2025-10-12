@@ -205,4 +205,94 @@ describe("LLM Profile IPC contract", () => {
       }).success
     ).toBe(true);
   });
+
+  it("requires TestProfileResponseSchema to surface transcript messages", () => {
+    const testResponseWithTranscript = {
+      profileId: "9d5b1c49-6579-476a-b8f1-f6cc35654820",
+      success: true,
+      latencyMs: 120,
+      totalTimeMs: 180,
+      modelName: "gpt-4o",
+      truncatedResponse: "Hello",
+      transcript: {
+        messages: [
+          { role: "user", text: "Hello", truncated: false },
+          { role: "assistant", text: "Hi there!", truncated: false },
+        ],
+        status: "success",
+        latencyMs: 120,
+        errorCode: null,
+        remediation: null,
+      },
+    };
+    
+    const result = ContractModule.TestProfileResponseSchema.safeParse(testResponseWithTranscript);
+    expect(result.success).toBe(true);
+    
+    if (result.success) {
+      expect(result.data.transcript).toBeDefined();
+      expect(result.data.transcript.messages).toHaveLength(2);
+      expect(result.data.transcript.messages[0].role).toBe("user");
+      expect(result.data.transcript.messages[1].role).toBe("assistant");
+      expect(result.data.transcript.status).toBe("success");
+    }
+  });
+
+  it("surfaces latency and status chips in TestProfileResponse", () => {
+    const testResponseWithStatus = {
+      profileId: "9d5b1c49-6579-476a-b8f1-f6cc35654820",
+      success: true,
+      latencyMs: 145,
+      totalTimeMs: 200,
+      modelName: "gpt-4o",
+      truncatedResponse: "Response",
+      transcript: {
+        messages: [
+          { role: "user", text: "Test", truncated: false },
+          { role: "assistant", text: "Response", truncated: false },
+        ],
+        status: "success",
+        latencyMs: 145,
+        errorCode: null,
+        remediation: null,
+      },
+    };
+    
+    const result = ContractModule.TestProfileResponseSchema.safeParse(testResponseWithStatus);
+    expect(result.success).toBe(true);
+    
+    if (result.success) {
+      expect(result.data.latencyMs).toBe(145);
+      expect(result.data.transcript.latencyMs).toBe(145);
+      expect(result.data.transcript.status).toBe("success");
+    }
+  });
+
+  it("omits transcript data for failures in TestProfileResponse", () => {
+    const testResponseFailure = {
+      profileId: "9d5b1c49-6579-476a-b8f1-f6cc35654820",
+      success: false,
+      latencyMs: null,
+      totalTimeMs: 1500,
+      modelName: null,
+      truncatedResponse: null,
+      transcript: {
+        messages: [],
+        status: "error",
+        latencyMs: null,
+        errorCode: "CONNECTION_FAILED",
+        remediation: "Check your network connection",
+      },
+    };
+    
+    const result = ContractModule.TestProfileResponseSchema.safeParse(testResponseFailure);
+    expect(result.success).toBe(true);
+    
+    if (result.success) {
+      expect(result.data.success).toBe(false);
+      expect(result.data.transcript.messages).toHaveLength(0);
+      expect(result.data.transcript.status).toBe("error");
+      expect(result.data.transcript.errorCode).toBe("CONNECTION_FAILED");
+    }
+  });
 });
