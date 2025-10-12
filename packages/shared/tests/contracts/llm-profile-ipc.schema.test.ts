@@ -11,9 +11,11 @@ import {
   SafeStorageOutageStateSchema,
   DiagnosticsBreadcrumbSchema,
   ProfileIpcRequestEnvelopeSchema,
+  TestProfileResponseSchema,
   sanitizeProfileSummaries,
   sanitizePromptPreview,
   ensureProfileCorrelationId,
+  sanitizeDiagnosticsMetadata,
   type ProfileIpcChannel,
   type OperatorContext,
   type DraftProfile,
@@ -456,5 +458,146 @@ describe("ensureProfileCorrelationId", () => {
   it("generates UUID for invalid correlation ID", () => {
     const result = ensureProfileCorrelationId("not-a-uuid");
     expect(result).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  });
+});
+
+describe("TestProfileResponseSchema", () => {
+  const baseResponse = {
+    profileId: "9f1a4a1a-7b11-4a12-a9f0-0a6f4ce04f65",
+    success: true,
+    latencyMs: 123,
+    totalTimeMs: 234,
+    modelName: "llama-7b",
+    truncatedResponse: "Hi there",
+    transcript: {
+      messages: [
+        { role: "user" as const, text: "Hello", truncated: false },
+        { role: "assistant" as const, text: "Hi there", truncated: false },
+      ],
+      status: "success" as const,
+      latencyMs: 123,
+      errorCode: null,
+      remediation: null,
+    },
+  };
+
+  it("accepts successful response with transcript", () => {
+    expect(() => TestProfileResponseSchema.parse(baseResponse)).not.toThrow();
+  });
+
+  it("requires transcript.status field", () => {
+    const { transcript, ...rest } = baseResponse;
+    const { status, ...transcriptWithoutStatus } = transcript;
+    const response = { ...rest, transcript: transcriptWithoutStatus };
+    expect(() => TestProfileResponseSchema.parse(response)).toThrow(/status/);
+  });
+
+  it("validates transcript.messages array structure", () => {
+    const response = {
+      ...baseResponse,
+      transcript: {
+        ...baseResponse.transcript,
+        messages: [{ role: "user" as const, text: "Hello" }], // missing truncated
+      },
+    };
+    expect(() => TestProfileResponseSchema.parse(response)).toThrow();
+  });
+
+  it("requires transcript.messages[0].role to be present", () => {
+    const response = {
+      ...baseResponse,
+      transcript: {
+        ...baseResponse.transcript,
+        messages: [{ text: "Hello", truncated: false }],
+      },
+    };
+    expect(() => TestProfileResponseSchema.parse(response)).toThrow(/role/);
+  });
+
+  it("validates transcript.messages[0].truncated boolean", () => {
+    const response = {
+      ...baseResponse,
+      transcript: {
+        ...baseResponse.transcript,
+        messages: [{ role: "user" as const, text: "Hello", truncated: "false" }],
+      },
+    };
+    expect(() => TestProfileResponseSchema.parse(response)).toThrow();
+  });
+
+  it("accepts error response with empty transcript", () => {
+    const response = {
+      ...baseResponse,
+      success: false,
+      latencyMs: null,
+      transcript: {
+        messages: [],
+        status: "error" as const,
+        latencyMs: null,
+        errorCode: "CONNECTION_FAILED",
+        remediation: "Check network",
+      },
+    };
+    expect(() => TestProfileResponseSchema.parse(response)).not.toThrow();
+  });
+
+  it("accepts timeout response", () => {
+    const response = {
+      ...baseResponse,
+      success: false,
+      latencyMs: null,
+      transcript: {
+        messages: [],
+        status: "timeout" as const,
+        latencyMs: null,
+        errorCode: "TIMEOUT",
+        remediation: "Increase timeout",
+      },
+    };
+    expect(() => TestProfileResponseSchema.parse(response)).not.toThrow();
+  });
+});
+
+describe("sanitizeDiagnosticsMetadata", () => {
+  it("redacts messagePreview to 120 characters", () => {
+    const longMessage = "a".repeat(200);
+    const metadata = { messagePreview: longMessage, other: "data" };
+    const sanitized = sanitizeDiagnosticsMetadata(metadata);
+    expect(sanitized.messagePreview).toBeDefined();
+    expect((sanitized.messagePreview as string).length).toBeLessThanOrEqual(120);
+  });
+
+  it("preserves historyDepth field", () => {
+    const metadata = { historyDepth: 3, messagePreview: "test" };
+    const sanitized = sanitizeDiagnosticsMetadata(metadata);
+    expect(sanitized.historyDepth).toBe(3);
+  });
+
+  it("returns empty object for null metadata", () => {
+    const sanitized = sanitizeDiagnosticsMetadata(null);
+    expect(sanitized).toEqual({});
+  });
+
+  it("returns empty object for undefined metadata", () => {
+    const sanitized = sanitizeDiagnosticsMetadata(undefined);
+    expect(sanitized).toEqual({});
+  });
+
+  it("preserves other metadata fields", () => {
+    const metadata = { 
+      messagePreview: "test", 
+      historyDepth: 2, 
+      correlationId: "test-id",
+      otherField: "value" 
+    };
+    const sanitized = sanitizeDiagnosticsMetadata(metadata);
+    expect(sanitized.correlationId).toBe("test-id");
+    expect(sanitized.otherField).toBe("value");
+  });
+
+  it("handles messagePreview shorter than limit", () => {
+    const metadata = { messagePreview: "short message", historyDepth: 1 };
+    const sanitized = sanitizeDiagnosticsMetadata(metadata);
+    expect(sanitized.messagePreview).toBe("short message");
   });
 });
