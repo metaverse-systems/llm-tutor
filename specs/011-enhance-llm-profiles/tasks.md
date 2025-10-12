@@ -48,11 +48,11 @@
 - [x] **T020** Ensure `apps/desktop/src/main/diagnostics/profile-ipc.recorder.ts` correctly sanitizes/saves transcript metadata with updated schema imports.
 
 ### Phase 3.7: Frontend State & UI Implementation
-- [ ] **T021** Extend `apps/frontend/src/types/llm-api.ts` and `apps/frontend/src/hooks/useLLMProfiles.ts` to persist per-profile transcript history (max three), expose helpers for clearing on profile change, and propagate transcript + remediation details to callers.
-- [ ] **T022** Introduce a dedicated transcript UI component (e.g., `apps/frontend/src/components/LLMProfiles/TestTranscriptPanel.tsx`) that renders message pairs with status chips, truncation badges, and controlled focus management.
-- [ ] **T023** Refactor `apps/frontend/src/components/LLMProfiles/TestConnectionButton.tsx` to orchestrate the new component: handle loading/error states, manage collapse toggles, announce updates via aria-live, and keep retry prompt intact.
-- [ ] **T024** Integrate the transcript panel within `apps/frontend/src/pages/settings/LLMProfiles.tsx`, including aria hooks, clearing behavior when switching profiles or closing dialogs, and live region updates referencing quickstart.md.
-- [ ] **T025** Update styling in `apps/frontend/src/styles/tailwind.css` (and any scoped styles) to support the transcript container, status pills, reduced-motion transitions, and responsive layout without breaking existing classes.
+- [x] **T021** Extend `apps/frontend/src/types/llm-api.ts` and `apps/frontend/src/hooks/useLLMProfiles.ts` to persist per-profile transcript history (max three), expose helpers for clearing on profile change, and propagate transcript + remediation details to callers.
+- [x] **T022** Introduce a dedicated transcript UI component (e.g., `apps/frontend/src/components/LLMProfiles/TestTranscriptPanel.tsx`) that renders message pairs with status chips, truncation badges, and controlled focus management.
+- [x] **T023** Refactor `apps/frontend/src/components/LLMProfiles/TestConnectionButton.tsx` to orchestrate the new component: handle loading/error states, manage collapse toggles, announce updates via aria-live, and keep retry prompt intact.
+- [x] **T024** Integrate the transcript panel within `apps/frontend/src/pages/settings/LLMProfiles.tsx`, including aria hooks, clearing behavior when switching profiles or closing dialogs, and live region updates referencing quickstart.md.
+- [x] **T025** Update styling in `apps/frontend/src/styles/tailwind.css` (and any scoped styles) to support the transcript container, status pills, reduced-motion transitions, and responsive layout without breaking existing classes.
 
 ### Phase 3.8: Playwright Harness & Accessibility Polish
 - [ ] **T026 [P]** Adjust Playwright config or helpers (web) if new specs require registration, additional fixtures, or axe exclusions for the transcript region.
