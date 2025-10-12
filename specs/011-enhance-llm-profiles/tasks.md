@@ -43,9 +43,9 @@
 - [x] **T017** Enhance `apps/backend/src/infra/logging/diagnostics-logger.ts` to redact transcript messages (500-char limit), include `messagePreview`, and persist `historyDepth` metadata without exposing raw prompts.
 
 ### Phase 3.6: Desktop IPC & Diagnostics Integration
-- [ ] **T018** Adjust `apps/desktop/src/main/ipc/profile-ipc.router.ts` to map backend transcripts into the IPC response, normalize previews, enrich breadcrumbs with `{ messagePreview, historyDepth }`, and respect request budget checks.
-- [ ] **T019** Update `apps/desktop/tests/tools/profileIpcHarness.ts` (and related mocks) so overrides accept transcript payloads and align with the enriched contract.
-- [ ] **T020** Ensure `apps/desktop/src/main/diagnostics/profile-ipc.recorder.ts` correctly sanitizes/saves transcript metadata with updated schema imports.
+- [x] **T018** Adjust `apps/desktop/src/main/ipc/profile-ipc.router.ts` to map backend transcripts into the IPC response, normalize previews, enrich breadcrumbs with `{ messagePreview, historyDepth }`, and respect request budget checks.
+- [x] **T019** Update `apps/desktop/tests/tools/profileIpcHarness.ts` (and related mocks) so overrides accept transcript payloads and align with the enriched contract.
+- [x] **T020** Ensure `apps/desktop/src/main/diagnostics/profile-ipc.recorder.ts` correctly sanitizes/saves transcript metadata with updated schema imports.
 
 ### Phase 3.7: Frontend State & UI Implementation
 - [ ] **T021** Extend `apps/frontend/src/types/llm-api.ts` and `apps/frontend/src/hooks/useLLMProfiles.ts` to persist per-profile transcript history (max three), expose helpers for clearing on profile change, and propagate transcript + remediation details to callers.
